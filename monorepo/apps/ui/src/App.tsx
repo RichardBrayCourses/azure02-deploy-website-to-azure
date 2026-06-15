@@ -1,15 +1,14 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Header from "./components/Header";
 import AuthProvider, { useAuth } from "./context/AuthContext";
 import ThemeProvider, { useTheme } from "./context/ThemeContext";
+import { getDefaultConsolePath } from "./data/console";
 import {
-  AdminHome,
   CaseDetailPage,
   CaseManagementHome,
   TaskDetailPage,
   OperationalParticipantsPage,
   OperationalParticipantDetailPage,
-  ConsoleHome,
   PlaceholderResourcePage,
   VerificationPortalPage,
 } from "./pages/ConsolePages";
@@ -29,9 +28,9 @@ const AppContent = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
       <Routes>
-        <Route path="/" element={<ConsoleHome />} />
+        <Route path="/" element={<Navigate to={getDefaultConsolePath(user.role)} replace />} />
 
-        <Route path="/admin" element={<AdminHome />} />
+        <Route path="/admin" element={<Navigate to="/admin/operational-participants" replace />} />
         <Route path="/admin/operational-participants" element={<OperationalParticipantsPage />} />
         <Route path="/admin/operational-participants/:operationalParticipantId" element={<OperationalParticipantDetailPage />} />
         <Route path="/admin/case-types" element={<PlaceholderResourcePage app="admin" />} />

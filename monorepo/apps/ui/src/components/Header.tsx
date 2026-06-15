@@ -12,6 +12,7 @@ import { getUserRoleLabel, useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import {
   getConsoleAppsForRole,
+  getDefaultConsolePath,
   getOperationalParticipant,
   getOwningOrganisation,
   getSearchItemsForUser,
@@ -166,7 +167,7 @@ const Header = () => {
         </DropdownMenu>
 
         <Button asChild variant="ghost" className="h-10 px-2 text-white hover:bg-white/10 hover:text-white">
-          <Link to="/" className="text-base font-bold tracking-normal">
+          <Link to={getDefaultConsolePath(user.role)} className="text-base font-bold tracking-normal">
             CaseFlow Console
           </Link>
         </Button>

@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { ConsoleLayout, MetricStrip, PageTitle, Tabs } from "@/components/ConsoleLayout";
-import { getUserRoleLabel, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import {
   adminResources,
   getCase,
   getTask,
   getOperationalParticipant,
-  getConsoleAppsForRole,
   getOwningOrganisation,
   getScopedCases,
   getScopedOperationalParticipants,
@@ -15,14 +14,11 @@ import {
 import { cn } from "@/lib/utils";
 import {
   Activity,
-  BadgeCheck,
   CheckCircle2,
   Clock3,
-  ExternalLink,
   FileText,
   History,
   Plus,
-  ShieldAlert,
   Upload,
 } from "lucide-react";
 import { ReactNode } from "react";
@@ -86,159 +82,6 @@ function ResourceTable({
         </table>
       </div>
     </div>
-  );
-}
-
-export function ConsoleHome() {
-  const { user } = useAuth();
-  const availableApps = getConsoleAppsForRole(user.role);
-  const isInterestedParty = user.role === "interested-party";
-  const isProvider = user.role === "operational-participant";
-  const owningOrganisation = getOwningOrganisation(user.owningOrganisationId ?? undefined);
-  const scopedOperationalParticipants = getScopedOperationalParticipants(user);
-  const scopedCases = getScopedCases(user);
-  const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
-  const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
-  const attentionCount = scopedCases.filter((caseRecord) => caseRecord.risk === "high").length;
-  const primaryParticipant = scopedOperationalParticipants[0];
-  const primaryCase = scopedCases[0];
-
-  return (
-    <ConsoleLayout breadcrumbs={[]}>
-      <PageTitle
-        eyebrow="Console home"
-        title="CaseFlow Console"
-        description={`${getUserRoleLabel(user.role)} view for ${
-          isInterestedParty
-            ? "checking case assurance status."
-            : isProvider
-              ? "completing assigned case tasks."
-              : "configuring case types, participants, and workflow."
-        }`}
-        actions={!isInterestedParty &&
-          <Button asChild>
-            <Link to={isProvider ? "/cases" : "/admin/operational-participants"}>
-              <Plus />
-              {isProvider ? "Create case" : "Add operational participant"}
-            </Link>
-          </Button>
-        }
-      />
-
-      <MetricStrip
-        items={
-          isInterestedParty
-            ? [
-                { label: "Cases watched", value: "3", tone: "blue" },
-                { label: "Outcomes verified", value: "1", tone: "green" },
-                { label: "In progress", value: "2", tone: "yellow" },
-                { label: "Failed tasks", value: "0", tone: "green" },
-              ]
-              : isProvider
-              ? [
-                  { label: "Current participant", value: primaryParticipant?.name ?? "None", tone: "blue" },
-                  { label: "Active case", value: primaryCase?.title ?? "None", tone: "yellow" },
-                  { label: "Completed tasks", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
-                  { label: "Needs attention", value: String(attentionCount), tone: "red" },
-                ]
-              : [
-                  { label: "Open cases", value: String(scopedCases.filter((caseRecord) => caseRecord.status !== "closed").length), tone: "blue" },
-                  { label: "Tasks complete", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
-                  { label: "Needs attention", value: String(attentionCount), tone: "red" },
-                  { label: "Owning organisation", value: owningOrganisation?.name ?? "None", tone: "yellow" },
-                ]
-        }
-      />
-
-      <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Apps</h3>
-        <div className="grid gap-4 md:grid-cols-2">
-          {availableApps.map((app) => {
-            const Icon = app.Icon;
-            return (
-              <Link
-                key={app.id}
-                to={app.path}
-                className="group border border-[#b1b4b6] bg-white p-5 shadow-sm hover:border-[#1d70b8] hover:shadow-md dark:bg-card"
-              >
-                <span className={cn("mb-4 flex size-12 items-center justify-center rounded-sm text-white", app.accent)}>
-                  <Icon className="size-6" />
-                </span>
-                <span className="flex items-center gap-2 text-2xl font-bold text-[#1d70b8] group-hover:underline">
-                  {app.name}
-                  <ExternalLink className="size-4" />
-                </span>
-                <span className="mt-2 block text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-                  {app.description}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="mt-8 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-        <div>
-          <h3 className="mb-3 text-xl font-bold">
-            {isInterestedParty ? "Watched cases" : "Recently visited"}
-          </h3>
-          <div className="grid gap-3">
-            {scopedCases.slice(0, 2).map((caseRecord) => {
-              const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
-              return (
-                <Link
-                  key={caseRecord.id}
-                  to={isInterestedParty ? "/verification" : `/cases/${caseRecord.id}`}
-                  className="border border-[#b1b4b6] bg-white p-4 hover:border-[#1d70b8] dark:bg-card"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-bold text-[#1d70b8]">{caseRecord.title}</p>
-                      <p className="text-sm text-[#505a5f] dark:text-muted-foreground">{operationalParticipant?.name}</p>
-                    </div>
-                    <StatusBadge status={caseRecord.status} />
-                  </div>
-                  <div className="mt-4">
-                    <ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <h3 className="mb-3 text-xl font-bold">
-            {isInterestedParty ? "Latest assurance update" : "Attention queue"}
-          </h3>
-          <div className="border border-[#b1b4b6] bg-white p-4 dark:bg-card">
-            <div className="flex gap-3">
-              {isInterestedParty ? (
-                <BadgeCheck className="mt-1 size-5 text-[#00703c]" />
-              ) : (
-                <ShieldAlert className="mt-1 size-5 text-[#d4351c]" />
-              )}
-              <div>
-                <p className="font-bold">
-                  {isInterestedParty
-                    ? "Pinebridge Borough Council permit renewal is approved"
-                    : "Controls declaration form needs review"}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-                  {isInterestedParty
-                    ? "Interested parties can see completed tasks, visible evidence, and the current outcome."
-                    : "Northstar Trade Association has an unsigned controls declaration due on 21 Jun 2026."}
-                </p>
-                <Button asChild variant="outline" className="mt-4">
-                  <Link to={isInterestedParty ? "/verification" : primaryCase ? `/cases/${primaryCase.id}` : "/cases"}>
-                    {isInterestedParty ? "Open portal" : "Open task"}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </ConsoleLayout>
   );
 }
 

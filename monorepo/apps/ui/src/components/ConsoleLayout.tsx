@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -32,17 +32,9 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
 
   return (
     <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-sm">
-      <button
-        className="flex items-center gap-1 font-bold text-[#1d70b8] hover:underline"
-        type="button"
-        onClick={() => go("/")}
-      >
-        <Home className="size-4" />
-        Console home
-      </button>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <span key={`${item.label}-${item.path ?? "current"}`} className="flex items-center gap-1">
-          <ChevronRight className="size-4 text-[#505a5f]" />
+          {index > 0 && <ChevronRight className="size-4 text-[#505a5f]" />}
           {item.path ? (
             <button
               className="font-bold text-[#1d70b8] hover:underline"

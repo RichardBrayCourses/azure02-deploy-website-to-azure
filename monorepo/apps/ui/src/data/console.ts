@@ -91,7 +91,7 @@ export const consoleApps: ConsoleApp[] = [
     name: "Administration",
     shortName: "Admin",
     description: "Manage organisations, case types, roles, workflows, and review queues.",
-    path: "/admin",
+    path: "/admin/operational-participants",
     accent: "bg-[#1d70b8]",
     Icon: Landmark,
     audience: ["owning-organisation-admin"],
@@ -415,6 +415,12 @@ export const searchItems: SearchItem[] = [
 
 export function getConsoleAppsForRole(role: UserRole) {
   return consoleApps.filter((app) => app.audience.includes(role));
+}
+
+export function getDefaultConsolePath(role: UserRole) {
+  if (role === "interested-party") return "/verification";
+  if (role === "owning-organisation-admin") return "/admin/operational-participants";
+  return "/cases";
 }
 
 export function getSearchItemsForUser(user: AuthenticatedUser) {
