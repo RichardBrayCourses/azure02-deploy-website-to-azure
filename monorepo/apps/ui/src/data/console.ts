@@ -311,6 +311,9 @@ export type Task = {
   domainStatus: CaseTaskStatus;
   due: string;
   description: string;
+  responseText: string;
+  evidenceFiles: Array<{ name: string; size: string; uploadedAt: string }>;
+  updatedAt: string;
   Icon: typeof ImageUp;
 };
 
@@ -1464,6 +1467,18 @@ function buildCaseRecords(): CaseRecord[] {
         const taskDto = caseTask.toDto();
         const templateTask = db.caseTemplateTasks.find((item) => item.id === taskDto.caseTemplateTaskId)?.toDto();
         const taskType = db.taskTypes.find((item) => item.id === templateTask?.taskTypeId)?.toDto();
+        const evidenceFiles = Array.isArray(taskDto.evidenceJson.files)
+          ? taskDto.evidenceJson.files
+              .filter((file): file is { name: string; size: string; uploadedAt: string } => {
+                if (!file || typeof file !== "object") return false;
+                const candidate = file as Record<string, unknown>;
+                return (
+                  typeof candidate.name === "string" &&
+                  typeof candidate.size === "string" &&
+                  typeof candidate.uploadedAt === "string"
+                );
+              })
+          : [];
         return {
           id: taskDto.id,
           title: templateTask?.title ?? "Task",
@@ -1472,6 +1487,9 @@ function buildCaseRecords(): CaseRecord[] {
           domainStatus: taskDto.status,
           due: typeof templateTask?.parametersJson.due === "string" ? templateTask.parametersJson.due : "No due date",
           description: templateTask?.description ?? "",
+          responseText: typeof taskDto.responseJson.summary === "string" ? taskDto.responseJson.summary : "",
+          evidenceFiles,
+          updatedAt: taskDto.updatedAt,
           Icon: iconByTaskCode[taskType?.code ?? "UPLOAD_DOCUMENT"] ?? ImageUp,
         };
       });

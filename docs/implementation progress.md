@@ -23,7 +23,7 @@ Use this file to understand:
 
 # Current Status Summary
 
-Phase 1, Phase 1.5 and Phase 2 are complete.
+Phase 1, Phase 1.5, Phase 2, Phase 3 and Phase 4 are complete.
 
 The app now has:
 
@@ -38,8 +38,9 @@ The app now has:
 - Shared `ResourceActionPanel` pattern for CRUD/action forms
 - Authority/Participant/Stakeholder case experience partially separated by role
 - Authority setup CRUD flows for participants, participant users, stakeholders, stakeholder users and stakeholder access
+- Participant task response, evidence upload, task submission and case submission flows
 
-The next implementation work should start Phase 4: Participant Case Workflow.
+The next implementation work should start Phase 5: Authority Review Workflow.
 
 ---
 
@@ -281,7 +282,7 @@ Acceptance covered:
 Status:
 
 ```text
-Partially started
+Complete
 ```
 
 Stories covered:
@@ -301,6 +302,12 @@ Already implemented:
 - Participant users can open task workbench screens
 - Authority users are blocked from direct task workbench access
 - Stakeholders are blocked from participant task workbench access
+- Participant users can save simple task responses through `db.completeTask(...)`
+- Participant users can upload fake evidence metadata through `db.uploadEvidence(...)`
+- Participant users can submit tasks through `db.submitTask(...)`
+- Participant users can submit a case through `db.submitCase(...)` once active tasks are ready
+- Participant case/task views show passed and failed review outcomes from domain status
+- Task detail reads persisted response, evidence metadata and last-updated timestamps from the domain view model
 
 Domain support:
 
@@ -317,18 +324,17 @@ db.submitTask(...)
 db.submitCase(...)
 ```
 
-UI work remaining:
+Acceptance covered:
 
-- Replace mock task buttons with real command calls
-- Add simple response form
-- Add fake evidence metadata upload
-- Submit task using domain command
-- Submit case using domain command
-- Show review outcomes from domain data
-
-Important note:
-
-The current task detail page still uses local `isEdited` state and mock upload/submit behaviour. It does not yet call the domain commands.
+- Participant user sees only scoped cases
+- Participant user can open scoped cases and task workbench screens
+- Task response saves to `responseJson`
+- Evidence upload stores file metadata only
+- Submitted task status is persisted by the domain command
+- Submit case is disabled until all active tasks are submitted or passed
+- Failed and passed task outcomes are visible to the participant
+- `npm run type-check` passes
+- `npm run build` passes
 
 ---
 
@@ -534,13 +540,13 @@ Do not implement this before the main user-story flows unless activity accuracy 
 Recommended immediate next step:
 
 ```text
-Start Phase 4 with real Participant task completion, evidence upload metadata, task submission and case submission.
+Start Phase 5 with Authority review controls for submitted participant tasks.
 ```
 
 Suggested agent prompt:
 
 ```text
-Please implement Phase 4, first slice: Participant task workbench commands.
+Please implement Phase 5: Authority review workflow.
 
 Read:
 - fullhandover.md
@@ -550,13 +556,12 @@ Read:
 
 Requirements:
 - Preserve the login screen
-- Keep Authority users out of the participant task workbench
-- Wire TaskDetailPage to domain commands
+- Keep participant users out of authority review controls
+- Add authority review controls for submitted tasks
 - Use useDomainData()
-- Implement response_json editing with db.completeTask(...)
-- Implement fake evidence metadata upload with db.uploadEvidence(...)
-- Implement task submission with db.submitTask(...)
+- Call db.reviewTask(caseTaskId, "PASSED" | "FAILED")
 - Call refresh() after mutations
+- Show updated case and task status
 - Keep the existing UI style
 - Run npm run type-check and npm run build
 ```

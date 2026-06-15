@@ -26,13 +26,13 @@ import {
 } from "@/data/console";
 import { cn } from "@/lib/utils";
 import {
-  Activity,
   CheckCircle2,
   Clock3,
-  FileText,
   History,
   Plus,
   Rocket,
+  Save,
+  SendHorizontal,
   Upload,
   UserPlus,
 } from "lucide-react";
@@ -1424,15 +1424,35 @@ export function CaseManagementHome() {
 
 export function CaseDetailPage() {
   const { user } = useAuth();
-  if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
+  const { db, refresh } = useDomainData();
   const { caseId } = useParams();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   const caseRecord = getCase(caseId);
   if (!caseRecord) return <Navigate to="/cases" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
   if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/cases" replace />;
 
+  const currentCase = caseRecord;
   const participant = getParticipant(caseRecord.participantId);
   const tasks = caseRecord.tasks;
+  const canSubmitCase =
+    user.role === "participant" &&
+    caseRecord.domainStatus !== "SUBMITTED" &&
+    caseRecord.domainStatus !== "APPROVED" &&
+    caseRecord.domainStatus !== "CLOSED" &&
+    tasks.length > 0 &&
+    tasks.every((task) => task.domainStatus === "SUBMITTED" || task.domainStatus === "PASSED" || task.domainStatus === "WITHDRAWN");
+
+  function submitCase() {
+    setSubmitError(null);
+    try {
+      db.submitCase(currentCase.id);
+      refresh();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "The case could not be submitted.");
+    }
+  }
 
   return (
     <ConsoleLayout
@@ -1448,7 +1468,16 @@ export function CaseDetailPage() {
         eyebrow="Case"
         title={caseRecord.title}
         description={`${participant?.name ?? "Unknown participant"} ${caseRecord.caseType.toLowerCase()} for task completion, evidence collection, review, and outcome visibility.`}
+        actions={
+          user.role === "participant" ? (
+            <Button type="button" onClick={submitCase} disabled={!canSubmitCase}>
+              <SendHorizontal />
+              Submit case
+            </Button>
+          ) : undefined
+        }
       />
+      <FormError message={submitError} />
       <Tabs
         current="Summary"
         tabs={
@@ -1516,8 +1545,18 @@ export function CaseDetailPage() {
                       <span className="block text-lg font-bold text-[#1d70b8]">{task.title}</span>
                       <span className="mt-1 block text-sm text-[#505a5f] dark:text-muted-foreground">{task.description}</span>
                       <span className="mt-2 block text-xs font-bold text-[#505a5f] dark:text-muted-foreground">
-                        Due: {task.due}
+                        Due: {task.due} · Status: {task.domainStatus.replace("_", " ")}
                       </span>
+                      {task.domainStatus === "FAILED" && (
+                        <span className="mt-2 block text-sm font-bold text-[#d4351c]">
+                          Review outcome: more evidence requested.
+                        </span>
+                      )}
+                      {task.domainStatus === "PASSED" && (
+                        <span className="mt-2 block text-sm font-bold text-[#00703c]">
+                          Review outcome: passed.
+                        </span>
+                      )}
                     </span>
                     <span className="self-start"><StatusBadge status={task.status} /></span>
                   </Link>
@@ -1533,31 +1572,99 @@ export function CaseDetailPage() {
 
 export function TaskDetailPage() {
   const { user } = useAuth();
+  const { db, refresh } = useDomainData();
   const { caseId, taskId } = useParams();
   const [isEdited, setIsEdited] = useState(false);
+  const [responseText, setResponseText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const caseRecord = getCase(caseId);
+  const task = getTask(caseId, taskId);
 
   useEffect(() => {
+    if (!task) return;
+    setResponseText(task.responseText);
     setIsEdited(false);
-  }, [caseId, taskId]);
+    setError(null);
+  }, [task?.id, task?.responseText]);
 
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "authority-admin") return <Navigate to={`/cases/${caseId ?? ""}`} replace />;
 
-  const caseRecord = getCase(caseId);
-  const task = getTask(caseId, taskId);
   if (!caseRecord || !task) return <Navigate to="/cases" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
   if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/cases" replace />;
 
+  const currentTask = task;
   const participant = getParticipant(caseRecord.participantId);
   const Icon = task.Icon;
+  const canEditTask = task.domainStatus !== "SUBMITTED" && task.domainStatus !== "PASSED" && task.domainStatus !== "WITHDRAWN";
+  const canSubmitTask =
+    task.domainStatus !== "SUBMITTED" &&
+    task.domainStatus !== "PASSED" &&
+    task.domainStatus !== "WITHDRAWN" &&
+    (responseText.trim().length > 0 || task.evidenceFiles.length > 0);
+  const statusText = task.domainStatus.replace("_", " ");
 
-  function uploadEvidence() {
-    setIsEdited(true);
+  function saveResponse() {
+    setError(null);
+    try {
+      db.completeTask({
+        caseTaskId: currentTask.id,
+        responseJson: {
+          summary: responseText.trim(),
+          savedAt: new Date().toISOString(),
+        },
+      });
+      refresh();
+      setIsEdited(false);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "The task response could not be saved.");
+    }
+  }
+
+  function uploadEvidence(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError(null);
+    const uploadedAt = new Date().toISOString();
+    const nextFiles = [
+      ...currentTask.evidenceFiles,
+      ...Array.from(files).map((file) => ({
+        name: file.name,
+        size: `${Math.max(1, Math.round(file.size / 1024))} KB`,
+        uploadedAt,
+      })),
+    ];
+    try {
+      db.uploadEvidence({
+        caseTaskId: currentTask.id,
+        evidenceJson: {
+          files: nextFiles,
+        },
+      });
+      refresh();
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Evidence metadata could not be uploaded.");
+    }
   }
 
   function submitTaskUpdate() {
-    setIsEdited(false);
+    setError(null);
+    try {
+      if (isEdited) {
+        db.completeTask({
+          caseTaskId: currentTask.id,
+          responseJson: {
+            summary: responseText.trim(),
+            savedAt: new Date().toISOString(),
+          },
+        });
+      }
+      db.submitTask(currentTask.id);
+      refresh();
+      setIsEdited(false);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "The task could not be submitted.");
+    }
   }
 
   return (
@@ -1572,19 +1679,35 @@ export function TaskDetailPage() {
         { label: task.title },
       ]}
       isEdited={isEdited}
-      onAffirmativeAction={submitTaskUpdate}
+      onAffirmativeAction={saveResponse}
     >
       <PageTitle
         eyebrow="Task"
         title={task.title}
         description={task.description}
         actions={
-          <Button onClick={uploadEvidence}>
-            <Upload />
+          <label
+            className={cn(
+              "inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-sm bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90",
+              !canEditTask && "pointer-events-none opacity-50",
+            )}
+          >
+            <Upload className="size-4" />
             Upload
-          </Button>
+            <input
+              className="sr-only"
+              disabled={!canEditTask}
+              multiple
+              type="file"
+              onChange={(event) => {
+                uploadEvidence(event.target.files);
+                event.target.value = "";
+              }}
+            />
+          </label>
         }
       />
+      <FormError message={error} />
       <Tabs
         current="Overview"
         tabs={[
@@ -1603,28 +1726,48 @@ export function TaskDetailPage() {
               <StatusBadge status={task.status} />
               <h3 className="mt-4 text-xl font-bold">Work area</h3>
               <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-                Manage evidence, generated review signals, submission state, and audit history for this case task.
+                Record the response and evidence for this case task, then submit it when it is ready for authority review.
               </p>
             </div>
           </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {[
-              { label: "Upload", Icon: Upload },
-              { label: "View", Icon: FileText },
-              { label: "Review", Icon: CheckCircle2 },
-              { label: "Submit", Icon: Activity },
-            ].map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                className="flex items-center gap-3 border border-[#b1b4b6] bg-[#f8f8f8] p-4 text-left font-bold hover:border-[#1d70b8] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-background"
-                onClick={action.label === "Upload" ? uploadEvidence : action.label === "Submit" ? submitTaskUpdate : undefined}
-                disabled={action.label === "Submit" && !isEdited}
-              >
-                <action.Icon className="size-5 text-[#1d70b8]" />
-                {action.label}
-              </button>
-            ))}
+          <div className="mt-6 grid gap-4">
+            <FormField label="Response">
+              <textarea
+                className="min-h-36 w-full border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-input/30"
+                disabled={!canEditTask}
+                value={responseText}
+                onChange={(event) => {
+                  setResponseText(event.target.value);
+                  setIsEdited(event.target.value !== task.responseText);
+                }}
+              />
+            </FormField>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={saveResponse} disabled={!isEdited || !canEditTask}>
+                <Save />
+                Save response
+              </Button>
+              <Button type="button" onClick={submitTaskUpdate} disabled={!canSubmitTask}>
+                <SendHorizontal />
+                Submit task
+              </Button>
+            </div>
+            <div>
+              <h4 className="mb-2 text-base font-bold">Evidence</h4>
+              {task.evidenceFiles.length === 0 ? (
+                <p className="text-sm text-[#505a5f] dark:text-muted-foreground">No evidence metadata has been uploaded.</p>
+              ) : (
+                <ResourceTable headings={["File", "Size", "Uploaded"]}>
+                  {task.evidenceFiles.map((file) => (
+                    <tr key={`${file.name}-${file.uploadedAt}`} className="border-b border-[#b1b4b6] last:border-b-0">
+                      <td className="px-4 py-3 font-bold text-[#1d70b8]">{file.name}</td>
+                      <td className="px-4 py-3">{file.size}</td>
+                      <td className="px-4 py-3">{new Date(file.uploadedAt).toLocaleString("en-GB")}</td>
+                    </tr>
+                  ))}
+                </ResourceTable>
+              )}
+            </div>
           </div>
         </section>
         <aside className="border border-[#b1b4b6] bg-white p-5 dark:bg-card">
@@ -1639,14 +1782,24 @@ export function TaskDetailPage() {
               <dd>{task.type}</dd>
             </div>
             <div>
+              <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Review outcome</dt>
+              <dd className="capitalize">{statusText.toLowerCase()}</dd>
+              {task.domainStatus === "FAILED" && (
+                <dd className="mt-2 text-sm font-bold text-[#d4351c]">More evidence requested.</dd>
+              )}
+              {task.domainStatus === "PASSED" && (
+                <dd className="mt-2 text-sm font-bold text-[#00703c]">Passed authority review.</dd>
+              )}
+            </div>
+            <div>
               <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Timeline</dt>
               <dd className="mt-2 flex items-center gap-2">
                 <Clock3 className="size-4 text-[#1d70b8]" />
-                Last updated today
+                Last updated {new Date(task.updatedAt).toLocaleString("en-GB")}
               </dd>
               <dd className="mt-2 flex items-center gap-2">
                 <History className="size-4 text-[#1d70b8]" />
-                4 audit events
+                {task.evidenceFiles.length} evidence upload{task.evidenceFiles.length === 1 ? "" : "s"}
               </dd>
             </div>
           </dl>
