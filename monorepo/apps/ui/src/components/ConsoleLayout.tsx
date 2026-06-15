@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -14,10 +14,7 @@ type ConsoleLayoutProps = {
   appDescription?: string;
   breadcrumbs: Crumb[];
   actions?: ReactNode;
-  affirmativeActionLabel?: string;
-  affirmativeActionCompleteLabel?: string;
   isEdited?: boolean;
-  onAffirmativeAction?: () => void;
   readOnly?: boolean;
   children: ReactNode;
 };
@@ -64,12 +61,9 @@ export function Breadcrumbs({
 }
 
 export function ConsoleLayout({
-  affirmativeActionCompleteLabel = "Updated",
-  affirmativeActionLabel = "Save changes",
   breadcrumbs,
   actions,
   isEdited,
-  onAffirmativeAction,
   readOnly = false,
   children,
 }: ConsoleLayoutProps) {
@@ -77,21 +71,12 @@ export function ConsoleLayout({
   const isControlled = isEdited !== undefined;
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const hasEdits = readOnly ? false : isEdited ?? hasPendingChanges;
-  const affirmativeText = hasEdits || isControlled ? affirmativeActionLabel : affirmativeActionCompleteLabel;
 
   useEffect(() => {
     if (!isControlled) {
       setHasPendingChanges(false);
     }
   }, [isControlled, location.pathname]);
-
-  function completeAffirmativeAction() {
-    if (onAffirmativeAction) {
-      onAffirmativeAction();
-    } else {
-      setHasPendingChanges(false);
-    }
-  }
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-[#f8f8f8] text-[#0b0c0c] dark:bg-background dark:text-foreground">
@@ -103,20 +88,9 @@ export function ConsoleLayout({
 
       <div className="mx-auto w-full max-w-[1440px]">
         <main className="min-w-0 p-4 sm:p-6">
-          {(actions || !readOnly) && (
+          {actions && (
             <div className="mb-4 flex flex-wrap justify-end gap-2">
               {actions}
-              {!readOnly && (
-                <Button
-                  type="button"
-                  variant={hasEdits ? "default" : "outline"}
-                  onClick={completeAffirmativeAction}
-                  disabled={!hasEdits}
-                >
-                  <CheckCircle2 />
-                  {affirmativeText}
-                </Button>
-              )}
             </div>
           )}
           {children}

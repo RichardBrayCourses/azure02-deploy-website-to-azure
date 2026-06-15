@@ -540,8 +540,6 @@ export function StakeholdersPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Updated"
-      affirmativeActionLabel="Update"
       appName="Administration"
       appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
       breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Stakeholders" }]}
@@ -683,8 +681,6 @@ export function StakeholderDetailPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Saved"
-      affirmativeActionLabel="Save"
       appName="Administration"
       appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
       breadcrumbs={[
@@ -849,8 +845,6 @@ export function CaseTemplatesPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Updated"
-      affirmativeActionLabel="Update"
       appName="Administration"
       appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
       breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Case templates" }]}
@@ -1044,8 +1038,6 @@ export function CaseTemplateDetailPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Saved"
-      affirmativeActionLabel="Save"
       appName="Administration"
       appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
       breadcrumbs={[
@@ -1281,8 +1273,6 @@ export function AdminHome() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Applied"
-      affirmativeActionLabel="Apply"
       appName="Administration"
       appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
       breadcrumbs={[{ label: "Administration" }]}
@@ -1351,8 +1341,6 @@ export function ParticipantsPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Updated"
-      affirmativeActionLabel="Update"
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Participants" }]}
@@ -1469,8 +1457,6 @@ export function ParticipantDetailPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Saved"
-      affirmativeActionLabel="Save"
       appName="Administration"
       appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
       breadcrumbs={[
@@ -1944,8 +1930,6 @@ export function TaskDetailPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Submitted"
-      affirmativeActionLabel="Submit"
       appName="Case Management"
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
@@ -1954,7 +1938,6 @@ export function TaskDetailPage() {
         { label: task.title },
       ]}
       isEdited={isEdited}
-      onAffirmativeAction={saveResponse}
     >
       <PageTitle
         eyebrow="Task"
@@ -2122,8 +2105,6 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Updated"
-      affirmativeActionLabel="Update"
       appName={isAdmin ? "Administration" : "Case Management"}
       appDescription={isAdmin ? "Configuration for participants, stakeholders, case templates, task types, and review." : "Operational workspace for case tasks, forms, evidence, and workflow."}
       breadcrumbs={[
