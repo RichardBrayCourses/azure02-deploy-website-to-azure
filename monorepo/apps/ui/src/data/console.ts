@@ -29,7 +29,7 @@ export type TemplateParticipantStatus = "REQUIRED" | "EXEMPT";
 export type CaseStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CLOSED";
 export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
 export type UserAccountStatus = "ACTIVE" | "DISABLED";
-export type Status = "complete" | "in-progress" | "attention" | "not-started";
+export type Status = "complete" | "in-progress" | "attention" | "not-started" | "withdrawn";
 
 export type SystemOwnerId = string;
 export type AuthorityId = string;
@@ -365,6 +365,9 @@ export type CaseTemplateTask = {
   sortOrder: number;
   status: "ACTIVE" | "WITHDRAWN";
   createdAfterPublish: boolean;
+  withdrawnReason: string | null;
+  withdrawnAt: string | null;
+  withdrawnByUserId: UserAccountId | null;
 };
 
 export type CaseTemplateParticipant = {
@@ -410,6 +413,7 @@ function uiTaskStatus(status: CaseTaskStatus): Status {
   if (status === "PASSED" || status === "SUBMITTED") return "complete";
   if (status === "FAILED") return "attention";
   if (status === "IN_PROGRESS") return "in-progress";
+  if (status === "WITHDRAWN") return "withdrawn";
   return "not-started";
 }
 
@@ -855,6 +859,7 @@ export class InMemoryAllChecksOutDatabase {
               withdrawnAt: null,
             }),
           );
+          this.recalculateCaseStatus(caseRecord.id);
         });
     }
 
@@ -1442,7 +1447,9 @@ function buildTaskTypes(): TaskType[] {
 function buildCaseTemplates(): CaseTemplate[] {
   return db.caseTemplates.map((template) => {
     const dto = template.toDto();
-    const taskCount = db.caseTemplateTasks.filter((task) => task.toDto().caseTemplateId === dto.id).length;
+    const taskCount = db.caseTemplateTasks
+      .map((task) => task.toDto())
+      .filter((task) => task.caseTemplateId === dto.id && task.status === "ACTIVE").length;
     const participantCount = db.caseTemplateParticipants.filter((participant) => participant.toDto().caseTemplateId === dto.id).length;
     return {
       id: dto.id,
@@ -1788,6 +1795,9 @@ export function getCaseTemplateTasks(caseTemplateId: string | undefined): CaseTe
         sortOrder: task.sortOrder,
         status: task.status,
         createdAfterPublish: task.createdAfterPublish,
+        withdrawnReason: task.withdrawnReason,
+        withdrawnAt: task.withdrawnAt,
+        withdrawnByUserId: task.withdrawnByUserId,
       };
     });
 }

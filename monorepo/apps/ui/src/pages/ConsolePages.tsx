@@ -47,6 +47,7 @@ function StatusBadge({ status }: { status: Status | "open" | "closed" | "review"
     "in-progress": "bg-[#1d70b8] text-white",
     attention: "bg-[#d4351c] text-white",
     "not-started": "bg-[#f3f2f1] text-[#0b0c0c] ring-1 ring-[#b1b4b6]",
+    withdrawn: "bg-[#505a5f] text-white",
     open: "bg-[#1d70b8] text-white",
     closed: "bg-[#00703c] text-white",
     review: "bg-[#ffdd00] text-[#0b0c0c]",
@@ -914,14 +915,17 @@ export function CaseTemplateDetailPage() {
   const { templateId } = useParams();
   const [showAddTask, setShowAddTask] = useState(false);
   const [showAssignParticipant, setShowAssignParticipant] = useState(false);
+  const [withdrawingTaskId, setWithdrawingTaskId] = useState<string | null>(null);
   const [taskTypeId, setTaskTypeId] = useState(taskTypes[0]?.id ?? "");
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [taskDue, setTaskDue] = useState("");
+  const [withdrawReason, setWithdrawReason] = useState("");
   const [participantId, setParticipantId] = useState("");
   const [assignmentStatus, setAssignmentStatus] = useState<"REQUIRED" | "EXEMPT">("REQUIRED");
   const [exemptionReason, setExemptionReason] = useState("");
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
@@ -935,6 +939,7 @@ export function CaseTemplateDetailPage() {
   const generatedCases = getScopedCases(user).filter((caseRecord) => caseRecord.caseTemplateId === templateRecord.id);
   const assignedParticipantIds = new Set(templateParticipants.map((assignment) => assignment.participantId));
   const assignableParticipants = getScopedParticipants(user).filter((participant) => !assignedParticipantIds.has(participant.id));
+  const withdrawingTask = templateTasks.find((task) => task.id === withdrawingTaskId) ?? null;
 
   function addTask() {
     setTaskError(null);
@@ -999,6 +1004,41 @@ export function CaseTemplateDetailPage() {
       refresh();
     } catch (caught) {
       setPublishError(caught instanceof Error ? caught.message : "Template could not be published.");
+    }
+  }
+
+  function openWithdrawTask(taskId: string) {
+    setWithdrawingTaskId(taskId);
+    setWithdrawReason("");
+    setWithdrawError(null);
+  }
+
+  function closeWithdrawTask() {
+    setWithdrawingTaskId(null);
+    setWithdrawReason("");
+    setWithdrawError(null);
+  }
+
+  function withdrawTask() {
+    setWithdrawError(null);
+    if (!withdrawingTaskId) {
+      setWithdrawError("Select a task to withdraw.");
+      return;
+    }
+    if (!withdrawReason.trim()) {
+      setWithdrawError("Enter a withdrawal reason.");
+      return;
+    }
+    if (!user.authenticatableUserId) {
+      setWithdrawError("No authority user is selected for this session.");
+      return;
+    }
+    try {
+      db.withdrawTemplateTask(withdrawingTaskId, user.authenticatableUserId, withdrawReason.trim());
+      refresh();
+      closeWithdrawTask();
+    } catch (caught) {
+      setWithdrawError(caught instanceof Error ? caught.message : "Task could not be withdrawn.");
     }
   }
 
@@ -1089,18 +1129,62 @@ export function CaseTemplateDetailPage() {
           </div>
           <div className="mt-3"><FormError message={taskError} /></div>
         </ResourceActionPanel>
-        <ResourceTable headings={["Order", "Task", "Type", "Due", "Status"]}>
+        <ResourceActionPanel
+          open={Boolean(withdrawingTask)}
+          title="Withdraw task"
+          description={withdrawingTask ? `Withdraw ${withdrawingTask.title} from this template and incomplete generated case tasks.` : "Withdraw a task from this template."}
+          onClose={closeWithdrawTask}
+          footer={
+            <Button type="button" variant="destructive" onClick={withdrawTask}>
+              <XCircle />
+              Withdraw
+            </Button>
+          }
+        >
+          <FormField label="Reason">
+            <Input value={withdrawReason} onChange={(event) => setWithdrawReason(event.target.value)} />
+          </FormField>
+          <div className="mt-3"><FormError message={withdrawError} /></div>
+        </ResourceActionPanel>
+        <ResourceTable headings={["Order", "Task", "Type", "Due", "Status", "Actions"]}>
           {templateTasks.map((task) => (
             <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">{task.sortOrder}</td>
               <td className="px-4 py-3">
                 <span className="block font-bold text-[#0b0c0c] dark:text-white">{task.title}</span>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{task.description}</span>
+                {task.withdrawnReason && (
+                  <span className="mt-2 block text-xs font-bold text-[#d4351c]">
+                    Withdrawn: {task.withdrawnReason}
+                  </span>
+                )}
               </td>
               <td className="px-4 py-3">{task.taskTypeName}</td>
               <td className="px-4 py-3">{task.due}</td>
               <td className="px-4 py-3">
-                {task.status}{task.createdAfterPublish ? " after publish" : ""}
+                <span className="block font-bold">{task.status}</span>
+                {task.createdAfterPublish && (
+                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                    Added after publish
+                  </span>
+                )}
+                {task.withdrawnAt && (
+                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                    Withdrawn {new Date(task.withdrawnAt).toLocaleString("en-GB")}
+                  </span>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openWithdrawTask(task.id)}
+                  disabled={templateRecord.status !== "PUBLISHED" || task.status === "WITHDRAWN"}
+                >
+                  <XCircle />
+                  Withdraw
+                </Button>
               </td>
             </tr>
           ))}

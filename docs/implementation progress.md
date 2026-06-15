@@ -23,7 +23,7 @@ Use this file to understand:
 
 # Current Status Summary
 
-Phase 1, Phase 1.5, Phase 2, Phase 3, Phase 4, Phase 5 and Phase 6 are complete.
+Phase 1, Phase 1.5, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6 and Phase 7 are complete.
 
 The app now has:
 
@@ -41,8 +41,9 @@ The app now has:
 - Participant task response, evidence upload, task submission and case submission flows
 - Authority task review controls for submitted participant tasks
 - Stakeholder read-only participant detail, task outcome and evidence metadata views
+- Published template task withdrawal and post-publication task addition flows
 
-The next implementation work should start Phase 7: Published Template Changes.
+The next implementation work should start the cross-cutting test work.
 
 ---
 
@@ -456,7 +457,7 @@ Stakeholders see evidence metadata for submitted, passed or failed tasks on part
 Status:
 
 ```text
-Not started
+Complete
 ```
 
 Stories covered:
@@ -477,17 +478,26 @@ db.withdrawTemplateTask(...)
 db.addTaskToTemplate(...)
 ```
 
-UI work remaining:
+Implemented:
 
-- Add withdraw task action on template task list
-- Add reason capture
-- Show withdrawn task state
-- Show created-after-publish state
-- Confirm existing cases receive new tasks after published template update
+- Added withdraw task action on the template task list
+- Added withdrawal reason capture with validation
+- Wired withdraw action to `db.withdrawTemplateTask(...)`
+- Existing Add task flow continues to use `db.addTaskToTemplate(...)` for draft and published templates
+- Published template additions create generated case tasks and now recalculate affected case statuses
+- Template task list shows withdrawn task state, withdrawal reason, withdrawal timestamp and created-after-publish state
+- Template list active task counts now exclude withdrawn template tasks
 
-Recommended timing:
+Acceptance covered:
 
-Implement after Phase 3 and Phase 4 are stable.
+- Withdrawn template task no longer blocks case submission because incomplete case tasks are marked `WITHDRAWN`
+- Passed/failed case tasks are preserved by the domain command
+- Withdrawal reason and metadata are visible in Administration
+- New tasks added after publication appear in the template as added after publish
+- New tasks added after publication appear in every generated case through the domain command
+- Affected cases recalculate after post-publication task additions
+- `npm run type-check` passes
+- `npm run build` passes
 
 ---
 
@@ -559,13 +569,13 @@ Do not implement this before the main user-story flows unless activity accuracy 
 Recommended immediate next step:
 
 ```text
-Start Phase 7 with published template task withdrawal and post-publication task additions.
+Start cross-cutting test work for the in-memory domain commands.
 ```
 
 Suggested agent prompt:
 
 ```text
-Please implement Phase 7: Published template changes.
+Please add domain command tests for InMemoryAllChecksOutDatabase.
 
 Read:
 - fullhandover.md
@@ -575,15 +585,9 @@ Read:
 
 Requirements:
 - Preserve the login screen
-- Keep template changes inside Administration case template detail pages
-- Add withdraw task action for published template tasks
-- Capture withdrawal reason
-- Show withdrawn task state and created-after-publish state
-- Use useDomainData()
-- Call db.withdrawTemplateTask(...)
-- Reuse db.addTaskToTemplate(...) for published template additions
-- Call refresh() after mutations
-- Keep the existing UI style
+- Add Vitest or the project-appropriate test runner
+- Cover high-value InMemoryAllChecksOutDatabase command behavior
+- Prioritize publish, submit, review, withdraw and post-publication add-task behavior
 - Run npm run type-check and npm run build
 ```
 
@@ -602,27 +606,27 @@ Requirements:
 - [x] Add Tasks to Case Template
 - [x] Assign Participants to Template
 - [x] Publish Template
-- [ ] Review Participant Submissions
-- [ ] Withdraw Task After Publication
-- [ ] Add New Task After Publication
+- [x] Review Participant Submissions
+- [x] Withdraw Task After Publication
+- [x] Add New Task After Publication
 
 ## Participant
 
 - [x] View Assigned Cases
 - [x] Open a Case
-- [ ] Complete a Task
-- [ ] Upload Evidence
-- [ ] Submit a Task
-- [ ] Submit a Case
-- [ ] View Review Outcomes
+- [x] Complete a Task
+- [x] Upload Evidence
+- [x] Submit a Task
+- [x] Submit a Case
+- [x] View Review Outcomes
 
 ## Stakeholder
 
 - [x] View Accessible Participants
 - [x] View Participant Status
 - [x] View Case Details
-- [ ] View Task Outcomes
-- [ ] View Evidence
+- [x] View Task Outcomes
+- [x] View Evidence
 
 ## Plumbing
 
