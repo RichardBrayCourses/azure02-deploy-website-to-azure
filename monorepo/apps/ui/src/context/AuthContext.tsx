@@ -13,31 +13,33 @@ import {
 export type AuthenticatedUser = {
   isLoggedIn: boolean;
   email: string | null;
-  group: UserGroup;
+  role: UserRole;
+  owningOrganisationId: string | null;
+  operationalParticipantId: string | null;
 };
 
-export type UserGroup = "association" | "provider" | "interested-party";
+export type UserRole = "owning-organisation-admin" | "operational-participant" | "interested-party";
 
-export const USER_GROUPS: Array<{ id: UserGroup; label: string; description: string }> = [
+export const USER_ROLES: Array<{ id: UserRole; label: string; description: string }> = [
   {
-    id: "association",
-    label: "Association",
-    description: "Administration and cross-company review",
+    id: "owning-organisation-admin",
+    label: "Owning organisation",
+    description: "Configure case types, roles, workflow, and review",
   },
   {
-    id: "provider",
-    label: "IT platform provider",
-    description: "Case completion for one platform company",
+    id: "operational-participant",
+    label: "Operational participant",
+    description: "Complete tasks, submit forms, and upload evidence",
   },
   {
     id: "interested-party",
-    label: "Platform provider interested party",
-    description: "Read-only supplier verification status",
+    label: "Interested party",
+    description: "Read-only assurance, status, and outcome visibility",
   },
 ];
 
-export function getUserGroupLabel(group: UserGroup) {
-  return USER_GROUPS.find((item) => item.id === group)?.label ?? "Association";
+export function getUserRoleLabel(role: UserRole) {
+  return USER_ROLES.find((item) => item.id === role)?.label ?? "Owning organisation";
 }
 
 ////////////////////////////////////
@@ -47,13 +49,17 @@ export function getUserGroupLabel(group: UserGroup) {
 const LOGGED_IN_USER = {
   isLoggedIn: true,
   email: "demo@example.com",
-  group: "association" as UserGroup,
+  role: "owning-organisation-admin" as UserRole,
+  owningOrganisationId: null,
+  operationalParticipantId: null,
 };
 
 const LOGGED_OUT_USER = {
   isLoggedIn: false,
   email: null,
-  group: "association" as UserGroup,
+  role: "owning-organisation-admin" as UserRole,
+  owningOrganisationId: null,
+  operationalParticipantId: null,
 };
 
 /////////////
@@ -63,10 +69,15 @@ const LOGGED_OUT_USER = {
 interface AuthContextData {
   user: AuthenticatedUser;
 }
+export type SignInSelection = {
+  owningOrganisationId: string;
+  role: UserRole;
+  operationalParticipantId: string | null;
+};
+
 interface AuthContextValue extends AuthContextData {
-  login: () => void;
+  login: (selection: SignInSelection) => void;
   logout: () => void;
-  setUserGroup: (group: UserGroup) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -96,11 +107,14 @@ function loadContext(): AuthContextData {
     return { user: LOGGED_OUT_USER };
   } else {
     const storedUser = JSON.parse(storedData) as Partial<AuthenticatedUser>;
+    const isLoggedIn = Boolean(storedUser.isLoggedIn && storedUser.owningOrganisationId);
     return {
       user: {
-        isLoggedIn: storedUser.isLoggedIn ?? false,
-        email: storedUser.email ?? null,
-        group: storedUser.group ?? "association",
+        isLoggedIn,
+        email: isLoggedIn ? storedUser.email ?? null : null,
+        role: storedUser.role ?? "owning-organisation-admin",
+        owningOrganisationId: isLoggedIn ? storedUser.owningOrganisationId ?? null : null,
+        operationalParticipantId: isLoggedIn ? storedUser.operationalParticipantId ?? null : null,
       },
     };
   }
@@ -121,15 +135,18 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     saveContext({ user });
   }, [user]);
 
-  const login = () => setUser((current) => ({ ...LOGGED_IN_USER, group: current.group }));
-  const logout = () => setUser((current) => ({ ...LOGGED_OUT_USER, group: current.group }));
-  const setUserGroup = (group: UserGroup) =>
-    setUser((current) => ({
-      ...current,
-      group,
-    }));
+  const login = (selection: SignInSelection) =>
+    setUser({
+      ...LOGGED_IN_USER,
+      role: selection.role,
+      owningOrganisationId: selection.owningOrganisationId,
+      operationalParticipantId:
+        selection.role === "owning-organisation-admin" ? null : selection.operationalParticipantId,
+    });
 
-  const sharedData = { user, login, logout, setUserGroup };
+  const logout = () => setUser(LOGGED_OUT_USER);
+
+  const sharedData = { user, login, logout };
 
   return (
     <AuthContext.Provider value={sharedData}>{children}</AuthContext.Provider>

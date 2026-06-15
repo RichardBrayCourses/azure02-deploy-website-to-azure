@@ -1,7 +1,6 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -9,15 +8,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { getUserGroupLabel, USER_GROUPS, useAuth } from "@/context/AuthContext";
+import { getUserRoleLabel, useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { getConsoleAppsForGroup, getSearchItemsForGroup } from "@/data/console";
+import {
+  getConsoleAppsForRole,
+  getOperationalParticipant,
+  getOwningOrganisation,
+  getSearchItemsForUser,
+} from "@/data/console";
 import { cn } from "@/lib/utils";
 import {
   Bell,
   CircleHelp,
   Grid3X3,
-  LogIn,
   LogOut,
   Moon,
   Search,
@@ -44,7 +47,7 @@ function GlobalSearch() {
   const [open, setOpen] = useState(false);
 
   const matches = useMemo(() => {
-    const searchItems = getSearchItemsForGroup(user.group);
+    const searchItems = getSearchItemsForUser(user);
     const normalized = query.trim().toLowerCase();
     if (!normalized) return searchItems.slice(0, 6);
 
@@ -55,7 +58,7 @@ function GlobalSearch() {
           .includes(normalized),
       )
       .slice(0, 7);
-  }, [query, user.group]);
+  }, [query, user]);
 
   function go(path: string) {
     navigate(path);
@@ -74,7 +77,7 @@ function GlobalSearch() {
       <Input
         aria-label="Search console"
         className="h-9 rounded-sm border-white/25 bg-white/10 pl-9 text-sm text-white shadow-none placeholder:text-white/65 focus-visible:border-white focus-visible:ring-white/35"
-        placeholder="Search apps, cases, companies, checks"
+        placeholder="Search apps, cases, organisations, tasks"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -114,8 +117,10 @@ function GlobalSearch() {
 
 const Header = () => {
   const { dark, setDark } = useTheme();
-  const { user, login, logout, setUserGroup } = useAuth();
-  const availableApps = getConsoleAppsForGroup(user.group);
+  const { user, logout } = useAuth();
+  const availableApps = getConsoleAppsForRole(user.role);
+  const owningOrganisation = getOwningOrganisation(user.owningOrganisationId ?? undefined);
+  const operationalParticipant = getOperationalParticipant(user.operationalParticipantId ?? undefined);
 
   return (
     <header className="sticky top-0 z-40 border-b border-black bg-[#0b1f33] text-white">
@@ -162,13 +167,18 @@ const Header = () => {
 
         <Button asChild variant="ghost" className="h-10 px-2 text-white hover:bg-white/10 hover:text-white">
           <Link to="/" className="text-base font-bold tracking-normal">
-            All Checks Out
+            CaseFlow Console
           </Link>
         </Button>
 
         <span className="hidden rounded-sm border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold sm:inline-flex">
-          {getUserGroupLabel(user.group)}
+          {getUserRoleLabel(user.role)}
         </span>
+        {owningOrganisation && (
+          <span className="hidden rounded-sm border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold xl:inline-flex">
+            {owningOrganisation.name}
+          </span>
+        )}
 
         <GlobalSearch />
 
@@ -217,38 +227,20 @@ const Header = () => {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>
-                <span className="block text-xs font-bold uppercase text-muted-foreground">
-                  Demo view
-                </span>
+                <span className="block text-xs font-bold uppercase text-muted-foreground">Current scope</span>
+                <span className="mt-1 block text-sm font-medium">{getUserRoleLabel(user.role)}</span>
+                {owningOrganisation && (
+                  <span className="block text-xs text-muted-foreground">{owningOrganisation.name}</span>
+                )}
+                {operationalParticipant && (
+                  <span className="block text-xs text-muted-foreground">{operationalParticipant.name}</span>
+                )}
               </DropdownMenuLabel>
-              {USER_GROUPS.map((group) => (
-                <DropdownMenuCheckboxItem
-                  key={group.id}
-                  checked={user.group === group.id}
-                  onCheckedChange={() => setUserGroup(group.id)}
-                  onSelect={(event) => event.preventDefault()}
-                  className="items-start"
-                >
-                  <span>
-                    <span className="block font-medium">{group.label}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {group.description}
-                    </span>
-                  </span>
-                </DropdownMenuCheckboxItem>
-              ))}
               <DropdownMenuSeparator />
-              {user.isLoggedIn ? (
-                <DropdownMenuItem onClick={logout}>
-                  <LogOut className="size-4" />
-                  Logout
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={login}>
-                  <LogIn className="size-4" />
-                  Login with Entra
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem onClick={logout}>
+                <LogOut className="size-4" />
+                Sign out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
