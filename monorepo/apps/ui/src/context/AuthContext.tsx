@@ -13,7 +13,32 @@ import {
 export type AuthenticatedUser = {
   isLoggedIn: boolean;
   email: string | null;
+  group: UserGroup;
 };
+
+export type UserGroup = "association" | "provider" | "interested-party";
+
+export const USER_GROUPS: Array<{ id: UserGroup; label: string; description: string }> = [
+  {
+    id: "association",
+    label: "Association",
+    description: "Administration and cross-company review",
+  },
+  {
+    id: "provider",
+    label: "IT platform provider",
+    description: "Case completion for one platform company",
+  },
+  {
+    id: "interested-party",
+    label: "Platform provider interested party",
+    description: "Read-only supplier verification status",
+  },
+];
+
+export function getUserGroupLabel(group: UserGroup) {
+  return USER_GROUPS.find((item) => item.id === group)?.label ?? "Association";
+}
 
 ////////////////////////////////////
 // LOGGED IN / LOGGED OUT CONSTANTS
@@ -22,11 +47,13 @@ export type AuthenticatedUser = {
 const LOGGED_IN_USER = {
   isLoggedIn: true,
   email: "demo@example.com",
+  group: "association" as UserGroup,
 };
 
 const LOGGED_OUT_USER = {
   isLoggedIn: false,
   email: null,
+  group: "association" as UserGroup,
 };
 
 /////////////
@@ -39,6 +66,7 @@ interface AuthContextData {
 interface AuthContextValue extends AuthContextData {
   login: () => void;
   logout: () => void;
+  setUserGroup: (group: UserGroup) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -67,7 +95,14 @@ function loadContext(): AuthContextData {
   if (storedData === null) {
     return { user: LOGGED_OUT_USER };
   } else {
-    return { user: JSON.parse(storedData) as AuthenticatedUser };
+    const storedUser = JSON.parse(storedData) as Partial<AuthenticatedUser>;
+    return {
+      user: {
+        isLoggedIn: storedUser.isLoggedIn ?? false,
+        email: storedUser.email ?? null,
+        group: storedUser.group ?? "association",
+      },
+    };
   }
 }
 
@@ -86,10 +121,15 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     saveContext({ user });
   }, [user]);
 
-  const login = () => setUser(LOGGED_IN_USER);
-  const logout = () => setUser(LOGGED_OUT_USER);
+  const login = () => setUser((current) => ({ ...LOGGED_IN_USER, group: current.group }));
+  const logout = () => setUser((current) => ({ ...LOGGED_OUT_USER, group: current.group }));
+  const setUserGroup = (group: UserGroup) =>
+    setUser((current) => ({
+      ...current,
+      group,
+    }));
 
-  const sharedData = { user, login, logout };
+  const sharedData = { user, login, logout, setUserGroup };
 
   return (
     <AuthContext.Provider value={sharedData}>{children}</AuthContext.Provider>
