@@ -1,7 +1,6 @@
 import {
   BadgeCheck,
   Building2,
-  Car,
   ClipboardCheck,
   FileQuestion,
   FileSignature,
@@ -398,15 +397,18 @@ function base(id: string): BaseDto {
 
 const iconByTaskCode: Record<string, typeof ImageUp> = {
   UPLOAD_DOCUMENT: ImageUp,
-  UPLOAD_DRIVING_LICENCE: KeyRound,
+  CERTIFICATION_EVIDENCE: ShieldCheck,
   QUESTIONNAIRE: FileQuestion,
-  UPLOAD_POLICY: FileSignature,
-  VIDEO_ATTESTATION: Video,
-  GPS_EVIDENCE: Landmark,
+  POLICY_DOCUMENT: FileSignature,
+  CONTROL_ATTESTATION: BadgeCheck,
+  SUPPLIER_REGISTER: Users,
+  VENDOR_OF_VENDOR_DDQ: Building2,
+  RISK_REGISTER: ClipboardCheck,
   DIGITAL_SIGNATURE: FileSignature,
+  AI_USAGE_DISCLOSURE: Video,
   PAYMENT_CONFIRMATION: ReceiptText,
-  ADDRESS_PROOF: Building2,
-  VEHICLE_DOCUMENT: Car,
+  ACCESS_CONTROL_MFA: KeyRound,
+  HOSTING_RESIDENCY: Building2,
 };
 
 function uiTaskStatus(status: CaseTaskStatus): Status {
@@ -445,22 +447,8 @@ export class InMemoryAllChecksOutDatabase {
     new AuthorityEntity({
       ...base("northstar-association"),
       systemOwnerId: "all-checks-out",
-      name: "Northstar Trade Association",
-      description: "An authority managing annual verification for member IT platform providers.",
-      status: "ACTIVE",
-    }),
-    new AuthorityEntity({
-      ...base("cobalt-home-services"),
-      systemOwnerId: "all-checks-out",
-      name: "Cobalt Home Services",
-      description: "A service company assigning field work and exposing completed outcomes to customers.",
-      status: "ACTIVE",
-    }),
-    new AuthorityEntity({
-      ...base("pinebridge-council"),
-      systemOwnerId: "all-checks-out",
-      name: "Pinebridge Borough Council",
-      description: "A council managing resident permit renewal cases.",
+      name: "Digital Platform Assurance Association",
+      description: "A trade association defining DDQ expectations for member IT platform vendors.",
       status: "ACTIVE",
     }),
   ];
@@ -474,162 +462,232 @@ export class InMemoryAllChecksOutDatabase {
       status: "ACTIVE",
     }),
     new ParticipantEntity({
-      ...base("cobalt-field-team"),
-      authorityId: "cobalt-home-services",
+      ...base("cobalt-workflow"),
+      authorityId: "northstar-association",
       participantType: "ORGANISATION",
-      displayName: "Cobalt Field Engineering Team",
+      displayName: "Cobalt Workflow Systems",
       status: "ACTIVE",
     }),
     new ParticipantEntity({
-      ...base("mrs-jones"),
-      authorityId: "pinebridge-council",
-      participantType: "PERSON",
-      displayName: "Mrs Jones",
+      ...base("pinebridge-data"),
+      authorityId: "northstar-association",
+      participantType: "ORGANISATION",
+      displayName: "Pinebridge Data Exchange",
+      status: "ACTIVE",
+    }),
+    new ParticipantEntity({
+      ...base("asteria-identity"),
+      authorityId: "northstar-association",
+      participantType: "ORGANISATION",
+      displayName: "Asteria Identity Services",
       status: "ACTIVE",
     }),
   ];
 
   readonly stakeholders = [
     new StakeholderEntity({
-      ...base("supplier-stakeholders"),
+      ...base("harrington-financial"),
       authorityId: "northstar-association",
       stakeholderType: "ORGANISATION",
-      displayName: "Supplier stakeholders",
+      displayName: "Harrington Financial Group",
       status: "ACTIVE",
     }),
     new StakeholderEntity({
-      ...base("household-stakeholders"),
-      authorityId: "cobalt-home-services",
-      stakeholderType: "PERSON",
-      displayName: "Household stakeholders",
-      status: "ACTIVE",
-    }),
-    new StakeholderEntity({
-      ...base("internal-compliance-team"),
-      authorityId: "pinebridge-council",
+      ...base("mercury-retail"),
+      authorityId: "northstar-association",
       stakeholderType: "ORGANISATION",
-      displayName: "Internal compliance team",
+      displayName: "Mercury Retail PLC",
+      status: "ACTIVE",
+    }),
+    new StakeholderEntity({
+      ...base("sentinel-grc"),
+      authorityId: "northstar-association",
+      stakeholderType: "ORGANISATION",
+      displayName: "Sentinel GRC Advisory",
       status: "ACTIVE",
     }),
   ];
 
   readonly userAccounts = [
-    this.user("user-jonathan-price", "Jonathan Price", "jonathan.price@northstar.example", "AUTHORITY"),
-    this.user("user-amara-singh", "Amara Singh", "amara.singh@northstar.example", "AUTHORITY"),
-    this.user("user-hannah-cole", "Hannah Cole", "hannah.cole@cobalt.example", "AUTHORITY"),
-    this.user("user-marcus-hill", "Marcus Hill", "marcus.hill@cobalt.example", "AUTHORITY"),
-    this.user("user-eleanor-brooks", "Eleanor Brooks", "eleanor.brooks@pinebridge.example", "AUTHORITY"),
-    this.user("user-owen-clarke", "Owen Clarke", "owen.clarke@pinebridge.example", "AUTHORITY"),
+    this.user("user-jonathan-price", "Jonathan Price", "jonathan.price@dpaa.example", "AUTHORITY"),
+    this.user("user-amara-singh", "Amara Singh", "amara.singh@dpaa.example", "AUTHORITY"),
     this.user("user-aisha-khan", "Aisha Khan", "aisha.khan@northstar-cloud.example", "PARTICIPANT"),
     this.user("user-michael-reeves", "Michael Reeves", "michael.reeves@northstar-cloud.example", "PARTICIPANT"),
-    this.user("user-lewis-green", "Lewis Green", "lewis.green@cobalt-field.example", "PARTICIPANT"),
-    this.user("user-amelia-wright", "Amelia Wright", "amelia.wright@cobalt-field.example", "PARTICIPANT"),
-    this.user("user-margaret-jones", "Margaret Jones", "margaret.jones@example.net", "PARTICIPANT"),
-    this.user("user-david-jones", "David Jones", "david.jones@example.net", "PARTICIPANT"),
-    this.user("user-rachel-morgan", "Rachel Morgan", "rachel.morgan@supplier-stakeholder.example", "STAKEHOLDER"),
-    this.user("user-peter-walsh", "Peter Walsh", "peter.walsh@supplier-stakeholder.example", "STAKEHOLDER"),
-    this.user("user-sophie-turner", "Sophie Turner", "sophie.turner@household.example", "STAKEHOLDER"),
-    this.user("user-benjamin-foster", "Benjamin Foster", "benjamin.foster@household.example", "STAKEHOLDER"),
-    this.user("user-priya-shah", "Priya Shah", "priya.shah@pinebridge-compliance.example", "STAKEHOLDER"),
-    this.user("user-george-evans", "George Evans", "george.evans@pinebridge-compliance.example", "STAKEHOLDER"),
+    this.user("user-lewis-green", "Lewis Green", "lewis.green@cobalt-workflow.example", "PARTICIPANT"),
+    this.user("user-amelia-wright", "Amelia Wright", "amelia.wright@cobalt-workflow.example", "PARTICIPANT"),
+    this.user("user-maya-patel", "Maya Patel", "maya.patel@pinebridge-data.example", "PARTICIPANT"),
+    this.user("user-owen-clarke", "Owen Clarke", "owen.clarke@asteria-identity.example", "PARTICIPANT"),
+    this.user("user-rachel-morgan", "Rachel Morgan", "rachel.morgan@harrington.example", "STAKEHOLDER"),
+    this.user("user-peter-walsh", "Peter Walsh", "peter.walsh@harrington.example", "STAKEHOLDER"),
+    this.user("user-sophie-turner", "Sophie Turner", "sophie.turner@mercury-retail.example", "STAKEHOLDER"),
+    this.user("user-benjamin-foster", "Benjamin Foster", "benjamin.foster@mercury-retail.example", "STAKEHOLDER"),
+    this.user("user-priya-shah", "Priya Shah", "priya.shah@sentinel-grc.example", "STAKEHOLDER"),
+    this.user("user-george-evans", "George Evans", "george.evans@sentinel-grc.example", "STAKEHOLDER"),
   ];
 
   readonly authorityUsers = [
     this.membership("authority-user-jonathan-price", "northstar-association", "user-jonathan-price", "ADMIN", AuthorityUserEntity),
     this.membership("authority-user-amara-singh", "northstar-association", "user-amara-singh", "MEMBER", AuthorityUserEntity),
-    this.membership("authority-user-hannah-cole", "cobalt-home-services", "user-hannah-cole", "ADMIN", AuthorityUserEntity),
-    this.membership("authority-user-marcus-hill", "cobalt-home-services", "user-marcus-hill", "MEMBER", AuthorityUserEntity),
-    this.membership("authority-user-eleanor-brooks", "pinebridge-council", "user-eleanor-brooks", "ADMIN", AuthorityUserEntity),
-    this.membership("authority-user-owen-clarke", "pinebridge-council", "user-owen-clarke", "MEMBER", AuthorityUserEntity),
   ];
 
   readonly participantUsers = [
     this.membership("participant-user-aisha-khan", "northstar-cloud", "user-aisha-khan", "ADMIN", ParticipantUserEntity),
     this.membership("participant-user-michael-reeves", "northstar-cloud", "user-michael-reeves", "MEMBER", ParticipantUserEntity),
-    this.membership("participant-user-lewis-green", "cobalt-field-team", "user-lewis-green", "ADMIN", ParticipantUserEntity),
-    this.membership("participant-user-amelia-wright", "cobalt-field-team", "user-amelia-wright", "MEMBER", ParticipantUserEntity),
-    this.membership("participant-user-margaret-jones", "mrs-jones", "user-margaret-jones", "ADMIN", ParticipantUserEntity),
-    this.membership("participant-user-david-jones", "mrs-jones", "user-david-jones", "MEMBER", ParticipantUserEntity),
+    this.membership("participant-user-lewis-green", "cobalt-workflow", "user-lewis-green", "ADMIN", ParticipantUserEntity),
+    this.membership("participant-user-amelia-wright", "cobalt-workflow", "user-amelia-wright", "MEMBER", ParticipantUserEntity),
+    this.membership("participant-user-maya-patel", "pinebridge-data", "user-maya-patel", "ADMIN", ParticipantUserEntity),
+    this.membership("participant-user-owen-clarke", "asteria-identity", "user-owen-clarke", "ADMIN", ParticipantUserEntity),
   ];
 
   readonly stakeholderUsers = [
-    this.membership("stakeholder-user-rachel-morgan", "supplier-stakeholders", "user-rachel-morgan", "ADMIN", StakeholderUserEntity),
-    this.membership("stakeholder-user-peter-walsh", "supplier-stakeholders", "user-peter-walsh", "MEMBER", StakeholderUserEntity),
-    this.membership("stakeholder-user-sophie-turner", "household-stakeholders", "user-sophie-turner", "ADMIN", StakeholderUserEntity),
-    this.membership("stakeholder-user-benjamin-foster", "household-stakeholders", "user-benjamin-foster", "MEMBER", StakeholderUserEntity),
-    this.membership("stakeholder-user-priya-shah", "internal-compliance-team", "user-priya-shah", "ADMIN", StakeholderUserEntity),
-    this.membership("stakeholder-user-george-evans", "internal-compliance-team", "user-george-evans", "MEMBER", StakeholderUserEntity),
+    this.membership("stakeholder-user-rachel-morgan", "harrington-financial", "user-rachel-morgan", "ADMIN", StakeholderUserEntity),
+    this.membership("stakeholder-user-peter-walsh", "harrington-financial", "user-peter-walsh", "MEMBER", StakeholderUserEntity),
+    this.membership("stakeholder-user-sophie-turner", "mercury-retail", "user-sophie-turner", "ADMIN", StakeholderUserEntity),
+    this.membership("stakeholder-user-benjamin-foster", "mercury-retail", "user-benjamin-foster", "MEMBER", StakeholderUserEntity),
+    this.membership("stakeholder-user-priya-shah", "sentinel-grc", "user-priya-shah", "ADMIN", StakeholderUserEntity),
+    this.membership("stakeholder-user-george-evans", "sentinel-grc", "user-george-evans", "MEMBER", StakeholderUserEntity),
   ];
 
   readonly stakeholderParticipantAccess = [
-    this.access("access-northstar-suppliers", "supplier-stakeholders", "northstar-cloud", "user-jonathan-price"),
-    this.access("access-cobalt-household", "household-stakeholders", "cobalt-field-team", "user-hannah-cole"),
-    this.access("access-pinebridge-compliance", "internal-compliance-team", "mrs-jones", "user-eleanor-brooks"),
+    this.access("access-harrington-northstar", "harrington-financial", "northstar-cloud", "user-aisha-khan"),
+    this.access("access-harrington-cobalt", "harrington-financial", "cobalt-workflow", "user-lewis-green"),
+    this.access("access-mercury-cobalt", "mercury-retail", "cobalt-workflow", "user-lewis-green"),
+    this.access("access-mercury-pinebridge", "mercury-retail", "pinebridge-data", "user-maya-patel"),
+    this.access("access-sentinel-northstar", "sentinel-grc", "northstar-cloud", "user-aisha-khan"),
+    this.access("access-sentinel-asteria", "sentinel-grc", "asteria-identity", "user-owen-clarke"),
   ];
 
   readonly taskTypes = [
-    this.taskType("task-type-upload-document", "UPLOAD_DOCUMENT", "Upload document", "Upload a supporting document or image."),
-    this.taskType("task-type-driving-licence", "UPLOAD_DRIVING_LICENCE", "Driving licence upload", "Upload and review a driving licence image."),
-    this.taskType("task-type-questionnaire", "QUESTIONNAIRE", "Questionnaire", "Answer fixed or conditional questions."),
-    this.taskType("task-type-upload-policy", "UPLOAD_POLICY", "Upload policy", "Provide a policy document and declaration."),
-    this.taskType("task-type-video", "VIDEO_ATTESTATION", "Video attestation", "Upload a short attestation video."),
-    this.taskType("task-type-gps", "GPS_EVIDENCE", "GPS evidence", "Record location and timestamp evidence."),
-    this.taskType("task-type-signature", "DIGITAL_SIGNATURE", "Digital signature", "Capture an attestation or stakeholder signature."),
-    this.taskType("task-type-payment", "PAYMENT_CONFIRMATION", "Payment confirmation", "Confirm a payment or billing event."),
-    this.taskType("task-type-address", "ADDRESS_PROOF", "Address proof", "Provide evidence of residential address."),
-    this.taskType("task-type-vehicle", "VEHICLE_DOCUMENT", "Vehicle document", "Upload current vehicle documents."),
+    this.taskType("task-type-policy-document", "POLICY_DOCUMENT", "Policy document upload", "Upload a controlled policy, plan, or governance document."),
+    this.taskType("task-type-certification", "CERTIFICATION_EVIDENCE", "Certification evidence", "Upload ISO 27001, SOC 2, Cyber Essentials, or equivalent assurance evidence."),
+    this.taskType("task-type-questionnaire", "QUESTIONNAIRE", "Questionnaire", "Answer structured due diligence questions."),
+    this.taskType("task-type-control-attestation", "CONTROL_ATTESTATION", "Control attestation", "Confirm that a required control exists and is operating."),
+    this.taskType("task-type-supplier-register", "SUPPLIER_REGISTER", "Supplier register", "List subprocessors, hosting providers, support tools, and critical suppliers."),
+    this.taskType("task-type-vendor-ddq", "VENDOR_OF_VENDOR_DDQ", "Vendor-of-vendor DDQ", "Record due diligence on a critical supplier or vendor of the vendor."),
+    this.taskType("task-type-risk-register", "RISK_REGISTER", "Risk and remediation register", "Record issues, owners, mitigation dates, and residual risk."),
+    this.taskType("task-type-upload-document", "UPLOAD_DOCUMENT", "Evidence metadata upload", "Record uploaded evidence metadata in this frontend phase."),
+    this.taskType("task-type-signature", "DIGITAL_SIGNATURE", "Digital signature", "Capture a senior officer attestation."),
+    this.taskType("task-type-ai-disclosure", "AI_USAGE_DISCLOSURE", "AI usage disclosure", "Declare whether AI services process customer data and how they are controlled."),
+    this.taskType("task-type-access-control", "ACCESS_CONTROL_MFA", "Access control and MFA", "Confirm MFA, privileged access, and joiner/mover/leaver controls."),
+    this.taskType("task-type-hosting-residency", "HOSTING_RESIDENCY", "Hosting and data residency", "Document hosting provider, regions, backup locations, and customer-data residency."),
   ];
 
   readonly caseTemplates = [
-    this.caseTemplate("template-northstar-verification", "northstar-association", "Provider annual verification", "Annual compliance case", "PUBLISHED", "user-jonathan-price"),
-    this.caseTemplate("template-cobalt-service-visit", "cobalt-home-services", "Emergency plumbing visit", "Service visit", "PUBLISHED", "user-hannah-cole"),
-    this.caseTemplate("template-pinebridge-permit", "pinebridge-council", "Resident permit renewal", "Annual permit renewal", "PUBLISHED", "user-eleanor-brooks"),
+    this.caseTemplate("template-annual-platform-ddq", "northstar-association", "Annual Platform Vendor DDQ 2026", "Due diligence pack", "PUBLISHED", "user-jonathan-price"),
+    this.caseTemplate("template-critical-supplier-ddq", "northstar-association", "Critical Supplier DDQ", "Vendor-of-vendor due diligence", "DRAFT", "user-jonathan-price"),
   ];
 
   readonly caseTemplateTasks = [
-    this.templateTask("template-task-photo-identity", "template-northstar-verification", "task-type-upload-document", "Photo identity evidence", "Upload identity images and review the generated tags before submission.", 1, { due: "18 Jun 2026" }),
-    this.templateTask("template-task-driving-licence", "template-northstar-verification", "task-type-driving-licence", "Driving licence upload", "Provide a current driving licence image for manual inspection.", 2, { due: "20 Jun 2026" }),
-    this.templateTask("template-task-video-attestation", "template-northstar-verification", "task-type-video", "Operational attestation", "Upload a short attestation video for authority reviewers.", 3, { due: "24 Jun 2026" }),
-    this.templateTask("template-task-security-form", "template-northstar-verification", "task-type-upload-policy", "Controls declaration form", "Complete controls, confirm declarations, and digitally sign the form.", 4, { due: "21 Jun 2026" }),
-    this.templateTask("template-task-fixed-questions", "template-northstar-verification", "task-type-questionnaire", "Fixed case questions", "Answer the authority's fixed questions for this case template.", 5, { due: "16 Jun 2026" }),
-    this.templateTask("template-task-conditional-questions", "template-northstar-verification", "task-type-questionnaire", "Conditional question path", "Respond to branching questions based on previous case answers.", 6, { due: "16 Jun 2026" }),
-    this.templateTask("template-task-stakeholder-preview", "template-northstar-verification", "task-type-signature", "Stakeholder preview", "Preview what stakeholders can see about the case outcome.", 7, { due: "26 Jun 2026" }),
-    this.templateTask("template-task-arrival-location", "template-cobalt-service-visit", "task-type-gps", "Arrival location snapshot", "Record visit arrival time and location for the stakeholder service record.", 1, { due: "15 Jun 2026" }),
-    this.templateTask("template-task-work-photos", "template-cobalt-service-visit", "task-type-upload-document", "Work completion photos", "Upload before and after photos so the office can approve the service visit.", 2, { due: "15 Jun 2026" }),
-    this.templateTask("template-task-stakeholder-signature", "template-cobalt-service-visit", "task-type-signature", "Stakeholder sign-off", "Collect a signature from the stakeholder confirming the visit outcome.", 3, { due: "15 Jun 2026" }),
-    this.templateTask("template-task-invoice-review", "template-cobalt-service-visit", "task-type-payment", "Invoice review", "Review labour, parts, and callout charges before issuing the invoice.", 4, { due: "17 Jun 2026" }),
-    this.templateTask("template-task-vehicle-documents", "template-pinebridge-permit", "task-type-vehicle", "Vehicle documents", "Upload valid vehicle documents for the annual renewal case.", 1, { due: "30 May 2026" }),
-    this.templateTask("template-task-address-proof", "template-pinebridge-permit", "task-type-address", "Proof of residential address", "Provide evidence of residency inside the permit area.", 2, { due: "30 May 2026" }),
-    this.templateTask("template-task-fee-payment", "template-pinebridge-permit", "task-type-payment", "Renewal fee payment", "Confirm payment before the council reviewer approves the renewal.", 3, { due: "31 May 2026" }),
+    this.templateTask("template-task-company-profile", "template-annual-platform-ddq", "task-type-questionnaire", "Company profile and platform summary", "Confirm company details, platform summary, core services, and regulated customer sectors.", 1, { due: "18 Jun 2026" }),
+    this.templateTask("template-task-security-policy", "template-annual-platform-ddq", "task-type-policy-document", "Information security policy", "Upload the current information security policy and confirm senior management approval date.", 2, { due: "19 Jun 2026" }),
+    this.templateTask("template-task-certification", "template-annual-platform-ddq", "task-type-certification", "ISO 27001 or SOC 2 evidence", "Upload current ISO 27001 certificate, SOC 2 Type II report, Cyber Essentials certificate, or equivalent controls evidence.", 3, { due: "20 Jun 2026" }),
+    this.templateTask("template-task-penetration-test", "template-annual-platform-ddq", "task-type-upload-document", "Penetration test summary", "Provide latest penetration test executive summary, provider name, test date, and remediation status.", 4, { due: "21 Jun 2026" }),
+    this.templateTask("template-task-vulnerability-management", "template-annual-platform-ddq", "task-type-questionnaire", "Vulnerability management process", "Describe scanning cadence, severity thresholds, patching SLAs, and exception governance.", 5, { due: "21 Jun 2026" }),
+    this.templateTask("template-task-access-control", "template-annual-platform-ddq", "task-type-access-control", "Access control and MFA attestation", "Confirm MFA enforcement, privileged access controls, joiner/mover/leaver process, and access review cadence.", 6, { due: "22 Jun 2026" }),
+    this.templateTask("template-task-data-protection", "template-annual-platform-ddq", "task-type-questionnaire", "Data protection registration", "Provide ICO or equivalent data protection registration details and data protection officer contact.", 7, { due: "23 Jun 2026" }),
+    this.templateTask("template-task-dpa", "template-annual-platform-ddq", "task-type-policy-document", "GDPR data processing agreement", "Upload standard DPA and describe controller/processor responsibilities for customer data.", 8, { due: "23 Jun 2026" }),
+    this.templateTask("template-task-subprocessor-register", "template-annual-platform-ddq", "task-type-supplier-register", "Subprocessor register", "List subprocessors, hosting providers, support tools, analytics services, and monitoring providers.", 9, { due: "24 Jun 2026" }),
+    this.templateTask("template-task-hosting-residency", "template-annual-platform-ddq", "task-type-hosting-residency", "Hosting and data residency statement", "State hosting provider, primary regions, backup regions, and whether customer data leaves the UK or EU.", 10, { due: "24 Jun 2026" }),
+    this.templateTask("template-task-backup-restore", "template-annual-platform-ddq", "task-type-upload-document", "Backup and restore evidence", "Describe backup frequency, retention, encryption, and upload most recent restore-test evidence.", 11, { due: "25 Jun 2026" }),
+    this.templateTask("template-task-bcp-dr", "template-annual-platform-ddq", "task-type-policy-document", "Business continuity and disaster recovery plan", "Upload BCP or disaster recovery plan and confirm last test date.", 12, { due: "25 Jun 2026" }),
+    this.templateTask("template-task-incident-response", "template-annual-platform-ddq", "task-type-policy-document", "Incident response plan", "Upload incident response plan and describe breach notification procedure.", 13, { due: "26 Jun 2026" }),
+    this.templateTask("template-task-cyber-insurance", "template-annual-platform-ddq", "task-type-certification", "Cyber insurance evidence", "Upload cyber insurance certificate and coverage summary.", 14, { due: "26 Jun 2026" }),
+    this.templateTask("template-task-secure-development", "template-annual-platform-ddq", "task-type-questionnaire", "Secure development lifecycle questionnaire", "Describe secure coding, code review, dependency scanning, release controls, and segregation of duties.", 15, { due: "27 Jun 2026" }),
+    this.templateTask("template-task-ai-disclosure", "template-annual-platform-ddq", "task-type-ai-disclosure", "AI usage and customer-data disclosure", "Declare whether AI services process customer data, which providers are used, and what controls apply.", 16, { due: "27 Jun 2026" }),
+    this.templateTask("template-task-critical-supplier", "template-annual-platform-ddq", "task-type-vendor-ddq", "Critical supplier and vendor-of-vendor DDQ", "Identify critical suppliers and complete due diligence for material third-party dependencies.", 17, { due: "28 Jun 2026" }),
+    this.templateTask("template-task-senior-attestation", "template-annual-platform-ddq", "task-type-signature", "Senior officer attestation and signature", "A senior officer confirms the submitted information is accurate and complete.", 18, { due: "30 Jun 2026" }),
+    this.templateTask("template-task-supplier-profile", "template-critical-supplier-ddq", "task-type-questionnaire", "Supplier profile", "Record the supplier relationship, criticality, services provided, and customer-data exposure.", 1, { due: "No due date" }),
+    this.templateTask("template-task-supplier-controls", "template-critical-supplier-ddq", "task-type-control-attestation", "Supplier control attestation", "Confirm key security and resilience controls for the critical supplier.", 2, { due: "No due date" }),
+    this.templateTask("template-task-supplier-risk", "template-critical-supplier-ddq", "task-type-risk-register", "Supplier risk and remediation", "Record known supplier risks, mitigation owners, and target remediation dates.", 3, { due: "No due date" }),
   ];
 
   readonly cases = [
-    this.caseRecord("case-2026-northstar", "northstar-association", "template-northstar-verification", "northstar-cloud", "IN_PROGRESS", null, null),
-    this.caseRecord("case-2026-cobalt", "cobalt-home-services", "template-cobalt-service-visit", "cobalt-field-team", "SUBMITTED", "2026-06-15T12:30:00.000Z", null),
-    this.caseRecord("case-2025-pinebridge", "pinebridge-council", "template-pinebridge-permit", "mrs-jones", "APPROVED", "2026-05-31T14:00:00.000Z", "2026-06-10T09:30:00.000Z"),
+    this.caseRecord("case-2026-northstar", "northstar-association", "template-annual-platform-ddq", "northstar-cloud", "SUBMITTED", "2026-06-12T15:30:00.000Z", null),
+    this.caseRecord("case-2026-cobalt", "northstar-association", "template-annual-platform-ddq", "cobalt-workflow", "IN_PROGRESS", null, null),
+    this.caseRecord("case-2026-pinebridge", "northstar-association", "template-annual-platform-ddq", "pinebridge-data", "REJECTED", "2026-06-10T12:00:00.000Z", null),
+    this.caseRecord("case-2026-asteria", "northstar-association", "template-annual-platform-ddq", "asteria-identity", "APPROVED", "2026-06-05T11:15:00.000Z", "2026-06-14T09:30:00.000Z"),
   ];
 
   readonly caseTemplateParticipants = [
-    this.templateParticipant("template-participant-northstar", "template-northstar-verification", "northstar-cloud", "case-2026-northstar"),
-    this.templateParticipant("template-participant-cobalt", "template-cobalt-service-visit", "cobalt-field-team", "case-2026-cobalt"),
-    this.templateParticipant("template-participant-pinebridge", "template-pinebridge-permit", "mrs-jones", "case-2025-pinebridge"),
+    this.templateParticipant("template-participant-northstar", "template-annual-platform-ddq", "northstar-cloud", "case-2026-northstar"),
+    this.templateParticipant("template-participant-cobalt", "template-annual-platform-ddq", "cobalt-workflow", "case-2026-cobalt"),
+    this.templateParticipant("template-participant-pinebridge", "template-annual-platform-ddq", "pinebridge-data", "case-2026-pinebridge"),
+    this.templateParticipant("template-participant-asteria", "template-annual-platform-ddq", "asteria-identity", "case-2026-asteria"),
   ];
 
   readonly caseTasks = [
-    this.caseTask("case-task-photo-identity", "case-2026-northstar", "template-task-photo-identity", "PASSED"),
-    this.caseTask("case-task-driving-licence", "case-2026-northstar", "template-task-driving-licence", "IN_PROGRESS"),
-    this.caseTask("case-task-video-attestation", "case-2026-northstar", "template-task-video-attestation", "NOT_STARTED"),
-    this.caseTask("case-task-security-form", "case-2026-northstar", "template-task-security-form", "FAILED"),
-    this.caseTask("case-task-fixed-questions", "case-2026-northstar", "template-task-fixed-questions", "PASSED"),
-    this.caseTask("case-task-conditional-questions", "case-2026-northstar", "template-task-conditional-questions", "PASSED"),
-    this.caseTask("case-task-stakeholder-preview", "case-2026-northstar", "template-task-stakeholder-preview", "PASSED"),
-    this.caseTask("case-task-arrival-location", "case-2026-cobalt", "template-task-arrival-location", "PASSED"),
-    this.caseTask("case-task-work-photos", "case-2026-cobalt", "template-task-work-photos", "FAILED"),
-    this.caseTask("case-task-stakeholder-signature", "case-2026-cobalt", "template-task-stakeholder-signature", "IN_PROGRESS"),
-    this.caseTask("case-task-invoice-review", "case-2026-cobalt", "template-task-invoice-review", "NOT_STARTED"),
-    this.caseTask("case-task-vehicle-documents", "case-2025-pinebridge", "template-task-vehicle-documents", "PASSED"),
-    this.caseTask("case-task-address-proof", "case-2025-pinebridge", "template-task-address-proof", "PASSED"),
-    this.caseTask("case-task-fee-payment", "case-2025-pinebridge", "template-task-fee-payment", "PASSED"),
+    this.caseTask("case-task-northstar-profile", "case-2026-northstar", "template-task-company-profile", "PASSED"),
+    this.caseTask("case-task-northstar-security-policy", "case-2026-northstar", "template-task-security-policy", "PASSED"),
+    this.caseTask("case-task-northstar-certification", "case-2026-northstar", "template-task-certification", "PASSED"),
+    this.caseTask("case-task-northstar-penetration-test", "case-2026-northstar", "template-task-penetration-test", "SUBMITTED"),
+    this.caseTask("case-task-northstar-vulnerability", "case-2026-northstar", "template-task-vulnerability-management", "SUBMITTED"),
+    this.caseTask("case-task-northstar-access-control", "case-2026-northstar", "template-task-access-control", "PASSED"),
+    this.caseTask("case-task-northstar-data-protection", "case-2026-northstar", "template-task-data-protection", "PASSED"),
+    this.caseTask("case-task-northstar-dpa", "case-2026-northstar", "template-task-dpa", "PASSED"),
+    this.caseTask("case-task-northstar-subprocessors", "case-2026-northstar", "template-task-subprocessor-register", "SUBMITTED"),
+    this.caseTask("case-task-northstar-hosting", "case-2026-northstar", "template-task-hosting-residency", "PASSED"),
+    this.caseTask("case-task-northstar-backup", "case-2026-northstar", "template-task-backup-restore", "SUBMITTED"),
+    this.caseTask("case-task-northstar-bcp", "case-2026-northstar", "template-task-bcp-dr", "PASSED"),
+    this.caseTask("case-task-northstar-incident", "case-2026-northstar", "template-task-incident-response", "PASSED"),
+    this.caseTask("case-task-northstar-insurance", "case-2026-northstar", "template-task-cyber-insurance", "PASSED"),
+    this.caseTask("case-task-northstar-sdlc", "case-2026-northstar", "template-task-secure-development", "SUBMITTED"),
+    this.caseTask("case-task-northstar-ai", "case-2026-northstar", "template-task-ai-disclosure", "PASSED"),
+    this.caseTask("case-task-northstar-critical-supplier", "case-2026-northstar", "template-task-critical-supplier", "IN_PROGRESS"),
+    this.caseTask("case-task-northstar-attestation", "case-2026-northstar", "template-task-senior-attestation", "SUBMITTED"),
+    this.caseTask("case-task-cobalt-profile", "case-2026-cobalt", "template-task-company-profile", "PASSED"),
+    this.caseTask("case-task-cobalt-security-policy", "case-2026-cobalt", "template-task-security-policy", "PASSED"),
+    this.caseTask("case-task-cobalt-certification", "case-2026-cobalt", "template-task-certification", "IN_PROGRESS"),
+    this.caseTask("case-task-cobalt-penetration-test", "case-2026-cobalt", "template-task-penetration-test", "NOT_STARTED"),
+    this.caseTask("case-task-cobalt-vulnerability", "case-2026-cobalt", "template-task-vulnerability-management", "IN_PROGRESS"),
+    this.caseTask("case-task-cobalt-access-control", "case-2026-cobalt", "template-task-access-control", "PASSED"),
+    this.caseTask("case-task-cobalt-data-protection", "case-2026-cobalt", "template-task-data-protection", "PASSED"),
+    this.caseTask("case-task-cobalt-dpa", "case-2026-cobalt", "template-task-dpa", "IN_PROGRESS"),
+    this.caseTask("case-task-cobalt-subprocessors", "case-2026-cobalt", "template-task-subprocessor-register", "NOT_STARTED"),
+    this.caseTask("case-task-cobalt-hosting", "case-2026-cobalt", "template-task-hosting-residency", "IN_PROGRESS"),
+    this.caseTask("case-task-cobalt-backup", "case-2026-cobalt", "template-task-backup-restore", "NOT_STARTED"),
+    this.caseTask("case-task-cobalt-bcp", "case-2026-cobalt", "template-task-bcp-dr", "IN_PROGRESS"),
+    this.caseTask("case-task-cobalt-incident", "case-2026-cobalt", "template-task-incident-response", "IN_PROGRESS"),
+    this.caseTask("case-task-cobalt-insurance", "case-2026-cobalt", "template-task-cyber-insurance", "NOT_STARTED"),
+    this.caseTask("case-task-cobalt-sdlc", "case-2026-cobalt", "template-task-secure-development", "IN_PROGRESS"),
+    this.caseTask("case-task-cobalt-ai", "case-2026-cobalt", "template-task-ai-disclosure", "NOT_STARTED"),
+    this.caseTask("case-task-cobalt-critical-supplier", "case-2026-cobalt", "template-task-critical-supplier", "NOT_STARTED"),
+    this.caseTask("case-task-cobalt-attestation", "case-2026-cobalt", "template-task-senior-attestation", "NOT_STARTED"),
+    this.caseTask("case-task-pinebridge-profile", "case-2026-pinebridge", "template-task-company-profile", "PASSED"),
+    this.caseTask("case-task-pinebridge-security-policy", "case-2026-pinebridge", "template-task-security-policy", "PASSED"),
+    this.caseTask("case-task-pinebridge-certification", "case-2026-pinebridge", "template-task-certification", "FAILED"),
+    this.caseTask("case-task-pinebridge-penetration-test", "case-2026-pinebridge", "template-task-penetration-test", "FAILED"),
+    this.caseTask("case-task-pinebridge-vulnerability", "case-2026-pinebridge", "template-task-vulnerability-management", "SUBMITTED"),
+    this.caseTask("case-task-pinebridge-access-control", "case-2026-pinebridge", "template-task-access-control", "PASSED"),
+    this.caseTask("case-task-pinebridge-data-protection", "case-2026-pinebridge", "template-task-data-protection", "PASSED"),
+    this.caseTask("case-task-pinebridge-dpa", "case-2026-pinebridge", "template-task-dpa", "PASSED"),
+    this.caseTask("case-task-pinebridge-subprocessors", "case-2026-pinebridge", "template-task-subprocessor-register", "SUBMITTED"),
+    this.caseTask("case-task-pinebridge-hosting", "case-2026-pinebridge", "template-task-hosting-residency", "SUBMITTED"),
+    this.caseTask("case-task-pinebridge-backup", "case-2026-pinebridge", "template-task-backup-restore", "FAILED"),
+    this.caseTask("case-task-pinebridge-bcp", "case-2026-pinebridge", "template-task-bcp-dr", "SUBMITTED"),
+    this.caseTask("case-task-pinebridge-incident", "case-2026-pinebridge", "template-task-incident-response", "PASSED"),
+    this.caseTask("case-task-pinebridge-insurance", "case-2026-pinebridge", "template-task-cyber-insurance", "PASSED"),
+    this.caseTask("case-task-pinebridge-sdlc", "case-2026-pinebridge", "template-task-secure-development", "SUBMITTED"),
+    this.caseTask("case-task-pinebridge-ai", "case-2026-pinebridge", "template-task-ai-disclosure", "SUBMITTED"),
+    this.caseTask("case-task-pinebridge-critical-supplier", "case-2026-pinebridge", "template-task-critical-supplier", "FAILED"),
+    this.caseTask("case-task-pinebridge-attestation", "case-2026-pinebridge", "template-task-senior-attestation", "SUBMITTED"),
+    this.caseTask("case-task-asteria-profile", "case-2026-asteria", "template-task-company-profile", "PASSED"),
+    this.caseTask("case-task-asteria-security-policy", "case-2026-asteria", "template-task-security-policy", "PASSED"),
+    this.caseTask("case-task-asteria-certification", "case-2026-asteria", "template-task-certification", "PASSED"),
+    this.caseTask("case-task-asteria-penetration-test", "case-2026-asteria", "template-task-penetration-test", "PASSED"),
+    this.caseTask("case-task-asteria-vulnerability", "case-2026-asteria", "template-task-vulnerability-management", "PASSED"),
+    this.caseTask("case-task-asteria-access-control", "case-2026-asteria", "template-task-access-control", "PASSED"),
+    this.caseTask("case-task-asteria-data-protection", "case-2026-asteria", "template-task-data-protection", "PASSED"),
+    this.caseTask("case-task-asteria-dpa", "case-2026-asteria", "template-task-dpa", "PASSED"),
+    this.caseTask("case-task-asteria-subprocessors", "case-2026-asteria", "template-task-subprocessor-register", "PASSED"),
+    this.caseTask("case-task-asteria-hosting", "case-2026-asteria", "template-task-hosting-residency", "PASSED"),
+    this.caseTask("case-task-asteria-backup", "case-2026-asteria", "template-task-backup-restore", "PASSED"),
+    this.caseTask("case-task-asteria-bcp", "case-2026-asteria", "template-task-bcp-dr", "PASSED"),
+    this.caseTask("case-task-asteria-incident", "case-2026-asteria", "template-task-incident-response", "PASSED"),
+    this.caseTask("case-task-asteria-insurance", "case-2026-asteria", "template-task-cyber-insurance", "PASSED"),
+    this.caseTask("case-task-asteria-sdlc", "case-2026-asteria", "template-task-secure-development", "PASSED"),
+    this.caseTask("case-task-asteria-ai", "case-2026-asteria", "template-task-ai-disclosure", "PASSED"),
+    this.caseTask("case-task-asteria-critical-supplier", "case-2026-asteria", "template-task-critical-supplier", "PASSED"),
+    this.caseTask("case-task-asteria-attestation", "case-2026-asteria", "template-task-senior-attestation", "PASSED"),
   ];
 
   constructor() {
@@ -1383,9 +1441,9 @@ export const db = new InMemoryAllChecksOutDatabase();
 export const consoleApps: ConsoleApp[] = [
   {
     id: "administration",
-    name: "Administration",
+    name: "Scheme Administration",
     shortName: "Admin",
-    description: "Manage authorities, participants, stakeholders, case templates, task types, and users.",
+    description: "Manage association settings, vendors, subscribers, DDQ templates, task types, and users.",
     path: "/admin",
     accent: "bg-[#1d70b8]",
     Icon: Landmark,
@@ -1393,9 +1451,9 @@ export const consoleApps: ConsoleApp[] = [
   },
   {
     id: "case-management",
-    name: "Case Management",
-    shortName: "Cases",
-    description: "Open cases, complete tasks, upload evidence, and track progress.",
+    name: "Due Diligence Packs",
+    shortName: "DDQ",
+    description: "Open vendor due diligence packs, complete items, upload evidence metadata, and track progress.",
     path: "/cases",
     accent: "bg-[#0078d4]",
     Icon: FolderKanban,
@@ -1403,9 +1461,9 @@ export const consoleApps: ConsoleApp[] = [
   },
   {
     id: "stakeholder-portal",
-    name: "Stakeholder Portal",
-    shortName: "Stakeholders",
-    description: "View approved participant case status, completed tasks, and outcomes.",
+    name: "Subscriber Portal",
+    shortName: "Subscribers",
+    description: "Review granted vendor due diligence status, submitted items, evidence metadata, and outcomes.",
     path: "/stakeholder",
     accent: "bg-[#00703c]",
     Icon: BadgeCheck,
@@ -1419,12 +1477,7 @@ function buildAuthorities(): Authority[] {
     return {
       id: dto.id,
       name: dto.name,
-      scenario:
-        dto.id === "northstar-association"
-          ? "Trade association verification"
-          : dto.id === "cobalt-home-services"
-            ? "Plumbing and electrical service visits"
-            : "Resident permit renewals",
+      scenario: "Association vendor due diligence",
       description: dto.description,
       status: dto.status,
     };
@@ -1510,10 +1563,12 @@ function buildCaseRecords(): CaseRecord[] {
       caseTemplateId: caseDto.caseTemplateId,
       reference:
         caseDto.id === "case-2026-northstar"
-          ? "2026"
+          ? "DDQ-2026-NSCP"
           : caseDto.id === "case-2026-cobalt"
-            ? "JOB-4821"
-            : "PERMIT-2026",
+            ? "DDQ-2026-CWS"
+            : caseDto.id === "case-2026-pinebridge"
+              ? "DDQ-2026-PDE"
+              : "DDQ-2026-AIS",
       caseType: template?.description ?? "Case",
       status: uiCaseStatus(caseDto.status),
       domainStatus: caseDto.status,
@@ -1522,16 +1577,20 @@ function buildCaseRecords(): CaseRecord[] {
       risk: failedTasks > 0 ? "high" : completedTasks === caseTasks.length ? "low" : "medium",
       outcome:
         caseDto.status === "APPROVED" || caseDto.status === "CLOSED"
-          ? caseDto.id === "case-2025-pinebridge" ? "Permit renewed" : "Approved"
+          ? "Subscriber-ready due diligence pack"
           : failedTasks > 0
-            ? "More evidence requested before the outcome is visible as approved"
-            : "Participant case is in progress",
+            ? "Requests for additional information are outstanding"
+            : caseDto.status === "SUBMITTED"
+              ? "Submitted for subscriber review"
+              : "Vendor due diligence pack is in progress",
       lastActivity:
         caseDto.id === "case-2026-northstar"
-          ? "Photo identity evidence uploaded"
+          ? "Critical supplier DDQ updated"
           : caseDto.id === "case-2026-cobalt"
-            ? "Reviewer requested completion photo resubmission"
-            : "Permit renewal approved",
+            ? "SOC 2 evidence upload started"
+            : caseDto.id === "case-2026-pinebridge"
+              ? "Subscriber requested restore-test evidence"
+              : "Senior officer attestation accepted",
       tasks: caseTasks,
     };
   });
@@ -1564,7 +1623,7 @@ function buildParticipants(caseRecords: CaseRecord[]): Participant[] {
       stakeholderId: access?.stakeholderId ?? "",
       name: dto.displayName,
       type: dto.participantType === "ORGANISATION" ? "Organisation" : "Person",
-      participantRole: dto.participantType === "ORGANISATION" ? "0..many users, Admin or Member" : "Normally one user, Admin or Member",
+      participantRole: "Member vendor completing association DDQ requirements",
       status: uiParticipantStatus(participantCases),
       domainStatus: dto.status,
       openCases: participantCases.filter((caseRecord) => caseRecord.status !== "closed").length,
@@ -1618,10 +1677,10 @@ function buildAuthenticatableUsers(): AuthenticatableUser[] {
 
 function buildAdminResources() {
   return [
-    { name: "Participants", path: "/admin/participants", Icon: Building2, count: `${participants.length} in scope` },
-    { name: "Stakeholders", path: "/admin/stakeholders", Icon: UserRoundCheck, count: `${stakeholders.length} in scope` },
-    { name: "Case templates", path: "/admin/case-templates", Icon: ShieldCheck, count: `${caseTemplates.length} configured` },
-    { name: "Task types", path: "/admin/task-types", Icon: ClipboardCheck, count: `${taskTypes.length} global` },
+    { name: "Vendors", path: "/admin/participants", Icon: Building2, count: `${participants.length} in scope` },
+    { name: "Subscribers", path: "/admin/stakeholders", Icon: UserRoundCheck, count: `${stakeholders.length} in scope` },
+    { name: "DDQ templates", path: "/admin/case-templates", Icon: ShieldCheck, count: `${caseTemplates.length} configured` },
+    { name: "Task types", path: "/admin/task-types", Icon: ClipboardCheck, count: `${taskTypes.length} available` },
     { name: "Users", path: "/admin/users", Icon: Users, count: `${authenticatableUsers.length} users` },
   ];
 }
@@ -1637,32 +1696,32 @@ function buildSearchItems(): SearchItem[] {
     })),
     ...participants.map((participant) => ({
       title: participant.name,
-      description: `${participant.type} - ${participant.openCases} open case`,
+      description: `${participant.type} - ${participant.openCases} open due diligence pack`,
       path: `/admin/participants/${participant.id}`,
-      group: "Participants",
+      group: "Vendors",
       audience: ["authority-admin", "stakeholder"] as UserRole[],
     })),
     ...stakeholders.map((stakeholder) => ({
       title: stakeholder.name,
-      description: `${stakeholder.visibleParticipants} approved participant access record`,
+      description: `${stakeholder.visibleParticipants} active vendor access record`,
       path: "/admin/stakeholders",
-      group: "Stakeholders",
+      group: "Subscribers",
       audience: ["authority-admin"] as UserRole[],
     })),
     ...caseTemplates.map((template) => ({
       title: template.name,
-      description: `${template.status.toLowerCase()} template with ${template.taskCount} tasks`,
+      description: `${template.status.toLowerCase()} DDQ template with ${template.taskCount} items`,
       path: "/admin/case-templates",
-      group: "Case templates",
+      group: "DDQ templates",
       audience: ["authority-admin"] as UserRole[],
     })),
     ...cases.map((caseRecord) => {
       const participant = participants.find((item) => item.id === caseRecord.participantId);
       return {
         title: `${caseRecord.title} - ${participant?.name ?? "Unknown participant"}`,
-        description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} tasks complete`,
+        description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} due diligence items complete`,
         path: `/cases/${caseRecord.id}`,
-        group: "Cases",
+        group: "Due diligence packs",
         audience: ["authority-admin", "participant"] as UserRole[],
       };
     }),
@@ -1670,7 +1729,7 @@ function buildSearchItems(): SearchItem[] {
       title: task.title,
       description: task.type,
       path: `/cases/${caseRecord.id}/tasks/${task.id}`,
-      group: "Tasks",
+      group: "Due diligence items",
       audience: ["authority-admin", "participant"] as UserRole[],
     }))),
   ];
@@ -1720,23 +1779,23 @@ export function getSearchItemsForUser(user: AuthenticatedUser) {
 
   return searchItems.filter((item) => {
     if (!item.audience.includes(user.role)) return false;
-    if (item.group === "Participants") {
+    if (item.group === "Vendors") {
       return scopedParticipants.some((participant) => item.path.endsWith(participant.id));
     }
-    if (item.group === "Stakeholders") {
+    if (item.group === "Subscribers") {
       return scopedStakeholders.some((stakeholder) => item.title === stakeholder.name);
     }
-    if (item.group === "Case templates") {
+    if (item.group === "DDQ templates") {
       return scopedTemplates.some((template) => item.title === template.name);
     }
-    if (item.group === "Cases") {
+    if (item.group === "Due diligence packs") {
       return scopedCases.some((caseRecord) => item.path.endsWith(caseRecord.id));
     }
-    if (item.group === "Tasks") {
+    if (item.group === "Due diligence items") {
       return scopedCaseIds.has(item.path.split("/")[2] ?? "");
     }
     return true;
-  }).filter((item) => item.group !== "Participants" || scopedParticipantIds.size > 0);
+  }).filter((item) => item.group !== "Vendors" || scopedParticipantIds.size > 0);
 }
 
 export function getParticipant(id: string | undefined) {

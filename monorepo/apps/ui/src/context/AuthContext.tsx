@@ -30,23 +30,23 @@ type StoredUser = Partial<Omit<AuthenticatedUser, "role">> & {
 export const USER_ROLES: Array<{ id: UserRole; label: string; description: string }> = [
   {
     id: "authority-admin",
-    label: "Authority",
-    description: "Configure case types, roles, workflow, and review",
+    label: "Association",
+    description: "Configure DDQ templates, vendor membership, and scheme settings",
   },
   {
     id: "participant",
-    label: "Participant",
-    description: "Complete tasks, submit forms, and upload evidence",
+    label: "Vendor",
+    description: "Complete due diligence packs and manage evidence",
   },
   {
     id: "stakeholder",
-    label: "Stakeholder",
-    description: "Read-only assurance, status, and outcome visibility",
+    label: "Subscriber",
+    description: "Review granted vendor due diligence and request information",
   },
 ];
 
 export function getUserRoleLabel(role: UserRole) {
-  return USER_ROLES.find((item) => item.id === role)?.label ?? "Authority";
+  return USER_ROLES.find((item) => item.id === role)?.label ?? "Association";
 }
 
 ////////////////////////////////////

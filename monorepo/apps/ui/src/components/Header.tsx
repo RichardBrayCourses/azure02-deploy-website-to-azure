@@ -80,7 +80,7 @@ function GlobalSearch() {
       <Input
         aria-label="Search console"
         className="h-9 rounded-sm border-white/25 bg-white/10 pl-9 text-sm text-white shadow-none placeholder:text-white/65 focus-visible:border-white focus-visible:ring-white/35"
-        placeholder="Search apps, cases, participants, tasks"
+        placeholder="Search apps, vendors, DDQs, items"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);

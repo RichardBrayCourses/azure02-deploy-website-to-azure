@@ -86,14 +86,14 @@ export default function SignInPage() {
           <p className="text-sm font-bold uppercase text-[#505a5f] dark:text-muted-foreground">Sign in</p>
           <h1 className="mt-1 text-3xl font-bold sm:text-4xl">CaseFlow Console</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[#505a5f] dark:text-muted-foreground">
-            Choose the organization and access scope for this session.
+            Choose the association and access context for this session.
           </p>
         </div>
 
         <section className="grid gap-6 lg:grid-cols-[minmax(20rem,32rem)_22rem]">
           <div className="border border-[#b1b4b6] bg-white p-4 dark:bg-card">
             <div className="mb-4 flex flex-wrap gap-2 text-xs font-bold">
-              {["Authority", "Role", "Participant"].map((label, index) => {
+              {["Association", "Role", "Vendor"].map((label, index) => {
                 const active = step === index + 1;
                 const done = step > index + 1;
                 return (
@@ -115,7 +115,7 @@ export default function SignInPage() {
 
             <div className="grid gap-5">
               <div>
-                <h2 className="text-base font-bold">Which authority do you want to sign in under?</h2>
+                <h2 className="text-base font-bold">Which association do you want to sign in under?</h2>
                 {selectedAuthority ? (
                   <div className="mt-2 flex items-center justify-between gap-3 border border-[#00703c] bg-[#eaf7ef] p-2">
                     <div>
@@ -184,8 +184,8 @@ export default function SignInPage() {
                 <div>
                   <h2 className="text-base font-bold">
                     {role === "participant"
-                      ? "Which participant are you?"
-                      : "Which participant do you want to view?"}
+                      ? "Which vendor are you?"
+                      : "Which vendor do you want to review?"}
                   </h2>
                   {selectedParticipant ? (
                     <div className="mt-2 flex items-center justify-between gap-3 border border-[#00703c] bg-[#eaf7ef] p-2">
