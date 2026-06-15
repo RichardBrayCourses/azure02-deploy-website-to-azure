@@ -63,6 +63,64 @@ function ProgressBar({ value, total }: { value: number; total: number }) {
   );
 }
 
+function taskActivity(taskId: string, status: Status) {
+  const activityByTask: Record<string, { performed: string; lastUpdated: string; reviewerNote: string }> = {
+    "case-task-photo-identity": {
+      performed: "15 Jun 2026, 09:42",
+      lastUpdated: "15 Jun 2026, 10:05",
+      reviewerNote: "Evidence passed review.",
+    },
+    "case-task-driving-licence": {
+      performed: "15 Jun 2026, 11:18",
+      lastUpdated: "15 Jun 2026, 11:18",
+      reviewerNote: "Participant is still working on this task.",
+    },
+    "case-task-security-form": {
+      performed: "14 Jun 2026, 16:20",
+      lastUpdated: "15 Jun 2026, 08:55",
+      reviewerNote: "More evidence requested.",
+    },
+    "case-task-work-photos": {
+      performed: "14 Jun 2026, 15:10",
+      lastUpdated: "15 Jun 2026, 09:30",
+      reviewerNote: "Completion photos need resubmission.",
+    },
+    "case-task-stakeholder-signature": {
+      performed: "15 Jun 2026, 12:00",
+      lastUpdated: "15 Jun 2026, 12:00",
+      reviewerNote: "Awaiting final signature.",
+    },
+    "case-task-vehicle-documents": {
+      performed: "29 May 2026, 13:35",
+      lastUpdated: "30 May 2026, 09:00",
+      reviewerNote: "Evidence passed review.",
+    },
+    "case-task-address-proof": {
+      performed: "29 May 2026, 13:42",
+      lastUpdated: "30 May 2026, 09:05",
+      reviewerNote: "Evidence passed review.",
+    },
+    "case-task-fee-payment": {
+      performed: "31 May 2026, 10:15",
+      lastUpdated: "31 May 2026, 10:20",
+      reviewerNote: "Payment confirmed.",
+    },
+  };
+
+  return activityByTask[taskId] ?? {
+    performed: status === "not-started" ? "Not started" : "Recently updated",
+    lastUpdated: status === "not-started" ? "No activity yet" : "15 Jun 2026",
+    reviewerNote:
+      status === "complete"
+        ? "Evidence passed review."
+        : status === "attention"
+          ? "Needs authority attention."
+          : status === "in-progress"
+            ? "Participant is still working on this task."
+            : "No participant activity yet.",
+  };
+}
+
 function ResourceTable({
   children,
   headings,
@@ -113,12 +171,12 @@ export function StakeholderPortalPage() {
           { label: "Watched cases", value: String(scopedCases.length), tone: "blue" },
           { label: "Approved outcomes", value: String(scopedCases.filter((caseRecord) => caseRecord.status === "closed").length), tone: "green" },
           { label: "In progress", value: String(scopedCases.filter((caseRecord) => caseRecord.status !== "closed").length), tone: "yellow" },
-          { label: "Failed tasks", value: "0", tone: "green" },
+          { label: "Needs attention", value: String(scopedCases.filter((caseRecord) => caseRecord.risk === "high").length), tone: "red" },
         ]}
       />
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Visible case status</h3>
-        <ResourceTable headings={["Organization", "Visible case", "Status", "Tasks", "Visible outcome"]}>
+        <ResourceTable headings={["Participant", "Visible case", "Status", "Progress", "Visible outcome"]}>
           {scopedParticipants.map((participant) => {
             const stakeholder = getStakeholder(participant.stakeholderId);
             const visibleCase = scopedCases.find((caseRecord) => caseRecord.participantId === participant.id);
@@ -159,7 +217,7 @@ export function StakeholderPortalPage() {
         </ResourceTable>
       </section>
       <p className="mt-4 text-sm text-[#505a5f] dark:text-muted-foreground">
-        Visible task completion: {completedTasks} of {totalTasks}.
+        Visible progress across approved participants: {completedTasks} of {totalTasks}.
       </p>
     </ConsoleLayout>
   );
@@ -201,19 +259,28 @@ export function StakeholderCaseDetailPage() {
         <h3 className="text-xl font-bold">Visible outcome</h3>
         <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">{caseRecord.outcome}</p>
       </section>
-      <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Task status</h3>
-        <ResourceTable headings={["Task", "Type", "Status", "Due", "Visible summary"]}>
-          {caseRecord.tasks.map((task) => (
-            <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3 font-bold text-[#0b0c0c] dark:text-white">{task.title}</td>
-              <td className="px-4 py-3">{task.type}</td>
-              <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
-              <td className="px-4 py-3">{task.due}</td>
-              <td className="px-4 py-3">{task.description}</td>
-            </tr>
-          ))}
-        </ResourceTable>
+      <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
+        <h3 className="text-xl font-bold">Participant performance</h3>
+        <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Progress</dt>
+            <dd className="mt-2"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></dd>
+          </div>
+          <div>
+            <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Recent activity</dt>
+            <dd className="mt-2">{caseRecord.lastActivity}</dd>
+          </div>
+          <div>
+            <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Visible status</dt>
+            <dd className="mt-2">
+              {caseRecord.status === "closed"
+                ? "Approved outcome"
+                : caseRecord.risk === "high"
+                  ? "Attention requested"
+                  : "Work in progress"}
+            </dd>
+          </div>
+        </dl>
       </section>
     </ConsoleLayout>
   );
@@ -471,13 +538,21 @@ export function CaseDetailPage() {
       />
       <Tabs
         current="Summary"
-        tabs={[
-          { label: "Summary", path: `/cases/${caseRecord.id}` },
-          { label: "Tasks", path: `/cases/${caseRecord.id}` },
-          { label: "Evidence", path: `/cases/${caseRecord.id}` },
-          { label: "Activity", path: `/cases/${caseRecord.id}` },
-          { label: "Review", path: `/cases/${caseRecord.id}` },
-        ]}
+        tabs={
+          user.role === "authority-admin"
+            ? [
+                { label: "Summary", path: `/cases/${caseRecord.id}` },
+                { label: "Activity", path: `/cases/${caseRecord.id}` },
+                { label: "Evidence", path: `/cases/${caseRecord.id}` },
+                { label: "Review", path: `/cases/${caseRecord.id}` },
+              ]
+            : [
+                { label: "Summary", path: `/cases/${caseRecord.id}` },
+                { label: "Tasks", path: `/cases/${caseRecord.id}` },
+                { label: "Evidence", path: `/cases/${caseRecord.id}` },
+                { label: "Activity", path: `/cases/${caseRecord.id}` },
+              ]
+        }
       />
       <MetricStrip
         items={[
@@ -488,31 +563,56 @@ export function CaseDetailPage() {
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Tasks</h3>
-        <div className="grid gap-3">
-          {tasks.map((task) => {
-            const Icon = task.Icon;
-            return (
-              <Link
-                key={task.id}
-                to={`/cases/${caseRecord.id}/tasks/${task.id}`}
-                className="grid gap-4 border border-[#b1b4b6] bg-white p-4 hover:border-[#1d70b8] dark:bg-card md:grid-cols-[auto_1fr_auto]"
-              >
-                <span className="flex size-11 items-center justify-center rounded-sm bg-[#eaf4fb] text-[#1d70b8]">
-                  <Icon className="size-5" />
-                </span>
-                <span>
-                  <span className="block text-lg font-bold text-[#1d70b8]">{task.title}</span>
-                  <span className="mt-1 block text-sm text-[#505a5f] dark:text-muted-foreground">{task.description}</span>
-                  <span className="mt-2 block text-xs font-bold text-[#505a5f] dark:text-muted-foreground">
-                    Due: {task.due}
-                  </span>
-                </span>
-                <span className="self-start"><StatusBadge status={task.status} /></span>
-              </Link>
-            );
-          })}
-        </div>
+        {user.role === "authority-admin" ? (
+          <>
+            <h3 className="mb-3 text-xl font-bold">Task activity summary</h3>
+            <ResourceTable headings={["Task", "Status", "Performed", "Last activity", "Review note"]}>
+              {tasks.map((task) => {
+                const activity = taskActivity(task.id, task.status);
+                return (
+                  <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                    <td className="px-4 py-3">
+                      <span className="block font-bold text-[#0b0c0c] dark:text-white">{task.title}</span>
+                      <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{task.type}</span>
+                    </td>
+                    <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
+                    <td className="px-4 py-3">{activity.performed}</td>
+                    <td className="px-4 py-3">{activity.lastUpdated}</td>
+                    <td className="px-4 py-3">{activity.reviewerNote}</td>
+                  </tr>
+                );
+              })}
+            </ResourceTable>
+          </>
+        ) : (
+          <>
+            <h3 className="mb-3 text-xl font-bold">Tasks</h3>
+            <div className="grid gap-3">
+              {tasks.map((task) => {
+                const Icon = task.Icon;
+                return (
+                  <Link
+                    key={task.id}
+                    to={`/cases/${caseRecord.id}/tasks/${task.id}`}
+                    className="grid gap-4 border border-[#b1b4b6] bg-white p-4 hover:border-[#1d70b8] dark:bg-card md:grid-cols-[auto_1fr_auto]"
+                  >
+                    <span className="flex size-11 items-center justify-center rounded-sm bg-[#eaf4fb] text-[#1d70b8]">
+                      <Icon className="size-5" />
+                    </span>
+                    <span>
+                      <span className="block text-lg font-bold text-[#1d70b8]">{task.title}</span>
+                      <span className="mt-1 block text-sm text-[#505a5f] dark:text-muted-foreground">{task.description}</span>
+                      <span className="mt-2 block text-xs font-bold text-[#505a5f] dark:text-muted-foreground">
+                        Due: {task.due}
+                      </span>
+                    </span>
+                    <span className="self-start"><StatusBadge status={task.status} /></span>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        )}
       </section>
     </ConsoleLayout>
   );
@@ -520,13 +620,15 @@ export function CaseDetailPage() {
 
 export function TaskDetailPage() {
   const { user } = useAuth();
-  if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   const { caseId, taskId } = useParams();
   const [isEdited, setIsEdited] = useState(false);
 
   useEffect(() => {
     setIsEdited(false);
   }, [caseId, taskId]);
+
+  if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
+  if (user.role === "authority-admin") return <Navigate to={`/cases/${caseId ?? ""}`} replace />;
 
   const caseRecord = getCase(caseId);
   const task = getTask(caseId, taskId);
