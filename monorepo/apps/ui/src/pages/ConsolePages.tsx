@@ -18,6 +18,9 @@ import {
   getCaseTemplatesForAuthority,
   getAccessGrantsForParticipant,
   getGrantableStakeholdersForParticipant,
+  getRequestsForCase,
+  getRequestsForParticipant,
+  getRequestsForTask,
   getSubscriberReviewForCase,
   getScopedCases,
   getScopedParticipants,
@@ -27,6 +30,7 @@ import {
   AccessGrantGranteeType,
   MembershipRole,
   PartyType,
+  RequestForInformationStatus,
   SubscriberReviewStatus,
   Status,
   taskTypes,
@@ -37,6 +41,7 @@ import {
   CheckCircle2,
   Clock3,
   History,
+  MessageSquarePlus,
   Plus,
   Rocket,
   Save,
@@ -75,6 +80,22 @@ function GrantStatusBadge({ status }: { status: AccessGrantStatus }) {
     SUSPENDED: "bg-[#505a5f] text-white",
     REVOKED: "bg-[#d4351c] text-white",
     EXPIRED: "bg-[#f3f2f1] text-[#0b0c0c] ring-1 ring-[#b1b4b6]",
+  };
+
+  return (
+    <span className={cn("inline-flex rounded-sm px-2 py-1 text-xs font-bold uppercase", classes[status])}>
+      {status.replace("_", " ").toLowerCase()}
+    </span>
+  );
+}
+
+function RequestStatusBadge({ status }: { status: RequestForInformationStatus }) {
+  const classes: Record<RequestForInformationStatus, string> = {
+    OPEN: "bg-[#1d70b8] text-white",
+    IN_PROGRESS: "bg-[#ffdd00] text-[#0b0c0c]",
+    ANSWERED: "bg-[#00703c] text-white",
+    ACCEPTED: "bg-[#005a30] text-white",
+    WITHDRAWN: "bg-[#505a5f] text-white",
   };
 
   return (
@@ -388,6 +409,9 @@ export function StakeholderCaseDetailPage() {
   const [reviewStatus, setReviewStatus] = useState<SubscriberReviewStatus>("IN_REVIEW");
   const [reviewNote, setReviewNote] = useState("");
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [requestTaskId, setRequestTaskId] = useState("");
+  const [requestText, setRequestText] = useState("");
+  const [requestError, setRequestError] = useState<string | null>(null);
   const caseRecord = getCase(caseId);
   const subscriberReview = getSubscriberReviewForCase(user, caseRecord?.id);
 
@@ -403,6 +427,9 @@ export function StakeholderCaseDetailPage() {
   if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/stakeholder" replace />;
 
   const participant = getParticipant(caseRecord.participantId);
+  const requests = getRequestsForCase(caseRecord.id, user);
+  const openRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS").length;
+  const answeredRequests = requests.filter((request) => request.status === "ANSWERED").length;
 
   function saveSubscriberReview() {
     setReviewError(null);
@@ -424,6 +451,51 @@ export function StakeholderCaseDetailPage() {
     }
   }
 
+  function createRequestForInformation() {
+    setRequestError(null);
+    if (!user.stakeholderId || !user.authenticatableUserId) {
+      setRequestError("No subscriber context is selected for this session.");
+      return;
+    }
+    if (!requestText.trim()) {
+      setRequestError("Enter a request for information.");
+      return;
+    }
+    try {
+      db.createRequestForInformation({
+        stakeholderId: user.stakeholderId,
+        caseId: caseRecord?.id ?? "",
+        caseTaskId: requestTaskId || null,
+        requestText,
+        requestedByUserId: user.authenticatableUserId,
+      });
+      refresh();
+      setRequestTaskId("");
+      setRequestText("");
+    } catch (caught) {
+      setRequestError(caught instanceof Error ? caught.message : "Request for information could not be created.");
+    }
+  }
+
+  function updateRequestStatus(requestId: string, status: Extract<RequestForInformationStatus, "ACCEPTED" | "WITHDRAWN">) {
+    setRequestError(null);
+    if (!user.authenticatableUserId) {
+      setRequestError("No subscriber user is selected for this session.");
+      return;
+    }
+    try {
+      db.updateRequestForInformationStatus({
+        requestId,
+        status,
+        updatedByUserId: user.authenticatableUserId,
+        note: status === "ACCEPTED" ? "Subscriber accepted vendor response" : "Subscriber withdrew request",
+      });
+      refresh();
+    } catch (caught) {
+      setRequestError(caught instanceof Error ? caught.message : "Request status could not be updated.");
+    }
+  }
+
   return (
     <ConsoleLayout
       breadcrumbs={[
@@ -440,13 +512,74 @@ export function StakeholderCaseDetailPage() {
         items={[
           { label: "Vendor pack status", value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
           { label: "Items complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
-          { label: "Risk", value: caseRecord.risk, tone: caseRecord.risk === "high" ? "red" : "yellow" },
-          { label: "Subscriber review", value: subscriberReview?.statusLabel ?? "Not reviewed", tone: subscriberReview?.status === "APPROVED" ? "green" : "yellow" },
+          { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
+          { label: "Answered requests", value: String(answeredRequests), tone: answeredRequests > 0 ? "yellow" : "blue" },
         ]}
       />
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
         <h3 className="text-xl font-bold">Vendor pack outcome</h3>
         <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">{caseRecord.outcome}</p>
+      </section>
+      <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
+        <h3 className="text-xl font-bold">Requests for information</h3>
+        <FormError message={requestError} />
+        <div className="mt-4 grid gap-4 lg:grid-cols-[18rem_1fr_auto] lg:items-end">
+          <FormField label="Related scope">
+            <SelectField value={requestTaskId} onChange={setRequestTaskId}>
+              <option value="">Whole DDQ pack</option>
+              {caseRecord.tasks.map((task) => (
+                <option key={task.id} value={task.id}>{task.title}</option>
+              ))}
+            </SelectField>
+          </FormField>
+          <FormField label="Request text">
+            <Input value={requestText} onChange={(event) => setRequestText(event.target.value)} />
+          </FormField>
+          <Button type="button" onClick={createRequestForInformation}>
+            <MessageSquarePlus />
+            Create request
+          </Button>
+        </div>
+        <div className="mt-5">
+          <ResourceTable headings={["Scope", "Status", "Request", "Vendor response", "Actions"]}>
+            {requests.map((request) => (
+              <tr key={request.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">
+                  <span className="block font-bold">{request.scopeLabel}</span>
+                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                    Requested by {request.requestedByName} on {new Date(request.requestedAt).toLocaleDateString("en-GB")}
+                  </span>
+                </td>
+                <td className="px-4 py-3"><RequestStatusBadge status={request.status} /></td>
+                <td className="px-4 py-3">{request.requestText}</td>
+                <td className="px-4 py-3">
+                  {request.responseText || "No vendor response yet"}
+                  {request.respondedByName && (
+                    <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                      By {request.respondedByName}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    {request.status === "ANSWERED" && (
+                      <Button type="button" variant="outline" onClick={() => updateRequestStatus(request.id, "ACCEPTED")}>
+                        <CheckCircle2 />
+                        Accept
+                      </Button>
+                    )}
+                    {request.status !== "ACCEPTED" && request.status !== "WITHDRAWN" && (
+                      <Button type="button" variant="outline" onClick={() => updateRequestStatus(request.id, "WITHDRAWN")}>
+                        <XCircle />
+                        Withdraw
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </ResourceTable>
+        </div>
       </section>
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
         <h3 className="text-xl font-bold">Subscriber review</h3>
@@ -1526,7 +1659,8 @@ export function CaseManagementHome() {
   const scopedCases = getScopedCases(user);
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
-  const blockedTasks = scopedCases.flatMap((caseRecord) => caseRecord.tasks).filter((task) => task.status === "attention").length;
+  const openRequests = getRequestsForParticipant(user.participantId ?? undefined, user)
+    .filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS").length;
 
   return (
     <ConsoleLayout
@@ -1553,7 +1687,7 @@ export function CaseManagementHome() {
           { label: "Association", value: authority?.name ?? "None", tone: "blue" },
           { label: "DDQ packs", value: String(scopedCases.length), tone: "blue" },
           { label: "Completed items", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
-          { label: "Blocked items", value: String(blockedTasks), tone: "red" },
+          { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
         ]}
       />
       <section className="mt-8">
@@ -1765,6 +1899,9 @@ export function CaseDetailPage() {
   const { db, refresh } = useDomainData();
   const { caseId } = useParams();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [respondingRequestId, setRespondingRequestId] = useState<string | null>(null);
+  const [requestResponseText, setRequestResponseText] = useState("");
+  const [requestError, setRequestError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
   const caseRecord = getCase(caseId);
@@ -1775,6 +1912,8 @@ export function CaseDetailPage() {
   const currentCase = caseRecord;
   const participant = getParticipant(caseRecord.participantId);
   const tasks = caseRecord.tasks;
+  const requests = getRequestsForCase(caseRecord.id, user);
+  const activeRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS");
   const canSubmitCase =
     user.role === "participant" &&
     caseRecord.domainStatus !== "SUBMITTED" &&
@@ -1790,6 +1929,37 @@ export function CaseDetailPage() {
       refresh();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "The case could not be submitted.");
+    }
+  }
+
+  function openRequestResponse(requestId: string, currentResponse: string) {
+    setRespondingRequestId(requestId);
+    setRequestResponseText(currentResponse);
+    setRequestError(null);
+  }
+
+  function saveRequestResponse(status: Extract<RequestForInformationStatus, "IN_PROGRESS" | "ANSWERED">) {
+    setRequestError(null);
+    if (!respondingRequestId) {
+      setRequestError("Select a request to respond to.");
+      return;
+    }
+    if (!user.authenticatableUserId) {
+      setRequestError("No vendor user is selected for this session.");
+      return;
+    }
+    try {
+      db.respondToRequestForInformation({
+        requestId: respondingRequestId,
+        responseText: requestResponseText,
+        respondedByUserId: user.authenticatableUserId,
+        status,
+      });
+      refresh();
+      setRespondingRequestId(null);
+      setRequestResponseText("");
+    } catch (caught) {
+      setRequestError(caught instanceof Error ? caught.message : "Request response could not be saved.");
     }
   }
 
@@ -1830,10 +2000,60 @@ export function CaseDetailPage() {
         items={[
           { label: "Pack status", value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
           { label: "Items complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
-          { label: "Risk", value: caseRecord.risk, tone: caseRecord.risk === "high" ? "red" : "yellow" },
+          { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
           { label: "Reference", value: caseRecord.reference, tone: "blue" },
         ]}
       />
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Subscriber requests</h3>
+        <FormError message={requestError} />
+        {respondingRequestId && (
+          <ResourceActionPanel
+            open
+            title="Respond to request"
+            description="Save a vendor response without changing DDQ item answers or evidence metadata."
+            onClose={() => setRespondingRequestId(null)}
+            footer={
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => saveRequestResponse("IN_PROGRESS")}>
+                  <Save />
+                  Save progress
+                </Button>
+                <Button type="button" onClick={() => saveRequestResponse("ANSWERED")}>
+                  <CheckCircle2 />
+                  Mark answered
+                </Button>
+              </div>
+            }
+          >
+            <FormField label="Vendor response">
+              <Input value={requestResponseText} onChange={(event) => setRequestResponseText(event.target.value)} />
+            </FormField>
+          </ResourceActionPanel>
+        )}
+        <ResourceTable headings={["Subscriber", "Scope", "Status", "Request", "Response", "Actions"]}>
+          {requests.map((request) => (
+            <tr key={request.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">{request.stakeholderName}</td>
+              <td className="px-4 py-3">{request.scopeLabel}</td>
+              <td className="px-4 py-3"><RequestStatusBadge status={request.status} /></td>
+              <td className="px-4 py-3">{request.requestText}</td>
+              <td className="px-4 py-3">{request.responseText || "No response yet"}</td>
+              <td className="px-4 py-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => openRequestResponse(request.id, request.responseText)}
+                  disabled={request.status === "ACCEPTED" || request.status === "WITHDRAWN"}
+                >
+                  <History />
+                  Respond
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Due diligence items</h3>
         <div className="grid gap-3">
@@ -1882,6 +2102,9 @@ export function TaskDetailPage() {
   const [isEdited, setIsEdited] = useState(false);
   const [responseText, setResponseText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [respondingRequestId, setRespondingRequestId] = useState<string | null>(null);
+  const [requestResponseText, setRequestResponseText] = useState("");
+  const [requestError, setRequestError] = useState<string | null>(null);
   const caseRecord = getCase(caseId);
   const task = getTask(caseId, taskId);
 
@@ -1902,6 +2125,7 @@ export function TaskDetailPage() {
   const currentTask = task;
   const participant = getParticipant(caseRecord.participantId);
   const Icon = task.Icon;
+  const taskRequests = getRequestsForTask(task.id, user);
   const canEditTask = task.domainStatus !== "SUBMITTED" && task.domainStatus !== "PASSED" && task.domainStatus !== "WITHDRAWN";
   const canSubmitTask =
     task.domainStatus !== "SUBMITTED" &&
@@ -1969,6 +2193,37 @@ export function TaskDetailPage() {
       setIsEdited(false);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "The task could not be submitted.");
+    }
+  }
+
+  function openRequestResponse(requestId: string, currentResponse: string) {
+    setRespondingRequestId(requestId);
+    setRequestResponseText(currentResponse);
+    setRequestError(null);
+  }
+
+  function saveRequestResponse(status: Extract<RequestForInformationStatus, "IN_PROGRESS" | "ANSWERED">) {
+    setRequestError(null);
+    if (!respondingRequestId) {
+      setRequestError("Select a request to respond to.");
+      return;
+    }
+    if (!user.authenticatableUserId) {
+      setRequestError("No vendor user is selected for this session.");
+      return;
+    }
+    try {
+      db.respondToRequestForInformation({
+        requestId: respondingRequestId,
+        responseText: requestResponseText,
+        respondedByUserId: user.authenticatableUserId,
+        status,
+      });
+      refresh();
+      setRespondingRequestId(null);
+      setRequestResponseText("");
+    } catch (caught) {
+      setRequestError(caught instanceof Error ? caught.message : "Request response could not be saved.");
     }
   }
 
@@ -2107,6 +2362,57 @@ export function TaskDetailPage() {
           </dl>
         </aside>
       </div>
+      {taskRequests.length > 0 && (
+        <section className="mt-8">
+          <h3 className="mb-3 text-xl font-bold">Requests for this item</h3>
+          <FormError message={requestError} />
+          {respondingRequestId && (
+            <ResourceActionPanel
+              open
+              title="Respond to request"
+              description="Add a response to the subscriber's request without overwriting this DDQ item answer."
+              onClose={() => setRespondingRequestId(null)}
+              footer={
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => saveRequestResponse("IN_PROGRESS")}>
+                    <Save />
+                    Save progress
+                  </Button>
+                  <Button type="button" onClick={() => saveRequestResponse("ANSWERED")}>
+                    <CheckCircle2 />
+                    Mark answered
+                  </Button>
+                </div>
+              }
+            >
+              <FormField label="Vendor response">
+                <Input value={requestResponseText} onChange={(event) => setRequestResponseText(event.target.value)} />
+              </FormField>
+            </ResourceActionPanel>
+          )}
+          <ResourceTable headings={["Subscriber", "Status", "Request", "Response", "Actions"]}>
+            {taskRequests.map((request) => (
+              <tr key={request.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">{request.stakeholderName}</td>
+                <td className="px-4 py-3"><RequestStatusBadge status={request.status} /></td>
+                <td className="px-4 py-3">{request.requestText}</td>
+                <td className="px-4 py-3">{request.responseText || "No response yet"}</td>
+                <td className="px-4 py-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => openRequestResponse(request.id, request.responseText)}
+                    disabled={request.status === "ACCEPTED" || request.status === "WITHDRAWN"}
+                  >
+                    <History />
+                    Respond
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </ResourceTable>
+        </section>
+      )}
     </ConsoleLayout>
   );
 }

@@ -37,6 +37,8 @@ export type TemplateParticipantStatus = "REQUIRED" | "EXEMPT";
 export type CaseStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CLOSED";
 export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
 export type SubscriberReviewStatus = "NOT_REVIEWED" | "IN_REVIEW" | "APPROVED" | "MORE_INFO_REQUESTED";
+export type RequestForInformationStatus = "OPEN" | "IN_PROGRESS" | "ANSWERED" | "ACCEPTED" | "WITHDRAWN";
+export type RequestForInformationScopeType = "PARTICIPANT" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA";
 export type UserAccountStatus = "ACTIVE" | "DISABLED";
 export type Status = "complete" | "in-progress" | "attention" | "not-started" | "withdrawn";
 
@@ -54,6 +56,7 @@ export type CaseTaskId = string;
 export type StakeholderParticipantAccessId = string;
 export type AccessGrantId = string;
 export type SubscriberReviewId = string;
+export type RequestForInformationId = string;
 
 type JsonObject = Record<string, unknown>;
 
@@ -193,6 +196,24 @@ export type SubscriberReviewDto = BaseDto & {
   reviewedAt: string;
 };
 
+export type RequestForInformationDto = BaseDto & {
+  authorityId: AuthorityId;
+  participantId: ParticipantId;
+  stakeholderId: StakeholderId;
+  caseId: CaseRecordId | null;
+  caseTaskId: CaseTaskId | null;
+  scopeType: RequestForInformationScopeType;
+  requestText: string;
+  responseText: string;
+  status: RequestForInformationStatus;
+  requestedByUserId: UserAccountId;
+  assignedToUserId: UserAccountId | null;
+  respondedByUserId: UserAccountId | null;
+  requestedAt: string;
+  respondedAt: string | null;
+  statusHistory: Array<{ status: RequestForInformationStatus; at: string; byUserId: UserAccountId; note: string }>;
+};
+
 export type CreateParticipantCommand = {
   authorityId: AuthorityId;
   participantType: PartyType;
@@ -273,6 +294,28 @@ export type UpsertSubscriberReviewCommand = {
   reviewedByUserId: UserAccountId;
 };
 
+export type CreateRequestForInformationCommand = {
+  stakeholderId: StakeholderId;
+  caseId: CaseRecordId;
+  caseTaskId?: CaseTaskId | null;
+  requestText: string;
+  requestedByUserId: UserAccountId;
+};
+
+export type RespondToRequestForInformationCommand = {
+  requestId: RequestForInformationId;
+  responseText: string;
+  respondedByUserId: UserAccountId;
+  status?: Extract<RequestForInformationStatus, "IN_PROGRESS" | "ANSWERED">;
+};
+
+export type UpdateRequestForInformationStatusCommand = {
+  requestId: RequestForInformationId;
+  status: Extract<RequestForInformationStatus, "ACCEPTED" | "WITHDRAWN">;
+  updatedByUserId: UserAccountId;
+  note?: string;
+};
+
 class DomainEntity<TDto extends BaseDto> {
   constructor(protected readonly dto: TDto) {}
 
@@ -303,6 +346,7 @@ export class CaseTemplateParticipantEntity extends DomainEntity<CaseTemplatePart
 export class CaseEntity extends DomainEntity<CaseDto> {}
 export class CaseTaskEntity extends DomainEntity<CaseTaskDto> {}
 export class SubscriberReviewEntity extends DomainEntity<SubscriberReviewDto> {}
+export class RequestForInformationEntity extends DomainEntity<RequestForInformationDto> {}
 
 export type AuthenticatableUserMembership =
   | { entityType: "authority"; entityId: AuthorityId }
@@ -445,6 +489,30 @@ export type SubscriberReview = {
   note: string;
   reviewedByName: string;
   reviewedAt: string;
+};
+
+export type RequestForInformation = {
+  id: RequestForInformationId;
+  authorityId: AuthorityId;
+  participantId: ParticipantId;
+  participantName: string;
+  stakeholderId: StakeholderId;
+  stakeholderName: string;
+  caseId: CaseRecordId | null;
+  caseTitle: string;
+  caseTaskId: CaseTaskId | null;
+  taskTitle: string | null;
+  scopeType: RequestForInformationScopeType;
+  scopeLabel: string;
+  requestText: string;
+  responseText: string;
+  status: RequestForInformationStatus;
+  statusLabel: string;
+  requestedByName: string;
+  assignedToName: string | null;
+  respondedByName: string | null;
+  requestedAt: string;
+  respondedAt: string | null;
 };
 
 export type CaseTemplate = {
@@ -822,6 +890,40 @@ export class InMemoryAllChecksOutDatabase {
     this.subscriberReview("review-mercury-pinebridge", "mercury-retail", "case-2026-pinebridge", "MORE_INFO_REQUESTED", "Restore-test evidence and certification evidence need clarification.", "user-sophie-turner"),
   ];
 
+  readonly requestsForInformation = [
+    this.requestForInformation(
+      "rfi-harrington-northstar-subprocessors",
+      "harrington-financial",
+      "case-2026-northstar",
+      "case-task-northstar-subprocessors",
+      "Please confirm whether the EU monitoring provider listed in the subprocessor register has access to production customer data.",
+      "user-rachel-morgan",
+      "OPEN",
+    ),
+    this.requestForInformation(
+      "rfi-mercury-pinebridge-restore",
+      "mercury-retail",
+      "case-2026-pinebridge",
+      "case-task-pinebridge-backup",
+      "The restore-test evidence is older than the current policy cycle. Please provide a 2026 restore-test summary or explain the gap.",
+      "user-sophie-turner",
+      "ANSWERED",
+      "The May 2026 restore-test summary has been added to the evidence metadata and the exception is tracked in the remediation register.",
+      "user-maya-patel",
+    ),
+    this.requestForInformation(
+      "rfi-mercury-cobalt-pack",
+      "mercury-retail",
+      "case-2026-cobalt",
+      null,
+      "When do you expect to submit the remaining certification and incident response evidence for subscriber review?",
+      "user-sophie-turner",
+      "IN_PROGRESS",
+      "Certification evidence is being validated by the audit team. We expect to submit the remaining items by 21 June.",
+      "user-lewis-green",
+    ),
+  ];
+
   constructor() {}
 
   listAuthorities() {
@@ -1105,6 +1207,111 @@ export class InMemoryAllChecksOutDatabase {
     }
 
     return review;
+  }
+
+  getRequestsForCase(caseId: CaseRecordId) {
+    return this.requestsForInformation
+      .map((request) => request.toDto())
+      .filter((request) => request.caseId === caseId);
+  }
+
+  getRequestsForParticipant(participantId: ParticipantId) {
+    return this.requestsForInformation
+      .map((request) => request.toDto())
+      .filter((request) => request.participantId === participantId);
+  }
+
+  createRequestForInformation(command: CreateRequestForInformationCommand) {
+    const stakeholder = this.requireStakeholder(command.stakeholderId);
+    const caseRecord = this.requireCase(command.caseId);
+    this.requireUserAccount(command.requestedByUserId);
+    let caseTask: CaseTaskDto | null = null;
+    if (command.caseTaskId) {
+      caseTask = this.requireCaseTask(command.caseTaskId);
+      if (caseTask.caseId !== caseRecord.id) {
+        throw new Error("The selected due diligence item does not belong to this DDQ pack.");
+      }
+    }
+    const grant = this.getActiveAccessGrantsForStakeholder(stakeholder.id).find(
+      (candidate) => candidate.participantId === caseRecord.participantId && candidate.granteeType === "STAKEHOLDER",
+    );
+    if (!grant || grant.permissionLevel === "READ_ONLY") {
+      throw new Error("Requesting information requires an active vendor access grant with request permission.");
+    }
+    const requestText = command.requestText.trim();
+    if (!requestText) {
+      throw new Error("Enter a request for information.");
+    }
+    const requestedAt = this.timestamp();
+    const request = new RequestForInformationEntity({
+      ...this.createBase(this.nextId("rfi", this.requestsForInformation)),
+      authorityId: caseRecord.authorityId,
+      participantId: caseRecord.participantId,
+      stakeholderId: stakeholder.id,
+      caseId: caseRecord.id,
+      caseTaskId: caseTask?.id ?? null,
+      scopeType: caseTask ? "CASE_TASK" : "CASE",
+      requestText,
+      responseText: "",
+      status: "OPEN",
+      requestedByUserId: command.requestedByUserId,
+      assignedToUserId: null,
+      respondedByUserId: null,
+      requestedAt,
+      respondedAt: null,
+      statusHistory: [{ status: "OPEN", at: requestedAt, byUserId: command.requestedByUserId, note: "Request created" }],
+    });
+    this.requestsForInformation.push(request);
+    return request.toDto();
+  }
+
+  respondToRequestForInformation(command: RespondToRequestForInformationCommand) {
+    const request = this.requireRequestForInformation(command.requestId);
+    const respondent = this.requireUserAccount(command.respondedByUserId);
+    if (!this.participantUsers.some((membership) => {
+      const dto = membership.toDto();
+      return dto.entityId === request.participantId && dto.userAccountId === respondent.id;
+    })) {
+      throw new Error("Only a user in the owning vendor workspace can respond to this request.");
+    }
+    const responseText = command.responseText.trim();
+    if (!responseText) {
+      throw new Error("Enter a response before updating the request.");
+    }
+    const respondedAt = this.timestamp();
+    const status = command.status ?? "ANSWERED";
+    const updated: RequestForInformationDto = {
+      ...request,
+      responseText,
+      status,
+      assignedToUserId: request.assignedToUserId ?? respondent.id,
+      respondedByUserId: respondent.id,
+      respondedAt,
+      updatedAt: respondedAt,
+      statusHistory: [
+        ...request.statusHistory,
+        { status, at: respondedAt, byUserId: respondent.id, note: status === "ANSWERED" ? "Vendor answered request" : "Vendor response in progress" },
+      ],
+    };
+    this.replaceById(this.requestsForInformation, new RequestForInformationEntity(updated));
+    return updated;
+  }
+
+  updateRequestForInformationStatus(command: UpdateRequestForInformationStatusCommand) {
+    const request = this.requireRequestForInformation(command.requestId);
+    this.requireUserAccount(command.updatedByUserId);
+    const updatedAt = this.timestamp();
+    const updated: RequestForInformationDto = {
+      ...request,
+      status: command.status,
+      updatedAt,
+      statusHistory: [
+        ...request.statusHistory,
+        { status: command.status, at: updatedAt, byUserId: command.updatedByUserId, note: command.note ?? command.status.toLowerCase() },
+      ],
+    };
+    this.replaceById(this.requestsForInformation, new RequestForInformationEntity(updated));
+    return updated;
   }
 
   createCaseTemplate(command: CreateCaseTemplateCommand) {
@@ -1533,6 +1740,45 @@ export class InMemoryAllChecksOutDatabase {
     });
   }
 
+  private requestForInformation(
+    id: RequestForInformationId,
+    stakeholderId: StakeholderId,
+    caseId: CaseRecordId,
+    caseTaskId: CaseTaskId | null,
+    requestText: string,
+    requestedByUserId: UserAccountId,
+    status: RequestForInformationStatus,
+    responseText = "",
+    respondedByUserId: UserAccountId | null = null,
+  ) {
+    const caseRecord = this.cases.find((item) => item.id === caseId)?.toDto();
+    const requestedAt = "2026-06-13T10:00:00.000Z";
+    const respondedAt = respondedByUserId ? "2026-06-14T11:30:00.000Z" : null;
+    return new RequestForInformationEntity({
+      ...base(id),
+      authorityId: caseRecord?.authorityId ?? "northstar-association",
+      participantId: caseRecord?.participantId ?? "northstar-cloud",
+      stakeholderId,
+      caseId,
+      caseTaskId,
+      scopeType: caseTaskId ? "CASE_TASK" : "CASE",
+      requestText,
+      responseText,
+      status,
+      requestedByUserId,
+      assignedToUserId: respondedByUserId,
+      respondedByUserId,
+      requestedAt,
+      respondedAt,
+      statusHistory: [
+        { status: "OPEN", at: requestedAt, byUserId: requestedByUserId, note: "Request created" },
+        ...(respondedByUserId
+          ? [{ status, at: respondedAt ?? requestedAt, byUserId: respondedByUserId, note: "Vendor response updated" }]
+          : []),
+      ],
+    });
+  }
+
   private timestamp() {
     return new Date().toISOString();
   }
@@ -1632,6 +1878,12 @@ export class InMemoryAllChecksOutDatabase {
     const caseTask = this.caseTasks.find((task) => task.id === caseTaskId)?.toDto();
     if (!caseTask) throw new Error(`Case task ${caseTaskId} was not found.`);
     return caseTask;
+  }
+
+  private requireRequestForInformation(requestId: RequestForInformationId) {
+    const request = this.requestsForInformation.find((item) => item.id === requestId)?.toDto();
+    if (!request) throw new Error(`Request for information ${requestId} was not found.`);
+    return request;
   }
 
   private getActiveTemplateTasks(caseTemplateId: CaseTemplateId) {
@@ -1968,6 +2220,53 @@ function buildSubscriberReviews(): SubscriberReview[] {
   });
 }
 
+function requestForInformationStatusLabel(status: RequestForInformationStatus) {
+  const labels: Record<RequestForInformationStatus, string> = {
+    OPEN: "Open",
+    IN_PROGRESS: "In progress",
+    ANSWERED: "Answered",
+    ACCEPTED: "Accepted",
+    WITHDRAWN: "Withdrawn",
+  };
+  return labels[status];
+}
+
+function buildRequestsForInformation(): RequestForInformation[] {
+  return db.requestsForInformation.map((request) => {
+    const dto = request.toDto();
+    const participant = getParticipant(dto.participantId);
+    const stakeholder = getStakeholder(dto.stakeholderId);
+    const caseRecord = cases.find((item) => item.id === dto.caseId);
+    const task = cases.flatMap((item) => item.tasks).find((candidate) => candidate.id === dto.caseTaskId);
+    const requestedBy = db.userAccounts.find((account) => account.id === dto.requestedByUserId)?.toDto();
+    const assignedTo = dto.assignedToUserId ? db.userAccounts.find((account) => account.id === dto.assignedToUserId)?.toDto() : null;
+    const respondedBy = dto.respondedByUserId ? db.userAccounts.find((account) => account.id === dto.respondedByUserId)?.toDto() : null;
+    return {
+      id: dto.id,
+      authorityId: dto.authorityId,
+      participantId: dto.participantId,
+      participantName: participant?.name ?? "Unknown vendor",
+      stakeholderId: dto.stakeholderId,
+      stakeholderName: stakeholder?.name ?? "Unknown subscriber",
+      caseId: dto.caseId,
+      caseTitle: caseRecord?.title ?? "Due diligence pack",
+      caseTaskId: dto.caseTaskId,
+      taskTitle: task?.title ?? null,
+      scopeType: dto.scopeType,
+      scopeLabel: task?.title ?? caseRecord?.title ?? "Vendor workspace",
+      requestText: dto.requestText,
+      responseText: dto.responseText,
+      status: dto.status,
+      statusLabel: requestForInformationStatusLabel(dto.status),
+      requestedByName: requestedBy?.displayName ?? "Unknown user",
+      assignedToName: assignedTo?.displayName ?? null,
+      respondedByName: respondedBy?.displayName ?? null,
+      requestedAt: dto.requestedAt,
+      respondedAt: dto.respondedAt,
+    };
+  });
+}
+
 function buildParticipants(caseRecords: CaseRecord[]): Participant[] {
   return db.participants.map((participant) => {
     const dto = participant.toDto();
@@ -2187,6 +2486,7 @@ export let stakeholders: Stakeholder[] = [];
 export let participants: Participant[] = [];
 export let accessGrants: AccessGrant[] = [];
 export let subscriberReviews: SubscriberReview[] = [];
+export let requestsForInformation: RequestForInformation[] = [];
 export let authenticatableUsers: AuthenticatableUser[] = [];
 export let userIdentities: UserIdentity[] = [];
 export let accountContexts: AccountContext[] = [];
@@ -2202,6 +2502,7 @@ export function refreshConsoleViewModels() {
   participants = buildParticipants(cases);
   accessGrants = buildAccessGrants();
   subscriberReviews = buildSubscriberReviews();
+  requestsForInformation = buildRequestsForInformation();
   authenticatableUsers = buildAuthenticatableUsers();
   userIdentities = buildUserIdentities();
   accountContexts = buildAccountContexts();
@@ -2315,6 +2616,56 @@ export function getSubscriberReviewForCase(user: AuthenticatedUser, caseId: stri
     undefined;
   if (!stakeholderId) return undefined;
   return subscriberReviews.find((review) => review.stakeholderId === stakeholderId && review.caseId === caseId);
+}
+
+export function getRequestsForCase(caseId: string | undefined, user?: AuthenticatedUser) {
+  if (!caseId) return [];
+  const caseRequests = requestsForInformation.filter((request) => request.caseId === caseId);
+  if (!user) return caseRequests;
+  if (user.role === "participant") {
+    return caseRequests.filter((request) => request.participantId === user.participantId);
+  }
+  if (user.role === "stakeholder") {
+    const stakeholderId =
+      user.stakeholderId ??
+      (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
+      undefined;
+    return caseRequests.filter((request) => request.stakeholderId === stakeholderId);
+  }
+  return [];
+}
+
+export function getRequestsForTask(taskId: string | undefined, user?: AuthenticatedUser) {
+  if (!taskId) return [];
+  return requestsForInformation
+    .filter((request) => request.caseTaskId === taskId)
+    .filter((request) => {
+      if (!user) return true;
+      if (user.role === "participant") return request.participantId === user.participantId;
+      if (user.role === "stakeholder") {
+        const stakeholderId =
+          user.stakeholderId ??
+          (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
+          undefined;
+        return request.stakeholderId === stakeholderId;
+      }
+      return false;
+    });
+}
+
+export function getRequestsForParticipant(participantId: string | undefined, user?: AuthenticatedUser) {
+  if (!participantId) return [];
+  const participantRequests = requestsForInformation.filter((request) => request.participantId === participantId);
+  if (!user) return participantRequests;
+  if (user.role === "participant") return participantRequests.filter((request) => request.participantId === user.participantId);
+  if (user.role === "stakeholder") {
+    const stakeholderId =
+      user.stakeholderId ??
+      (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
+      undefined;
+    return participantRequests.filter((request) => request.stakeholderId === stakeholderId);
+  }
+  return [];
 }
 
 export function getCaseTemplatesForAuthority(authorityId: string | undefined) {
