@@ -16,6 +16,7 @@ type ConsoleLayoutProps = {
   actions?: ReactNode;
   affirmativeActionLabel?: string;
   affirmativeActionCompleteLabel?: string;
+  readOnly?: boolean;
   children: ReactNode;
 };
 
@@ -65,14 +66,15 @@ export function ConsoleLayout({
   affirmativeActionLabel = "Save changes",
   breadcrumbs,
   actions,
+  readOnly = false,
   children,
 }: ConsoleLayoutProps) {
   const location = useLocation();
-  const [hasPendingChanges, setHasPendingChanges] = useState(true);
+  const [hasPendingChanges, setHasPendingChanges] = useState(!readOnly);
 
   useEffect(() => {
-    setHasPendingChanges(true);
-  }, [location.pathname]);
+    setHasPendingChanges(!readOnly);
+  }, [location.pathname, readOnly]);
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-[#f8f8f8] text-[#0b0c0c] dark:bg-background dark:text-foreground">
@@ -84,18 +86,22 @@ export function ConsoleLayout({
 
       <div className="mx-auto w-full max-w-[1440px]">
         <main className="min-w-0 p-4 sm:p-6">
-          <div className="mb-4 flex flex-wrap justify-end gap-2">
-            {actions}
-            <Button
-              type="button"
-              variant={hasPendingChanges ? "default" : "outline"}
-              onClick={() => setHasPendingChanges(false)}
-              disabled={!hasPendingChanges}
-            >
-              <CheckCircle2 />
-              {hasPendingChanges ? affirmativeActionLabel : affirmativeActionCompleteLabel}
-            </Button>
-          </div>
+          {(actions || !readOnly) && (
+            <div className="mb-4 flex flex-wrap justify-end gap-2">
+              {actions}
+              {!readOnly && (
+                <Button
+                  type="button"
+                  variant={hasPendingChanges ? "default" : "outline"}
+                  onClick={() => setHasPendingChanges(false)}
+                  disabled={!hasPendingChanges}
+                >
+                  <CheckCircle2 />
+                  {hasPendingChanges ? affirmativeActionLabel : affirmativeActionCompleteLabel}
+                </Button>
+              )}
+            </div>
+          )}
           {children}
         </main>
       </div>

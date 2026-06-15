@@ -10,6 +10,7 @@ import {
   OperationalParticipantsPage,
   OperationalParticipantDetailPage,
   PlaceholderResourcePage,
+  VerificationCaseDetailPage,
   VerificationPortalPage,
 } from "./pages/ConsolePages";
 import NotFound from "./pages/NotFound";
@@ -44,6 +45,7 @@ const AppContent = () => {
         <Route path="/cases/evidence" element={<PlaceholderResourcePage app="cases" />} />
         <Route path="/cases/customer-preview" element={<PlaceholderResourcePage app="cases" />} />
         <Route path="/verification" element={<VerificationPortalPage />} />
+        <Route path="/verification/:caseId" element={<VerificationCaseDetailPage />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

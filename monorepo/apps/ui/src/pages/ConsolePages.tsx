@@ -88,6 +88,7 @@ function ResourceTable({
 
 export function VerificationPortalPage() {
   const { user } = useAuth();
+  if (user.role !== "interested-party") return <Navigate to="/" replace />;
   const scopedOperationalParticipants = getScopedOperationalParticipants(user);
   const scopedCases = getScopedCases(user);
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
@@ -95,9 +96,8 @@ export function VerificationPortalPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="View recorded"
-      affirmativeActionLabel="Record view"
       breadcrumbs={[{ label: "Assurance Portal" }]}
+      readOnly
     >
       <PageTitle
         eyebrow="Interested party"
@@ -117,6 +117,7 @@ export function VerificationPortalPage() {
         <ResourceTable headings={["Organization", "Visible case", "Status", "Tasks", "Visible outcome"]}>
           {scopedOperationalParticipants.map((operationalParticipant) => {
             const interestedParty = getInterestedParty(operationalParticipant.interestedPartyId);
+            const visibleCase = scopedCases.find((caseRecord) => caseRecord.operationalParticipantId === operationalParticipant.id);
             return (
               <tr key={operationalParticipant.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
@@ -125,7 +126,20 @@ export function VerificationPortalPage() {
                     {interestedParty?.name}
                   </span>
                 </td>
-                <td className="px-4 py-3">{scopedCases.find((caseRecord) => caseRecord.operationalParticipantId === operationalParticipant.id)?.caseType}</td>
+                <td className="px-4 py-3">
+                  {visibleCase ? (
+                    <>
+                      <Link className="font-bold text-[#1d70b8] hover:underline" to={`/verification/${visibleCase.id}`}>
+                        {visibleCase.title}
+                      </Link>
+                      <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                        {visibleCase.caseType}
+                      </span>
+                    </>
+                  ) : (
+                    "No visible case"
+                  )}
+                </td>
                 <td className="px-4 py-3"><StatusBadge status={operationalParticipant.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={operationalParticipant.completedTasks} total={operationalParticipant.totalTasks} /></td>
                 <td className="px-4 py-3">
@@ -143,6 +157,60 @@ export function VerificationPortalPage() {
       <p className="mt-4 text-sm text-[#505a5f] dark:text-muted-foreground">
         Visible task completion: {completedTasks} of {totalTasks}.
       </p>
+    </ConsoleLayout>
+  );
+}
+
+export function VerificationCaseDetailPage() {
+  const { user } = useAuth();
+  if (user.role !== "interested-party") return <Navigate to="/" replace />;
+  const { caseId } = useParams();
+  const caseRecord = getCase(caseId);
+  if (!caseRecord) return <Navigate to="/verification" replace />;
+  const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
+  if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/verification" replace />;
+
+  const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
+
+  return (
+    <ConsoleLayout
+      breadcrumbs={[
+        { label: "Assurance Portal", path: "/verification" },
+        { label: `${operationalParticipant?.name ?? "Organization"} ${caseRecord.reference}` },
+      ]}
+      readOnly
+    >
+      <PageTitle
+        eyebrow="Read-only case"
+        title={caseRecord.title}
+        description={`${operationalParticipant?.name ?? "Unknown organization"} ${caseRecord.caseType.toLowerCase()} status, task completion, and visible outcome.`}
+      />
+      <MetricStrip
+        items={[
+          { label: "Case status", value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
+          { label: "Tasks complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
+          { label: "Risk", value: caseRecord.risk, tone: caseRecord.risk === "high" ? "red" : "yellow" },
+          { label: "Reference", value: caseRecord.reference, tone: "blue" },
+        ]}
+      />
+      <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
+        <h3 className="text-xl font-bold">Visible outcome</h3>
+        <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">{caseRecord.outcome}</p>
+      </section>
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Task status</h3>
+        <ResourceTable headings={["Task", "Type", "Status", "Due", "Visible summary"]}>
+          {caseRecord.tasks.map((task) => (
+            <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3 font-bold text-[#0b0c0c] dark:text-white">{task.title}</td>
+              <td className="px-4 py-3">{task.type}</td>
+              <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
+              <td className="px-4 py-3">{task.due}</td>
+              <td className="px-4 py-3">{task.description}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
     </ConsoleLayout>
   );
 }
