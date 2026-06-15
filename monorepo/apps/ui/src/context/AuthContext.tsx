@@ -26,8 +26,8 @@ export type AuthenticatedUser = {
   stakeholderId: string | null;
 };
 
-export type UserRole = "authority-admin" | "participant" | "stakeholder";
-export type AccountContextType = "authority" | "participant" | "stakeholder";
+export type UserRole = "authority-admin" | "participant" | "stakeholder" | "helper";
+export type AccountContextType = "authority" | "participant" | "stakeholder" | "helper";
 export type MembershipRole = "ADMIN" | "MEMBER";
 type StoredUserRole = UserRole | "authority-admin";
 type StoredUser = Partial<Omit<AuthenticatedUser, "role">> & {
@@ -50,6 +50,11 @@ export const USER_ROLES: Array<{ id: UserRole; label: string; description: strin
     id: "stakeholder",
     label: "Subscriber",
     description: "Review granted vendor due diligence and request information",
+  },
+  {
+    id: "helper",
+    label: "Service provider",
+    description: "Assist vendor workspaces where delegated access has been granted",
   },
 ];
 
@@ -139,7 +144,7 @@ function normalizeRole(role: StoredUserRole | undefined): UserRole {
 }
 
 function normalizeContextType(value: unknown): AccountContextType | null {
-  return value === "authority" || value === "participant" || value === "stakeholder"
+  return value === "authority" || value === "participant" || value === "stakeholder" || value === "helper"
     ? value
     : null;
 }

@@ -18,6 +18,8 @@ import {
   getCaseTemplatesForAuthority,
   getAccessGrantsForParticipant,
   getGrantableStakeholdersForParticipant,
+  getHelperClientWorkspaces,
+  getHelperGrantForParticipant,
   getRequestsForCase,
   getRequestsForParticipant,
   getRequestsForTask,
@@ -25,6 +27,7 @@ import {
   getScopedCases,
   getScopedParticipants,
   getStakeholdersForAuthority,
+  grantAllowsHelperEdit,
   AccessGrantPermissionLevel,
   AccessGrantStatus,
   AccessGrantGranteeType,
@@ -240,6 +243,166 @@ function AdministrationResourceNav() {
         })}
       </div>
     </nav>
+  );
+}
+
+export function HelperWorkspacePage() {
+  const { user } = useAuth();
+  if (user.role !== "helper") return <Navigate to="/" replace />;
+  const workspaces = getHelperClientWorkspaces(user);
+  const scopedCases = getScopedCases(user);
+  const openRequests = workspaces.reduce((sum, workspace) => sum + workspace.openRequests, 0);
+  const editableWorkspaces = workspaces.filter((workspace) => workspace.canEdit).length;
+
+  return (
+    <ConsoleLayout
+      appName="Service Provider Workspace"
+      appDescription="Delegated workspace for assisting vendors with due diligence packs and subscriber requests."
+      breadcrumbs={[{ label: "Service provider workspace" }]}
+      readOnly
+    >
+      <PageTitle
+        eyebrow="Service provider"
+        title="Client workspaces"
+        description="Assist vendor due diligence only where an active service-provider grant permits it."
+      />
+      <MetricStrip
+        items={[
+          { label: "Client vendors", value: String(workspaces.length), tone: "blue" },
+          { label: "Assigned DDQ packs", value: String(scopedCases.length), tone: "blue" },
+          { label: "Editable workspaces", value: String(editableWorkspaces), tone: "green" },
+          { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
+        ]}
+      />
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Granted client workspaces</h3>
+        <ResourceTable headings={["Vendor", "Permission", "Scope", "DDQ packs", "Open requests", "Actions"]}>
+          {workspaces.map((workspace) => (
+            <tr key={workspace.grant.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/helper/participants/${workspace.participant.id}`}>
+                  {workspace.participant.name}
+                </Link>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                  Access granted by vendor workspace
+                </span>
+              </td>
+              <td className="px-4 py-3">{workspace.grant.permissionLabel}</td>
+              <td className="px-4 py-3">{workspace.grant.scopeLabel}</td>
+              <td className="px-4 py-3">{workspace.cases.length}</td>
+              <td className="px-4 py-3">{workspace.openRequests}</td>
+              <td className="px-4 py-3">
+                <Button asChild variant="outline">
+                  <Link to={`/helper/participants/${workspace.participant.id}`}>Open workspace</Link>
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Assigned due diligence packs</h3>
+        <ResourceTable headings={["Vendor", "DDQ pack", "Status", "Progress", "Permission"]}>
+          {workspaces.flatMap((workspace) =>
+            workspace.cases.map((caseRecord) => (
+              <tr key={`${workspace.grant.id}-${caseRecord.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">{workspace.participant.name}</td>
+                <td className="px-4 py-3">
+                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
+                    {caseRecord.title}
+                  </Link>
+                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                    {caseRecord.reference}
+                  </span>
+                </td>
+                <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
+                <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
+                <td className="px-4 py-3">{workspace.canEdit ? "Can assist with edits" : "Review only"}</td>
+              </tr>
+            )),
+          )}
+        </ResourceTable>
+      </section>
+    </ConsoleLayout>
+  );
+}
+
+export function HelperParticipantPage() {
+  const { user } = useAuth();
+  const { participantId } = useParams();
+  if (user.role !== "helper") return <Navigate to="/" replace />;
+  const workspace = getHelperClientWorkspaces(user).find((item) => item.participant.id === participantId);
+  if (!workspace) return <Navigate to="/helper" replace />;
+  const requests = getRequestsForParticipant(workspace.participant.id, user);
+  const activeRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS");
+
+  return (
+    <ConsoleLayout
+      appName="Service Provider Workspace"
+      appDescription="Delegated workspace for assisting vendors with due diligence packs and subscriber requests."
+      breadcrumbs={[
+        { label: "Service provider workspace", path: "/helper" },
+        { label: workspace.participant.name },
+      ]}
+      readOnly
+    >
+      <PageTitle
+        eyebrow="Client workspace"
+        title={workspace.participant.name}
+        description={`Service-provider grant: ${workspace.grant.permissionLabel}. ${workspace.canEdit ? "You can assist with permitted DDQ updates and RFI responses." : "This grant is review-only for this workspace."}`}
+      />
+      <MetricStrip
+        items={[
+          { label: "Permission", value: workspace.grant.permissionLabel, tone: workspace.canEdit ? "green" : "yellow" },
+          { label: "Scope", value: workspace.grant.scopeLabel, tone: "blue" },
+          { label: "DDQ packs", value: String(workspace.cases.length), tone: "blue" },
+          { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
+        ]}
+      />
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Assigned due diligence packs</h3>
+        <ResourceTable headings={["DDQ pack", "Status", "Progress", "Risk", "Last activity"]}>
+          {workspace.cases.map((caseRecord) => (
+            <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
+                  {caseRecord.title}
+                </Link>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                  {caseRecord.caseType}
+                </span>
+              </td>
+              <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
+              <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
+              <td className="px-4 py-3 capitalize">{caseRecord.risk}</td>
+              <td className="px-4 py-3">{caseRecord.lastActivity}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Requests you can assist with</h3>
+        <ResourceTable headings={["Subscriber", "Scope", "Status", "Request", "Response"]}>
+          {requests.map((request) => (
+            <tr key={request.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">{request.stakeholderName}</td>
+              <td className="px-4 py-3">
+                {request.caseId ? (
+                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${request.caseId}`}>
+                    {request.scopeLabel}
+                  </Link>
+                ) : (
+                  request.scopeLabel
+                )}
+              </td>
+              <td className="px-4 py-3"><RequestStatusBadge status={request.status} /></td>
+              <td className="px-4 py-3">{request.requestText}</td>
+              <td className="px-4 py-3">{request.responseText || "No response yet"}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+    </ConsoleLayout>
   );
 }
 
@@ -1654,6 +1817,7 @@ export function ParticipantDetailPage() {
 export function CaseManagementHome() {
   const { user } = useAuth();
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
+  if (user.role === "helper") return <Navigate to="/helper" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
   const authority = getAuthority(user.authorityId ?? undefined);
   const scopedCases = getScopedCases(user);
@@ -1727,6 +1891,7 @@ export function AccessGrantsPage() {
   const [error, setError] = useState<string | null>(null);
 
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
+  if (user.role === "helper") return <Navigate to="/helper" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
 
   const participant = getParticipant(user.participantId ?? undefined);
@@ -1911,6 +2076,8 @@ export function CaseDetailPage() {
 
   const currentCase = caseRecord;
   const participant = getParticipant(caseRecord.participantId);
+  const helperGrant = getHelperGrantForParticipant(user, caseRecord.participantId);
+  const canRespondToRequests = user.role === "participant" || grantAllowsHelperEdit(helperGrant);
   const tasks = caseRecord.tasks;
   const requests = getRequestsForCase(caseRecord.id, user);
   const activeRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS");
@@ -2044,7 +2211,7 @@ export function CaseDetailPage() {
                   type="button"
                   variant="outline"
                   onClick={() => openRequestResponse(request.id, request.responseText)}
-                  disabled={request.status === "ACCEPTED" || request.status === "WITHDRAWN"}
+                  disabled={!canRespondToRequests || request.status === "ACCEPTED" || request.status === "WITHDRAWN"}
                 >
                   <History />
                   Respond
@@ -2124,10 +2291,16 @@ export function TaskDetailPage() {
 
   const currentTask = task;
   const participant = getParticipant(caseRecord.participantId);
+  const helperGrant = getHelperGrantForParticipant(user, caseRecord.participantId);
   const Icon = task.Icon;
   const taskRequests = getRequestsForTask(task.id, user);
-  const canEditTask = task.domainStatus !== "SUBMITTED" && task.domainStatus !== "PASSED" && task.domainStatus !== "WITHDRAWN";
+  const canEditTask =
+    (user.role === "participant" || grantAllowsHelperEdit(helperGrant)) &&
+    task.domainStatus !== "SUBMITTED" &&
+    task.domainStatus !== "PASSED" &&
+    task.domainStatus !== "WITHDRAWN";
   const canSubmitTask =
+    canEditTask &&
     task.domainStatus !== "SUBMITTED" &&
     task.domainStatus !== "PASSED" &&
     task.domainStatus !== "WITHDRAWN" &&
@@ -2385,9 +2558,9 @@ export function TaskDetailPage() {
                 </div>
               }
             >
-              <FormField label="Vendor response">
-                <Input value={requestResponseText} onChange={(event) => setRequestResponseText(event.target.value)} />
-              </FormField>
+            <FormField label="Vendor response">
+              <Input value={requestResponseText} onChange={(event) => setRequestResponseText(event.target.value)} />
+            </FormField>
             </ResourceActionPanel>
           )}
           <ResourceTable headings={["Subscriber", "Status", "Request", "Response", "Actions"]}>
@@ -2402,7 +2575,11 @@ export function TaskDetailPage() {
                     type="button"
                     variant="outline"
                     onClick={() => openRequestResponse(request.id, request.responseText)}
-                    disabled={request.status === "ACCEPTED" || request.status === "WITHDRAWN"}
+                    disabled={
+                      (!grantAllowsHelperEdit(helperGrant) && user.role !== "participant") ||
+                      request.status === "ACCEPTED" ||
+                      request.status === "WITHDRAWN"
+                    }
                   >
                     <History />
                     Respond
@@ -2423,6 +2600,7 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
   const isAdmin = app === "admin";
   if (!isAdmin && user.role === "authority-admin") return <Navigate to="/admin" replace />;
   if (!isAdmin && user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
+  if (!isAdmin && user.role === "helper") return <Navigate to="/helper" replace />;
   const authorityId = user.authorityId ?? undefined;
   const scopedParticipants = getScopedParticipants(user);
   const scopedStakeholders = getStakeholdersForAuthority(authorityId);

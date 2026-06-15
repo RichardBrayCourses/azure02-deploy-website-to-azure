@@ -9,6 +9,7 @@ import {
   BadgeCheck,
   Building2,
   CheckCircle2,
+  Handshake,
   Landmark,
   UserRoundCheck,
 } from "lucide-react";
@@ -18,12 +19,14 @@ const contextIcons = {
   authority: Landmark,
   participant: Building2,
   stakeholder: UserRoundCheck,
+  helper: Handshake,
 };
 
 const contextLabels = {
   authority: "Association",
   participant: "Vendor",
   stakeholder: "Subscriber",
+  helper: "Service provider",
 };
 
 function contextRoleLabel(context: AccountContext) {

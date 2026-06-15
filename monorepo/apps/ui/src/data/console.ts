@@ -2,6 +2,7 @@ import {
   BadgeCheck,
   Building2,
   ClipboardCheck,
+  Handshake,
   FileQuestion,
   FileSignature,
   FolderKanban,
@@ -354,7 +355,7 @@ export type AuthenticatableUserMembership =
   | { entityType: "stakeholder"; entityId: StakeholderId };
 
 export type ConsoleApp = {
-  id: "administration" | "case-management" | "stakeholder-portal";
+  id: "administration" | "case-management" | "stakeholder-portal" | "helper-workspace";
   name: string;
   shortName: string;
   description: string;
@@ -413,6 +414,15 @@ export type AccessGrant = {
   createdByName: string;
   createdAt: string;
   expiresAt: string | null;
+};
+
+export type HelperClientWorkspace = {
+  participant: Participant;
+  grant: AccessGrant;
+  cases: CaseRecord[];
+  openRequests: number;
+  canEdit: boolean;
+  canAdministerGrants: boolean;
 };
 
 export type AuthenticatableUser = {
@@ -998,6 +1008,17 @@ export class InMemoryAllChecksOutDatabase {
       .filter((grant) => grant.granteeStakeholderId === stakeholderId && grant.status === "ACTIVE");
   }
 
+  getActiveHelperAccessGrants(helperStakeholderId: StakeholderId) {
+    return this.accessGrants
+      .map((grant) => grant.toDto())
+      .filter(
+        (grant) =>
+          grant.granteeStakeholderId === helperStakeholderId &&
+          grant.granteeType === "HELPER" &&
+          grant.status === "ACTIVE",
+      );
+  }
+
   getAccessibleParticipantsForStakeholder(stakeholderId: StakeholderId) {
     const participantIds = new Set(
       this.getActiveAccessGrantsForStakeholder(stakeholderId).map((grant) => grant.participantId),
@@ -1268,11 +1289,23 @@ export class InMemoryAllChecksOutDatabase {
   respondToRequestForInformation(command: RespondToRequestForInformationCommand) {
     const request = this.requireRequestForInformation(command.requestId);
     const respondent = this.requireUserAccount(command.respondedByUserId);
-    if (!this.participantUsers.some((membership) => {
+    const isVendorUser = this.participantUsers.some((membership) => {
       const dto = membership.toDto();
       return dto.entityId === request.participantId && dto.userAccountId === respondent.id;
-    })) {
-      throw new Error("Only a user in the owning vendor workspace can respond to this request.");
+    });
+    const helperStakeholderIds = this.stakeholderUsers
+      .map((membership) => membership.toDto())
+      .filter((membership) => membership.userAccountId === respondent.id)
+      .map((membership) => membership.entityId);
+    const hasHelperEditGrant = helperStakeholderIds.some((stakeholderId) =>
+      this.getActiveHelperAccessGrants(stakeholderId).some(
+        (grant) =>
+          grant.participantId === request.participantId &&
+          (grant.permissionLevel === "CREATE_AND_EDIT" || grant.permissionLevel === "ADMINISTER_GRANTS"),
+      ),
+    );
+    if (!isVendorUser && !hasHelperEditGrant) {
+      throw new Error("Only the owning vendor or an authorised service provider can respond to this request.");
     }
     const responseText = command.responseText.trim();
     if (!responseText) {
@@ -2002,6 +2035,16 @@ export const consoleApps: ConsoleApp[] = [
     Icon: BadgeCheck,
     audience: ["stakeholder"],
   },
+  {
+    id: "helper-workspace",
+    name: "Service Provider Workspace",
+    shortName: "Service",
+    description: "Assist vendor workspaces where delegated service-provider access is active.",
+    path: "/helper",
+    accent: "bg-[#4c2c92]",
+    Icon: Handshake,
+    audience: ["helper"],
+  },
 ];
 
 function buildAuthorities(): Authority[] {
@@ -2399,7 +2442,7 @@ function buildAccountContexts(): AccountContext[] {
     const stakeholder = getStakeholder(membership.membership.entityId);
     const authority = getAuthority(stakeholder?.authorityId);
     if (!stakeholder || !authority) return [];
-    return [{
+    const subscriberContext: AccountContext = {
       id: `${membership.id}:stakeholder:${stakeholder.id}`,
       authenticatableUserId: membership.id,
       name: membership.name,
@@ -2414,7 +2457,19 @@ function buildAccountContexts(): AccountContext[] {
       participantId: null,
       stakeholderId: stakeholder.id,
       description: "Review vendor due diligence that has been granted to this subscriber account.",
-    }];
+    };
+    const helperGrantCount = db.getActiveHelperAccessGrants(stakeholder.id).length;
+    if (helperGrantCount === 0) return [subscriberContext];
+    return [
+      subscriberContext,
+      {
+        ...subscriberContext,
+        id: `${membership.id}:helper:${stakeholder.id}`,
+        role: "helper",
+        entityType: "helper",
+        description: `Assist ${helperGrantCount} vendor workspace${helperGrantCount === 1 ? "" : "s"} through active service-provider grants.`,
+      },
+    ];
   });
 }
 
@@ -2444,6 +2499,13 @@ function buildSearchItems(): SearchItem[] {
       group: "Vendors",
       audience: ["authority-admin", "stakeholder"] as UserRole[],
     })),
+    ...participants.map((participant) => ({
+      title: participant.name,
+      description: `${participant.type} service-provider client workspace`,
+      path: `/helper/participants/${participant.id}`,
+      group: "Vendors",
+      audience: ["helper"] as UserRole[],
+    })),
     ...stakeholders.map((stakeholder) => ({
       title: stakeholder.name,
       description: `${stakeholder.visibleParticipants} active vendor access record`,
@@ -2465,7 +2527,7 @@ function buildSearchItems(): SearchItem[] {
         description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} due diligence items complete`,
         path: `/cases/${caseRecord.id}`,
         group: "Due diligence packs",
-        audience: ["participant"] as UserRole[],
+        audience: ["participant", "helper"] as UserRole[],
       };
     }),
     ...cases.flatMap((caseRecord) => caseRecord.tasks.map((task) => ({
@@ -2473,7 +2535,7 @@ function buildSearchItems(): SearchItem[] {
       description: task.type,
       path: `/cases/${caseRecord.id}/tasks/${task.id}`,
       group: "Due diligence items",
-      audience: ["participant"] as UserRole[],
+      audience: ["participant", "helper"] as UserRole[],
     }))),
   ];
 }
@@ -2517,6 +2579,7 @@ export function getConsoleAppsForRole(role: UserRole) {
 }
 
 export function getDefaultConsolePath(role: UserRole) {
+  if (role === "helper") return "/helper";
   if (role === "stakeholder") return "/stakeholder";
   if (role === "authority-admin") return "/admin";
   return "/cases";
@@ -2608,6 +2671,57 @@ export function getGrantableStakeholdersForParticipant(participantId: string | u
   return stakeholders.filter((stakeholder) => stakeholder.authorityId === participant.authorityId);
 }
 
+export function grantAllowsHelperEdit(grant: AccessGrant | undefined) {
+  return grant?.permissionLevel === "CREATE_AND_EDIT" || grant?.permissionLevel === "ADMINISTER_GRANTS";
+}
+
+export function grantAllowsGrantAdministration(grant: AccessGrant | undefined) {
+  return grant?.permissionLevel === "ADMINISTER_GRANTS";
+}
+
+export function getActiveHelperGrantsForUser(user: AuthenticatedUser) {
+  const helperStakeholderId =
+    user.stakeholderId ??
+    (user.accountContextType === "helper" ? user.accountContextEntityId : null) ??
+    undefined;
+  if (!helperStakeholderId) return [];
+  return accessGrants.filter(
+    (grant) =>
+      grant.granteeType === "HELPER" &&
+      grant.granteeStakeholderId === helperStakeholderId &&
+      grant.status === "ACTIVE",
+  );
+}
+
+export function getHelperGrantForParticipant(user: AuthenticatedUser, participantId: string | undefined) {
+  if (!participantId || user.role !== "helper") return undefined;
+  return getActiveHelperGrantsForUser(user).find((grant) => grant.participantId === participantId);
+}
+
+export function getHelperClientWorkspaces(user: AuthenticatedUser): HelperClientWorkspace[] {
+  if (user.role !== "helper") return [];
+  return getActiveHelperGrantsForUser(user)
+    .map((grant) => {
+      const participant = getParticipant(grant.participantId);
+      if (!participant) return null;
+      const participantCases = cases.filter((caseRecord) => caseRecord.participantId === participant.id);
+      const openRequests = requestsForInformation.filter(
+        (request) =>
+          request.participantId === participant.id &&
+          (request.status === "OPEN" || request.status === "IN_PROGRESS"),
+      ).length;
+      return {
+        participant,
+        grant,
+        cases: participantCases,
+        openRequests,
+        canEdit: grantAllowsHelperEdit(grant),
+        canAdministerGrants: grantAllowsGrantAdministration(grant),
+      };
+    })
+    .filter((workspace): workspace is HelperClientWorkspace => Boolean(workspace));
+}
+
 export function getSubscriberReviewForCase(user: AuthenticatedUser, caseId: string | undefined) {
   if (!caseId || user.role !== "stakeholder") return undefined;
   const stakeholderId =
@@ -2632,6 +2746,10 @@ export function getRequestsForCase(caseId: string | undefined, user?: Authentica
       undefined;
     return caseRequests.filter((request) => request.stakeholderId === stakeholderId);
   }
+  if (user.role === "helper") {
+    const helperParticipantIds = new Set(getActiveHelperGrantsForUser(user).map((grant) => grant.participantId));
+    return caseRequests.filter((request) => helperParticipantIds.has(request.participantId));
+  }
   return [];
 }
 
@@ -2649,6 +2767,10 @@ export function getRequestsForTask(taskId: string | undefined, user?: Authentica
           undefined;
         return request.stakeholderId === stakeholderId;
       }
+      if (user.role === "helper") {
+        const helperParticipantIds = new Set(getActiveHelperGrantsForUser(user).map((grant) => grant.participantId));
+        return helperParticipantIds.has(request.participantId);
+      }
       return false;
     });
 }
@@ -2664,6 +2786,10 @@ export function getRequestsForParticipant(participantId: string | undefined, use
       (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
       undefined;
     return participantRequests.filter((request) => request.stakeholderId === stakeholderId);
+  }
+  if (user.role === "helper") {
+    const helperParticipantIds = new Set(getActiveHelperGrantsForUser(user).map((grant) => grant.participantId));
+    return participantRequests.filter((request) => helperParticipantIds.has(request.participantId));
   }
   return [];
 }
@@ -2728,6 +2854,10 @@ export function getScopedParticipants(user: AuthenticatedUser) {
   if (user.role === "authority-admin") return authorityParticipants;
   if (user.role === "participant") {
     return authorityParticipants.filter((participant) => participant.id === user.participantId);
+  }
+  if (user.role === "helper") {
+    const helperParticipantIds = new Set(getActiveHelperGrantsForUser(user).map((grant) => grant.participantId));
+    return authorityParticipants.filter((participant) => helperParticipantIds.has(participant.id));
   }
 
   const stakeholderId =

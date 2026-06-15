@@ -20,6 +20,8 @@ import {
   StakeholderParticipantDetailPage,
   StakeholdersPage,
   StakeholderPortalPage,
+  HelperParticipantPage,
+  HelperWorkspacePage,
 } from "./pages/ConsolePages";
 import NotFound from "./pages/NotFound";
 import SignInPage from "./pages/SignInPage";
@@ -61,6 +63,8 @@ const AppContent = () => {
         <Route path="/stakeholder" element={<StakeholderPortalPage />} />
         <Route path="/stakeholder/participants/:participantId" element={<StakeholderParticipantDetailPage />} />
         <Route path="/stakeholder/:caseId" element={<StakeholderCaseDetailPage />} />
+        <Route path="/helper" element={<HelperWorkspacePage />} />
+        <Route path="/helper/participants/:participantId" element={<HelperParticipantPage />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
