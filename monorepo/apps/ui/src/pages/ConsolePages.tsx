@@ -18,6 +18,7 @@ import {
   getCaseTemplatesForAuthority,
   getAccessGrantsForParticipant,
   getGrantableStakeholdersForParticipant,
+  getSubscriberReviewForCase,
   getScopedCases,
   getScopedParticipants,
   getStakeholdersForAuthority,
@@ -26,6 +27,7 @@ import {
   AccessGrantGranteeType,
   MembershipRole,
   PartyType,
+  SubscriberReviewStatus,
   Status,
   taskTypes,
 } from "@/data/console";
@@ -225,33 +227,34 @@ export function StakeholderPortalPage() {
   if (user.role !== "stakeholder") return <Navigate to="/" replace />;
   const scopedParticipants = getScopedParticipants(user);
   const scopedCases = getScopedCases(user);
+  const reviewSummaries = scopedCases.map((caseRecord) => getSubscriberReviewForCase(user, caseRecord.id));
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
 
   return (
     <ConsoleLayout
-      breadcrumbs={[{ label: "Stakeholder Portal" }]}
+      breadcrumbs={[{ label: "Subscriber Portal" }]}
       readOnly
     >
       <PageTitle
-        eyebrow="Stakeholder"
-        title="Case visibility"
-        description="Read-only status and outcome visibility for cases you are allowed to inspect."
+        eyebrow="Subscriber"
+        title="Granted vendor DDQ packs"
+        description="Read submitted vendor due diligence, evidence metadata, and your subscriber-owned review status."
       />
       <MetricStrip
         items={[
-          { label: "Watched cases", value: String(scopedCases.length), tone: "blue" },
-          { label: "Approved outcomes", value: String(scopedCases.filter((caseRecord) => caseRecord.status === "closed").length), tone: "green" },
-          { label: "In progress", value: String(scopedCases.filter((caseRecord) => caseRecord.status !== "closed").length), tone: "yellow" },
-          { label: "Needs attention", value: String(scopedCases.filter((caseRecord) => caseRecord.risk === "high").length), tone: "red" },
+          { label: "Granted vendors", value: String(scopedParticipants.length), tone: "blue" },
+          { label: "Visible DDQ packs", value: String(scopedCases.length), tone: "blue" },
+          { label: "Approved by subscriber", value: String(reviewSummaries.filter((review) => review?.status === "APPROVED").length), tone: "green" },
+          { label: "More info requested", value: String(reviewSummaries.filter((review) => review?.status === "MORE_INFO_REQUESTED").length), tone: "red" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Visible case status</h3>
-        <ResourceTable headings={["Participant", "Visible case", "Status", "Progress", "Visible outcome"]}>
+        <h3 className="mb-3 text-xl font-bold">Visible DDQ pack status</h3>
+        <ResourceTable headings={["Vendor", "Visible DDQ pack", "Vendor status", "Progress", "Subscriber review"]}>
           {scopedParticipants.map((participant) => {
-            const stakeholder = getStakeholder(participant.stakeholderId);
             const visibleCase = scopedCases.find((caseRecord) => caseRecord.participantId === participant.id);
+            const review = getSubscriberReviewForCase(user, visibleCase?.id);
             return (
               <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
@@ -259,7 +262,7 @@ export function StakeholderPortalPage() {
                     {participant.name}
                   </Link>
                   <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                    {stakeholder?.name}
+                    Vendor workspace granted to this subscriber
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -278,20 +281,14 @@ export function StakeholderPortalPage() {
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={participant.completedTasks} total={participant.totalTasks} /></td>
-                <td className="px-4 py-3">
-                  {participant.status === "complete"
-                    ? "Approved"
-                    : participant.status === "attention"
-                      ? "More evidence requested"
-                      : "Case in progress"}
-                </td>
+                <td className="px-4 py-3">{review?.statusLabel ?? "Not reviewed"}</td>
               </tr>
             );
           })}
         </ResourceTable>
       </section>
       <p className="mt-4 text-sm text-[#505a5f] dark:text-muted-foreground">
-        Visible progress across approved participants: {completedTasks} of {totalTasks}.
+        Visible due diligence item progress across granted vendors: {completedTasks} of {totalTasks}.
       </p>
     </ConsoleLayout>
   );
@@ -311,48 +308,51 @@ export function StakeholderParticipantDetailPage() {
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: "Stakeholder Portal", path: "/stakeholder" },
+        { label: "Subscriber Portal", path: "/stakeholder" },
         { label: participant.name },
       ]}
       readOnly
     >
       <PageTitle
-        eyebrow="Read-only participant"
+        eyebrow="Read-only vendor"
         title={participant.name}
-        description="Participant status, visible cases, task outcomes, and submitted evidence metadata for approved stakeholder monitoring."
+        description="Granted DDQ packs, due diligence item outcomes, and submitted evidence metadata for subscriber review."
       />
       <MetricStrip
         items={[
-          { label: "Visible cases", value: String(participantCases.length), tone: "blue" },
-          { label: "Open cases", value: String(openCases), tone: "yellow" },
-          { label: "Tasks complete", value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
+          { label: "Visible DDQ packs", value: String(participantCases.length), tone: "blue" },
+          { label: "Open DDQ packs", value: String(openCases), tone: "yellow" },
+          { label: "Items complete", value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
           { label: "Needs attention", value: String(attentionTasks), tone: attentionTasks > 0 ? "red" : "green" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Visible cases</h3>
-        <ResourceTable headings={["Case", "Status", "Progress", "Outcome", "Last activity"]}>
-          {participantCases.map((caseRecord) => (
-            <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3">
-                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/stakeholder/${caseRecord.id}`}>
-                  {caseRecord.title}
-                </Link>
-                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                  {caseRecord.caseType}
-                </span>
-              </td>
-              <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
-              <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
-              <td className="px-4 py-3">{caseRecord.outcome}</td>
-              <td className="px-4 py-3">{caseRecord.lastActivity}</td>
-            </tr>
-          ))}
+        <h3 className="mb-3 text-xl font-bold">Visible DDQ packs</h3>
+        <ResourceTable headings={["DDQ pack", "Vendor status", "Progress", "Subscriber review", "Last activity"]}>
+          {participantCases.map((caseRecord) => {
+            const review = getSubscriberReviewForCase(user, caseRecord.id);
+            return (
+              <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">
+                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/stakeholder/${caseRecord.id}`}>
+                    {caseRecord.title}
+                  </Link>
+                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                    {caseRecord.caseType}
+                  </span>
+                </td>
+                <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
+                <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
+                <td className="px-4 py-3">{review?.statusLabel ?? "Not reviewed"}</td>
+                <td className="px-4 py-3">{caseRecord.lastActivity}</td>
+              </tr>
+            );
+          })}
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Task outcomes and evidence</h3>
-        <ResourceTable headings={["Case", "Task", "Outcome", "Evidence metadata"]}>
+        <h3 className="mb-3 text-xl font-bold">Due diligence item outcomes and evidence</h3>
+        <ResourceTable headings={["DDQ pack", "Due diligence item", "Outcome", "Evidence metadata"]}>
           {participantCases.flatMap((caseRecord) =>
             caseRecord.tasks.map((task) => (
               <tr key={`${caseRecord.id}-${task.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -383,42 +383,99 @@ export function StakeholderParticipantDetailPage() {
 
 export function StakeholderCaseDetailPage() {
   const { user } = useAuth();
-  if (user.role !== "stakeholder") return <Navigate to="/" replace />;
+  const { db, refresh } = useDomainData();
   const { caseId } = useParams();
+  const [reviewStatus, setReviewStatus] = useState<SubscriberReviewStatus>("IN_REVIEW");
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const caseRecord = getCase(caseId);
+  const subscriberReview = getSubscriberReviewForCase(user, caseRecord?.id);
+
+  useEffect(() => {
+    setReviewStatus(subscriberReview?.status ?? "IN_REVIEW");
+    setReviewNote(subscriberReview?.note ?? "");
+    setReviewError(null);
+  }, [subscriberReview?.id, subscriberReview?.note, subscriberReview?.status]);
+
+  if (user.role !== "stakeholder") return <Navigate to="/" replace />;
   if (!caseRecord) return <Navigate to="/stakeholder" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
   if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/stakeholder" replace />;
 
   const participant = getParticipant(caseRecord.participantId);
 
+  function saveSubscriberReview() {
+    setReviewError(null);
+    if (!user.stakeholderId || !user.authenticatableUserId) {
+      setReviewError("No subscriber context is selected for this session.");
+      return;
+    }
+    try {
+      db.upsertSubscriberReview({
+        stakeholderId: user.stakeholderId,
+        caseId: caseRecord?.id ?? "",
+        status: reviewStatus,
+        note: reviewNote.trim(),
+        reviewedByUserId: user.authenticatableUserId,
+      });
+      refresh();
+    } catch (caught) {
+      setReviewError(caught instanceof Error ? caught.message : "Subscriber review could not be saved.");
+    }
+  }
+
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: "Stakeholder Portal", path: "/stakeholder" },
+        { label: "Subscriber Portal", path: "/stakeholder" },
         { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}` },
       ]}
-      readOnly
     >
       <PageTitle
-        eyebrow="Read-only case"
+        eyebrow="Subscriber review"
         title={caseRecord.title}
-        description={`${participant?.name ?? "Unknown participant"} ${caseRecord.caseType.toLowerCase()} status, task completion, and visible outcome.`}
+        description={`${participant?.name ?? "Unknown vendor"} ${caseRecord.caseType.toLowerCase()} status, due diligence item completion, and subscriber-owned review outcome.`}
       />
       <MetricStrip
         items={[
-          { label: "Case status", value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
-          { label: "Tasks complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
+          { label: "Vendor pack status", value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
+          { label: "Items complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
           { label: "Risk", value: caseRecord.risk, tone: caseRecord.risk === "high" ? "red" : "yellow" },
-          { label: "Reference", value: caseRecord.reference, tone: "blue" },
+          { label: "Subscriber review", value: subscriberReview?.statusLabel ?? "Not reviewed", tone: subscriberReview?.status === "APPROVED" ? "green" : "yellow" },
         ]}
       />
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
-        <h3 className="text-xl font-bold">Visible outcome</h3>
+        <h3 className="text-xl font-bold">Vendor pack outcome</h3>
         <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">{caseRecord.outcome}</p>
       </section>
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
-        <h3 className="text-xl font-bold">Participant performance</h3>
+        <h3 className="text-xl font-bold">Subscriber review</h3>
+        <FormError message={reviewError} />
+        <div className="mt-4 grid gap-4 lg:grid-cols-[16rem_1fr_auto] lg:items-end">
+          <FormField label="Review status">
+            <SelectField value={reviewStatus} onChange={(value) => setReviewStatus(value as SubscriberReviewStatus)}>
+              <option value="NOT_REVIEWED">Not reviewed</option>
+              <option value="IN_REVIEW">In review</option>
+              <option value="APPROVED">Approved</option>
+              <option value="MORE_INFO_REQUESTED">More information requested</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Subscriber note">
+            <Input value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} />
+          </FormField>
+          <Button type="button" onClick={saveSubscriberReview}>
+            <Save />
+            Save review
+          </Button>
+        </div>
+        {subscriberReview && (
+          <p className="mt-3 text-sm text-[#505a5f] dark:text-muted-foreground">
+            Last saved by {subscriberReview.reviewedByName} on {new Date(subscriberReview.reviewedAt).toLocaleString("en-GB")}.
+          </p>
+        )}
+      </section>
+      <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
+        <h3 className="text-xl font-bold">Vendor performance</h3>
         <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
           <div>
             <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Progress</dt>
@@ -432,17 +489,17 @@ export function StakeholderCaseDetailPage() {
             <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Visible status</dt>
             <dd className="mt-2">
               {caseRecord.status === "closed"
-                ? "Approved outcome"
+                ? "Completed vendor pack"
                 : caseRecord.risk === "high"
-                  ? "Attention requested"
+                  ? "Vendor pack needs attention"
                   : "Work in progress"}
             </dd>
           </div>
         </dl>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Task outcomes and evidence</h3>
-        <ResourceTable headings={["Task", "Status", "Response", "Evidence metadata"]}>
+        <h3 className="mb-3 text-xl font-bold">Due diligence item outcomes and evidence</h3>
+        <ResourceTable headings={["Due diligence item", "Status", "Response", "Evidence metadata"]}>
           {caseRecord.tasks.map((task) => (
             <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
@@ -1473,9 +1530,9 @@ export function CaseManagementHome() {
 
   return (
     <ConsoleLayout
-      appName="Case Management"
-      appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
-      breadcrumbs={[{ label: "Case Management" }]}
+      appName="Due Diligence Packs"
+      appDescription="Operational workspace for DDQ packs, evidence metadata, and controlled subscriber review."
+      breadcrumbs={[{ label: "Due diligence packs" }]}
       readOnly
     >
       <PageTitle
@@ -1493,10 +1550,10 @@ export function CaseManagementHome() {
       />
       <MetricStrip
         items={[
-          { label: "Authority", value: authority?.name ?? "None", tone: "blue" },
-          { label: "Cases", value: String(scopedCases.length), tone: "blue" },
-          { label: "Completed tasks", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
-          { label: "Blocked tasks", value: String(blockedTasks), tone: "red" },
+          { label: "Association", value: authority?.name ?? "None", tone: "blue" },
+          { label: "DDQ packs", value: String(scopedCases.length), tone: "blue" },
+          { label: "Completed items", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
+          { label: "Blocked items", value: String(blockedTasks), tone: "red" },
         ]}
       />
       <section className="mt-8">
@@ -1738,23 +1795,23 @@ export function CaseDetailPage() {
 
   return (
     <ConsoleLayout
-      appName="Case Management"
-      appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
+      appName="Due Diligence Packs"
+      appDescription="Operational workspace for DDQ packs, evidence metadata, and controlled subscriber review."
       breadcrumbs={[
-        { label: "Case Management", path: "/cases" },
+        { label: "Due diligence packs", path: "/cases" },
         { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}` },
       ]}
       readOnly
     >
       <PageTitle
-        eyebrow="Case"
+        eyebrow="Due diligence pack"
         title={caseRecord.title}
-        description={`${participant?.name ?? "Unknown participant"} ${caseRecord.caseType.toLowerCase()} for task completion, evidence collection, review, and outcome visibility.`}
+        description={`${participant?.name ?? "Unknown vendor"} ${caseRecord.caseType.toLowerCase()} for item completion, evidence metadata, subscriber review, and outcome visibility.`}
         actions={
           user.role === "participant" ? (
             <Button type="button" onClick={submitCase} disabled={!canSubmitCase}>
               <SendHorizontal />
-              Submit case
+              Submit pack
             </Button>
           ) : undefined
         }
@@ -1771,14 +1828,14 @@ export function CaseDetailPage() {
       />
       <MetricStrip
         items={[
-          { label: "Case status", value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
-          { label: "Tasks complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
+          { label: "Pack status", value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
+          { label: "Items complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
           { label: "Risk", value: caseRecord.risk, tone: caseRecord.risk === "high" ? "red" : "yellow" },
           { label: "Reference", value: caseRecord.reference, tone: "blue" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Tasks</h3>
+        <h3 className="mb-3 text-xl font-bold">Due diligence items</h3>
         <div className="grid gap-3">
           {tasks.map((task) => {
             const Icon = task.Icon;
@@ -1917,17 +1974,17 @@ export function TaskDetailPage() {
 
   return (
     <ConsoleLayout
-      appName="Case Management"
-      appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
+      appName="Due Diligence Packs"
+      appDescription="Operational workspace for DDQ packs, evidence metadata, and controlled subscriber review."
       breadcrumbs={[
-        { label: "Case Management", path: "/cases" },
+        { label: "Due diligence packs", path: "/cases" },
         { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
         { label: task.title },
       ]}
       isEdited={isEdited}
     >
       <PageTitle
-        eyebrow="Task"
+        eyebrow="Due diligence item"
         title={task.title}
         description={task.description}
         actions={
@@ -1937,8 +1994,8 @@ export function TaskDetailPage() {
               !canEditTask && "pointer-events-none opacity-50",
             )}
           >
-            <Upload className="size-4" />
-            Upload
+              <Upload className="size-4" />
+            Upload evidence
             <input
               className="sr-only"
               disabled={!canEditTask}
@@ -1971,7 +2028,7 @@ export function TaskDetailPage() {
               <StatusBadge status={task.status} />
               <h3 className="mt-4 text-xl font-bold">Work area</h3>
               <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-                Record the response and evidence for this case task, then submit it when it is ready for authority review.
+                Record the response and evidence metadata for this due diligence item, then submit it when it is ready for subscriber review.
               </p>
             </div>
           </div>
@@ -1994,7 +2051,7 @@ export function TaskDetailPage() {
               </Button>
               <Button type="button" onClick={submitTaskUpdate} disabled={!canSubmitTask}>
                 <SendHorizontal />
-                Submit task
+                Submit item
               </Button>
             </div>
             <div>
@@ -2033,7 +2090,7 @@ export function TaskDetailPage() {
                 <dd className="mt-2 text-sm font-bold text-[#d4351c]">More evidence requested.</dd>
               )}
               {task.domainStatus === "PASSED" && (
-                <dd className="mt-2 text-sm font-bold text-[#00703c]">Passed authority review.</dd>
+                <dd className="mt-2 text-sm font-bold text-[#00703c]">Accepted for this DDQ pack.</dd>
               )}
             </div>
             <div>

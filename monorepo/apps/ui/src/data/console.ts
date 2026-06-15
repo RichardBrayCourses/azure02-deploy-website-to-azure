@@ -36,6 +36,7 @@ export type CaseTemplateStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type TemplateParticipantStatus = "REQUIRED" | "EXEMPT";
 export type CaseStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CLOSED";
 export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
+export type SubscriberReviewStatus = "NOT_REVIEWED" | "IN_REVIEW" | "APPROVED" | "MORE_INFO_REQUESTED";
 export type UserAccountStatus = "ACTIVE" | "DISABLED";
 export type Status = "complete" | "in-progress" | "attention" | "not-started" | "withdrawn";
 
@@ -52,6 +53,7 @@ export type CaseRecordId = string;
 export type CaseTaskId = string;
 export type StakeholderParticipantAccessId = string;
 export type AccessGrantId = string;
+export type SubscriberReviewId = string;
 
 type JsonObject = Record<string, unknown>;
 
@@ -182,6 +184,15 @@ export type CaseTaskDto = BaseDto & {
   withdrawnAt: string | null;
 };
 
+export type SubscriberReviewDto = BaseDto & {
+  stakeholderId: StakeholderId;
+  caseId: CaseRecordId;
+  status: SubscriberReviewStatus;
+  note: string;
+  reviewedByUserId: UserAccountId;
+  reviewedAt: string;
+};
+
 export type CreateParticipantCommand = {
   authorityId: AuthorityId;
   participantType: PartyType;
@@ -254,6 +265,14 @@ export type UploadEvidenceCommand = {
   evidenceJson: JsonObject;
 };
 
+export type UpsertSubscriberReviewCommand = {
+  stakeholderId: StakeholderId;
+  caseId: CaseRecordId;
+  status: SubscriberReviewStatus;
+  note: string;
+  reviewedByUserId: UserAccountId;
+};
+
 class DomainEntity<TDto extends BaseDto> {
   constructor(protected readonly dto: TDto) {}
 
@@ -283,6 +302,7 @@ export class CaseTemplateTaskEntity extends DomainEntity<CaseTemplateTaskDto> {}
 export class CaseTemplateParticipantEntity extends DomainEntity<CaseTemplateParticipantDto> {}
 export class CaseEntity extends DomainEntity<CaseDto> {}
 export class CaseTaskEntity extends DomainEntity<CaseTaskDto> {}
+export class SubscriberReviewEntity extends DomainEntity<SubscriberReviewDto> {}
 
 export type AuthenticatableUserMembership =
   | { entityType: "authority"; entityId: AuthorityId }
@@ -414,6 +434,17 @@ export type CaseRecord = {
   outcome: string;
   lastActivity: string;
   tasks: Task[];
+};
+
+export type SubscriberReview = {
+  id: SubscriberReviewId;
+  stakeholderId: StakeholderId;
+  caseId: CaseRecordId;
+  status: SubscriberReviewStatus;
+  statusLabel: string;
+  note: string;
+  reviewedByName: string;
+  reviewedAt: string;
 };
 
 export type CaseTemplate = {
@@ -784,6 +815,13 @@ export class InMemoryAllChecksOutDatabase {
     this.caseTask("case-task-asteria-attestation", "case-2026-asteria", "template-task-senior-attestation", "PASSED"),
   ];
 
+  readonly subscriberReviews = [
+    this.subscriberReview("review-harrington-northstar", "harrington-financial", "case-2026-northstar", "IN_REVIEW", "Security and subprocessor evidence is under procurement review.", "user-rachel-morgan"),
+    this.subscriberReview("review-harrington-cobalt", "harrington-financial", "case-2026-cobalt", "NOT_REVIEWED", "Waiting for Cobalt to submit the full DDQ pack.", "user-rachel-morgan"),
+    this.subscriberReview("review-mercury-cobalt", "mercury-retail", "case-2026-cobalt", "IN_REVIEW", "Review started after access grant was accepted.", "user-sophie-turner"),
+    this.subscriberReview("review-mercury-pinebridge", "mercury-retail", "case-2026-pinebridge", "MORE_INFO_REQUESTED", "Restore-test evidence and certification evidence need clarification.", "user-sophie-turner"),
+  ];
+
   constructor() {}
 
   listAuthorities() {
@@ -1028,6 +1066,45 @@ export class InMemoryAllChecksOutDatabase {
     const updated = { ...grant, status, updatedAt: this.timestamp() };
     this.replaceById(this.accessGrants, new AccessGrantEntity(updated));
     return updated;
+  }
+
+  getSubscriberReview(stakeholderId: StakeholderId, caseId: CaseRecordId) {
+    return this.subscriberReviews
+      .map((review) => review.toDto())
+      .find((review) => review.stakeholderId === stakeholderId && review.caseId === caseId) ?? null;
+  }
+
+  upsertSubscriberReview(command: UpsertSubscriberReviewCommand) {
+    const stakeholder = this.requireStakeholder(command.stakeholderId);
+    const caseRecord = this.requireCase(command.caseId);
+    this.requireUserAccount(command.reviewedByUserId);
+    const activeGrant = this.getActiveAccessGrantsForStakeholder(stakeholder.id).find(
+      (grant) => grant.participantId === caseRecord.participantId && grant.granteeType === "STAKEHOLDER",
+    );
+    if (!activeGrant) {
+      throw new Error("Subscriber review requires an active vendor access grant.");
+    }
+
+    const reviewedAt = this.timestamp();
+    const existing = this.getSubscriberReview(command.stakeholderId, command.caseId);
+    const review: SubscriberReviewDto = {
+      ...(existing ?? this.createBase(this.nextId("subscriber-review", this.subscriberReviews))),
+      stakeholderId: command.stakeholderId,
+      caseId: command.caseId,
+      status: command.status,
+      note: command.note,
+      reviewedByUserId: command.reviewedByUserId,
+      reviewedAt,
+      updatedAt: reviewedAt,
+    };
+
+    if (existing) {
+      this.replaceById(this.subscriberReviews, new SubscriberReviewEntity(review));
+    } else {
+      this.subscriberReviews.push(new SubscriberReviewEntity(review));
+    }
+
+    return review;
   }
 
   createCaseTemplate(command: CreateCaseTemplateCommand) {
@@ -1434,6 +1511,25 @@ export class InMemoryAllChecksOutDatabase {
       responseJson: {},
       evidenceJson: {},
       withdrawnAt: null,
+    });
+  }
+
+  private subscriberReview(
+    id: SubscriberReviewId,
+    stakeholderId: StakeholderId,
+    caseId: CaseRecordId,
+    status: SubscriberReviewStatus,
+    note: string,
+    reviewedByUserId: UserAccountId,
+  ) {
+    return new SubscriberReviewEntity({
+      ...base(id),
+      stakeholderId,
+      caseId,
+      status,
+      note,
+      reviewedByUserId,
+      reviewedAt: now,
     });
   }
 
@@ -1845,6 +1941,33 @@ function buildAccessGrants(): AccessGrant[] {
   });
 }
 
+function subscriberReviewStatusLabel(status: SubscriberReviewStatus) {
+  const labels: Record<SubscriberReviewStatus, string> = {
+    NOT_REVIEWED: "Not reviewed",
+    IN_REVIEW: "In review",
+    APPROVED: "Approved",
+    MORE_INFO_REQUESTED: "More information requested",
+  };
+  return labels[status];
+}
+
+function buildSubscriberReviews(): SubscriberReview[] {
+  return db.subscriberReviews.map((review) => {
+    const dto = review.toDto();
+    const reviewedBy = db.userAccounts.find((account) => account.id === dto.reviewedByUserId)?.toDto();
+    return {
+      id: dto.id,
+      stakeholderId: dto.stakeholderId,
+      caseId: dto.caseId,
+      status: dto.status,
+      statusLabel: subscriberReviewStatusLabel(dto.status),
+      note: dto.note,
+      reviewedByName: reviewedBy?.displayName ?? "Unknown user",
+      reviewedAt: dto.reviewedAt,
+    };
+  });
+}
+
 function buildParticipants(caseRecords: CaseRecord[]): Participant[] {
   return db.participants.map((participant) => {
     const dto = participant.toDto();
@@ -2063,6 +2186,7 @@ export let cases: CaseRecord[] = [];
 export let stakeholders: Stakeholder[] = [];
 export let participants: Participant[] = [];
 export let accessGrants: AccessGrant[] = [];
+export let subscriberReviews: SubscriberReview[] = [];
 export let authenticatableUsers: AuthenticatableUser[] = [];
 export let userIdentities: UserIdentity[] = [];
 export let accountContexts: AccountContext[] = [];
@@ -2077,6 +2201,7 @@ export function refreshConsoleViewModels() {
   stakeholders = buildStakeholders();
   participants = buildParticipants(cases);
   accessGrants = buildAccessGrants();
+  subscriberReviews = buildSubscriberReviews();
   authenticatableUsers = buildAuthenticatableUsers();
   userIdentities = buildUserIdentities();
   accountContexts = buildAccountContexts();
@@ -2180,6 +2305,16 @@ export function getGrantableStakeholdersForParticipant(participantId: string | u
   const participant = getParticipant(participantId);
   if (!participant) return [];
   return stakeholders.filter((stakeholder) => stakeholder.authorityId === participant.authorityId);
+}
+
+export function getSubscriberReviewForCase(user: AuthenticatedUser, caseId: string | undefined) {
+  if (!caseId || user.role !== "stakeholder") return undefined;
+  const stakeholderId =
+    user.stakeholderId ??
+    (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
+    undefined;
+  if (!stakeholderId) return undefined;
+  return subscriberReviews.find((review) => review.stakeholderId === stakeholderId && review.caseId === caseId);
 }
 
 export function getCaseTemplatesForAuthority(authorityId: string | undefined) {
