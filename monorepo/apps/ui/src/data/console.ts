@@ -655,6 +655,7 @@ export type SearchItem = {
 
 const now = "2026-06-15T09:00:00.000Z";
 const created = "2026-01-03T09:00:00.000Z";
+const authorityTerminologyStorageKey = "authorityTerminology";
 
 export const defaultTerminologyLabels: TerminologyLabels = {
   authority: { singular: "authority", plural: "authorities" },
@@ -686,6 +687,53 @@ function mergeTerminologyLabels(labels: Partial<TerminologyLabels>): Terminology
       ];
     }),
   ) as TerminologyLabels;
+}
+
+function isTerminologyLabels(value: unknown): value is Partial<TerminologyLabels> {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return Object.keys(defaultTerminologyLabels).some((key) => {
+    const label = candidate[key];
+    if (!label || typeof label !== "object") return false;
+    const typedLabel = label as Record<string, unknown>;
+    return typeof typedLabel.singular === "string" || typeof typedLabel.plural === "string";
+  });
+}
+
+function getStoredAuthorityTerminology() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const stored = window.localStorage.getItem(authorityTerminologyStorageKey);
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored);
+    if (!parsed || typeof parsed !== "object") return [];
+
+    return Object.entries(parsed as Record<string, unknown>)
+      .filter((entry): entry is [AuthorityId, Partial<TerminologyLabels>] => {
+        const [authorityId, labels] = entry;
+        return authorityId.trim().length > 0 && isTerminologyLabels(labels);
+      })
+      .map(([authorityId, labels]) => ({
+        authorityId,
+        labels: mergeTerminologyLabels(labels),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function saveAuthorityTerminologyToStorage(authorityTerminology: AuthorityTerminologyDto[]) {
+  if (typeof window === "undefined") return;
+
+  const stored = Object.fromEntries(
+    authorityTerminology.map((terminology) => [
+      terminology.authorityId,
+      mergeTerminologyLabels(terminology.labels),
+    ]),
+  );
+  window.localStorage.setItem(authorityTerminologyStorageKey, JSON.stringify(stored));
 }
 
 const iconByTaskCode: Record<string, typeof ImageUp> = {
@@ -1093,7 +1141,9 @@ export class InMemoryAllChecksOutDatabase {
     ),
   ];
 
-  constructor() {}
+  constructor() {
+    this.hydrateAuthorityTerminology();
+  }
 
   listAuthorities() {
     return this.authorities.map((authority) => authority.toDto());
@@ -1122,6 +1172,7 @@ export class InMemoryAllChecksOutDatabase {
     } else {
       this.authorityTerminology.push(new AuthorityTerminologyEntity(terminology));
     }
+    saveAuthorityTerminologyToStorage(this.authorityTerminology.map((item) => item.toDto()));
     return terminology;
   }
 
@@ -2116,6 +2167,25 @@ export class InMemoryAllChecksOutDatabase {
     const authority = this.getAuthority(authorityId);
     if (!authority) throw new Error(`Authority ${authorityId} was not found.`);
     return authority;
+  }
+
+  private hydrateAuthorityTerminology() {
+    getStoredAuthorityTerminology().forEach((stored) => {
+      if (!this.getAuthority(stored.authorityId)) return;
+
+      const existing = this.getAuthorityTerminology(stored.authorityId);
+      const terminology: AuthorityTerminologyDto = {
+        ...(existing ?? this.createBase(this.nextId("terminology", this.authorityTerminology))),
+        authorityId: stored.authorityId,
+        labels: stored.labels,
+      };
+
+      if (existing) {
+        this.replaceById(this.authorityTerminology, new AuthorityTerminologyEntity(terminology));
+      } else {
+        this.authorityTerminology.push(new AuthorityTerminologyEntity(terminology));
+      }
+    });
   }
 
   private requireParticipant(participantId: ParticipantId) {
