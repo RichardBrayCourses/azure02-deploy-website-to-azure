@@ -35,6 +35,7 @@ import {
   SendHorizontal,
   Upload,
   UserPlus,
+  XCircle,
 } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
@@ -1427,6 +1428,7 @@ export function CaseDetailPage() {
   const { db, refresh } = useDomainData();
   const { caseId } = useParams();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   const caseRecord = getCase(caseId);
   if (!caseRecord) return <Navigate to="/cases" replace />;
@@ -1454,6 +1456,16 @@ export function CaseDetailPage() {
     }
   }
 
+  function reviewTask(taskId: string, decision: "PASSED" | "FAILED") {
+    setReviewError(null);
+    try {
+      db.reviewTask(taskId, decision);
+      refresh();
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "The task could not be reviewed.");
+    }
+  }
+
   return (
     <ConsoleLayout
       appName="Case Management"
@@ -1478,6 +1490,7 @@ export function CaseDetailPage() {
         }
       />
       <FormError message={submitError} />
+      <FormError message={reviewError} />
       <Tabs
         current="Summary"
         tabs={
@@ -1507,20 +1520,63 @@ export function CaseDetailPage() {
       <section className="mt-8">
         {user.role === "authority-admin" ? (
           <>
-            <h3 className="mb-3 text-xl font-bold">Task activity summary</h3>
-            <ResourceTable headings={["Task", "Status", "Performed", "Last activity", "Review note"]}>
+            <h3 className="mb-3 text-xl font-bold">Task review</h3>
+            <ResourceTable headings={["Task", "Status", "Submission", "Evidence", "Review"]}>
               {tasks.map((task) => {
                 const activity = taskActivity(task.id, task.status);
+                const canReview = task.domainStatus === "SUBMITTED";
                 return (
                   <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
                     <td className="px-4 py-3">
                       <span className="block font-bold text-[#0b0c0c] dark:text-white">{task.title}</span>
                       <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{task.type}</span>
                     </td>
-                    <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
-                    <td className="px-4 py-3">{activity.performed}</td>
-                    <td className="px-4 py-3">{activity.lastUpdated}</td>
-                    <td className="px-4 py-3">{activity.reviewerNote}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={task.status} />
+                      <span className="mt-2 block text-xs font-bold text-[#505a5f] dark:text-muted-foreground">
+                        {task.domainStatus.replace("_", " ")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="block text-sm">
+                        {task.responseText || "No response saved"}
+                      </span>
+                      <span className="mt-2 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                        Last activity: {new Date(task.updatedAt).toLocaleString("en-GB")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {task.evidenceFiles.length === 0 ? (
+                        <span className="text-sm text-[#505a5f] dark:text-muted-foreground">No evidence metadata</span>
+                      ) : (
+                        <ul className="grid gap-1 text-sm">
+                          {task.evidenceFiles.map((file) => (
+                            <li key={`${task.id}-${file.name}-${file.uploadedAt}`}>
+                              <span className="font-bold text-[#1d70b8]">{file.name}</span>
+                              <span className="block text-xs text-[#505a5f] dark:text-muted-foreground">
+                                {file.size} · {new Date(file.uploadedAt).toLocaleString("en-GB")}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {canReview ? (
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" size="sm" onClick={() => reviewTask(task.id, "PASSED")}>
+                            <CheckCircle2 />
+                            Pass
+                          </Button>
+                          <Button type="button" size="sm" variant="destructive" onClick={() => reviewTask(task.id, "FAILED")}>
+                            <XCircle />
+                            Fail
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-[#505a5f] dark:text-muted-foreground">{activity.reviewerNote}</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

@@ -23,7 +23,7 @@ Use this file to understand:
 
 # Current Status Summary
 
-Phase 1, Phase 1.5, Phase 2, Phase 3 and Phase 4 are complete.
+Phase 1, Phase 1.5, Phase 2, Phase 3, Phase 4 and Phase 5 are complete.
 
 The app now has:
 
@@ -39,8 +39,9 @@ The app now has:
 - Authority/Participant/Stakeholder case experience partially separated by role
 - Authority setup CRUD flows for participants, participant users, stakeholders, stakeholder users and stakeholder access
 - Participant task response, evidence upload, task submission and case submission flows
+- Authority task review controls for submitted participant tasks
 
-The next implementation work should start Phase 5: Authority Review Workflow.
+The next implementation work should start Phase 6: Stakeholder Read-Only Portal.
 
 ---
 
@@ -343,7 +344,7 @@ Acceptance covered:
 Status:
 
 ```text
-Partially started
+Complete
 ```
 
 Stories covered:
@@ -353,8 +354,12 @@ Stories covered:
 Already implemented:
 
 - Authority case detail no longer links into participant task workbench
-- Authority case detail shows task activity summary
+- Authority case detail shows task review context with participant response and evidence metadata
 - Direct navigation to `/cases/:caseId/tasks/:taskId` redirects Authority users back to case summary
+- Authority users can pass submitted tasks through `db.reviewTask(caseTaskId, "PASSED")`
+- Authority users can fail submitted tasks through `db.reviewTask(caseTaskId, "FAILED")`
+- Review actions call `refresh()` so case and task status update immediately
+- Participant users see passed and failed outcomes through the existing participant case views
 
 Domain support:
 
@@ -368,13 +373,16 @@ Relevant domain command already exists:
 db.reviewTask(caseTaskId, "PASSED" | "FAILED")
 ```
 
-UI work remaining:
+Acceptance covered:
 
-- Add authority review controls for submitted tasks
-- Call `db.reviewTask(...)`
-- Refresh UI after review
-- Show updated case status
-- Show participant review outcome
+- Authority user can approve a submitted task
+- Authority user can reject a submitted task
+- Participant users do not see authority review controls
+- Direct authority navigation to participant task workbench remains blocked
+- Case status recalculates through the domain command after review
+- Participant can see updated passed or failed task outcomes
+- `npm run type-check` passes
+- `npm run build` passes
 
 Important note:
 
@@ -540,13 +548,13 @@ Do not implement this before the main user-story flows unless activity accuracy 
 Recommended immediate next step:
 
 ```text
-Start Phase 5 with Authority review controls for submitted participant tasks.
+Start Phase 6 with stakeholder participant detail and evidence metadata visibility.
 ```
 
 Suggested agent prompt:
 
 ```text
-Please implement Phase 5: Authority review workflow.
+Please implement Phase 6: Stakeholder read-only portal polish.
 
 Read:
 - fullhandover.md
@@ -556,12 +564,12 @@ Read:
 
 Requirements:
 - Preserve the login screen
-- Keep participant users out of authority review controls
-- Add authority review controls for submitted tasks
+- Keep stakeholder portal read-only
+- Add stakeholder participant-level detail route
+- Add stronger participant performance view
+- Implement the first-release evidence visibility rule
 - Use useDomainData()
-- Call db.reviewTask(caseTaskId, "PASSED" | "FAILED")
-- Call refresh() after mutations
-- Show updated case and task status
+- Stakeholders should see evidence metadata for submitted, passed or failed tasks on approved participants
 - Keep the existing UI style
 - Run npm run type-check and npm run build
 ```
