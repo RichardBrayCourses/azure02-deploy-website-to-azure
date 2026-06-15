@@ -26,16 +26,20 @@ import {
   getSubscriberReviewForCase,
   getScopedCases,
   getScopedParticipants,
+  getScopedVendorRelationships,
   getStakeholdersForAuthority,
+  getVendorRelationshipsForParticipant,
   grantAllowsHelperEdit,
   AccessGrantPermissionLevel,
   AccessGrantStatus,
+  AccessGrantDataScopeType,
   AccessGrantGranteeType,
   MembershipRole,
   PartyType,
   RequestForInformationStatus,
   SubscriberReviewStatus,
   Status,
+  VendorRelationshipCriticality,
   taskTypes,
 } from "@/data/console";
 import type { Task } from "@/data/console";
@@ -167,16 +171,19 @@ function FormField({
 
 function SelectField({
   children,
+  disabled = false,
   value,
   onChange,
 }: {
   children: ReactNode;
+  disabled?: boolean;
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
     <select
       className="h-9 w-full border border-input bg-white px-3 text-sm shadow-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50 dark:bg-input/30"
+      disabled={disabled}
       value={value}
       onChange={(event) => onChange(event.target.value)}
     >
@@ -251,7 +258,7 @@ export function HelperWorkspacePage() {
   if (user.role !== "helper") return <Navigate to="/" replace />;
   const workspaces = getHelperClientWorkspaces(user);
   const scopedCases = getScopedCases(user);
-  const openRequests = workspaces.reduce((sum, workspace) => sum + workspace.openRequests, 0);
+  const scopedVendorRelationships = getScopedVendorRelationships(user);
   const editableWorkspaces = workspaces.filter((workspace) => workspace.canEdit).length;
 
   return (
@@ -270,8 +277,8 @@ export function HelperWorkspacePage() {
         items={[
           { label: "Client vendors", value: String(workspaces.length), tone: "blue" },
           { label: "Assigned DDQ packs", value: String(scopedCases.length), tone: "blue" },
+          { label: "Vendor-of-vendor records", value: String(scopedVendorRelationships.length), tone: "yellow" },
           { label: "Editable workspaces", value: String(editableWorkspaces), tone: "green" },
-          { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
         ]}
       />
       <section className="mt-8">
@@ -298,6 +305,35 @@ export function HelperWorkspacePage() {
               </td>
             </tr>
           ))}
+        </ResourceTable>
+      </section>
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Vendor-of-vendor records</h3>
+        <ResourceTable headings={["Client vendor", "Vendor of vendor", "Criticality", "Status", "Linked DDQ packs"]}>
+          {workspaces.flatMap((workspace) =>
+            workspace.vendorRelationships.map((relationship) => (
+              <tr key={`${workspace.grant.id}-${relationship.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">{workspace.participant.name}</td>
+                <td className="px-4 py-3">
+                  <span className="block font-bold text-[#1d70b8]">{relationship.vendorName}</span>
+                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                    {relationship.relationshipType}
+                  </span>
+                </td>
+                <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
+                <td className="px-4 py-3">{relationship.status.replace("_", " ").toLowerCase()}</td>
+                <td className="px-4 py-3">
+                  {relationship.linkedCases.length > 0
+                    ? relationship.linkedCases.map((caseRecord) => (
+                        <Link key={caseRecord.id} className="block font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
+                          {caseRecord.title}
+                        </Link>
+                      ))
+                    : "No DDQ pack linked"}
+                </td>
+              </tr>
+            )),
+          )}
         </ResourceTable>
       </section>
       <section className="mt-8">
@@ -356,6 +392,7 @@ export function HelperParticipantPage() {
           { label: "Permission", value: workspace.grant.permissionLabel, tone: workspace.canEdit ? "green" : "yellow" },
           { label: "Scope", value: workspace.grant.scopeLabel, tone: "blue" },
           { label: "DDQ packs", value: String(workspace.cases.length), tone: "blue" },
+          { label: "Vendor-of-vendor records", value: String(workspace.vendorRelationships.length), tone: "yellow" },
           { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
         ]}
       />
@@ -376,6 +413,33 @@ export function HelperParticipantPage() {
               <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
               <td className="px-4 py-3 capitalize">{caseRecord.risk}</td>
               <td className="px-4 py-3">{caseRecord.lastActivity}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Vendor-of-vendor records</h3>
+        <ResourceTable headings={["Vendor of vendor", "Relationship", "Criticality", "Data exposure", "Linked DDQ packs"]}>
+          {workspace.vendorRelationships.map((relationship) => (
+            <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <span className="block font-bold text-[#1d70b8]">{relationship.vendorName}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                  {relationship.status.replace("_", " ").toLowerCase()}
+                </span>
+              </td>
+              <td className="px-4 py-3">{relationship.relationshipType}</td>
+              <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
+              <td className="px-4 py-3">{relationship.dataExposure}</td>
+              <td className="px-4 py-3">
+                {relationship.linkedCases.length > 0
+                  ? relationship.linkedCases.map((caseRecord) => (
+                      <Link key={caseRecord.id} className="block font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
+                        {caseRecord.title}
+                      </Link>
+                    ))
+                  : "No DDQ pack linked"}
+              </td>
             </tr>
           ))}
         </ResourceTable>
@@ -411,6 +475,7 @@ export function StakeholderPortalPage() {
   if (user.role !== "stakeholder") return <Navigate to="/" replace />;
   const scopedParticipants = getScopedParticipants(user);
   const scopedCases = getScopedCases(user);
+  const scopedVendorRelationships = getScopedVendorRelationships(user);
   const reviewSummaries = scopedCases.map((caseRecord) => getSubscriberReviewForCase(user, caseRecord.id));
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
@@ -429,8 +494,8 @@ export function StakeholderPortalPage() {
         items={[
           { label: "Granted vendors", value: String(scopedParticipants.length), tone: "blue" },
           { label: "Visible DDQ packs", value: String(scopedCases.length), tone: "blue" },
+          { label: "Vendor-of-vendor records", value: String(scopedVendorRelationships.length), tone: "yellow" },
           { label: "Approved by subscriber", value: String(reviewSummaries.filter((review) => review?.status === "APPROVED").length), tone: "green" },
-          { label: "More info requested", value: String(reviewSummaries.filter((review) => review?.status === "MORE_INFO_REQUESTED").length), tone: "red" },
         ]}
       />
       <section className="mt-8">
@@ -439,6 +504,9 @@ export function StakeholderPortalPage() {
           {scopedParticipants.map((participant) => {
             const visibleCase = scopedCases.find((caseRecord) => caseRecord.participantId === participant.id);
             const review = getSubscriberReviewForCase(user, visibleCase?.id);
+            const visibleCasesForParticipant = scopedCases.filter((caseRecord) => caseRecord.participantId === participant.id);
+            const visibleCompletedTasks = visibleCasesForParticipant.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
+            const visibleTotalTasks = visibleCasesForParticipant.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
             return (
               <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
@@ -463,8 +531,8 @@ export function StakeholderPortalPage() {
                     "No visible case"
                   )}
                 </td>
-                <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
-                <td className="px-4 py-3"><ProgressBar value={participant.completedTasks} total={participant.totalTasks} /></td>
+                <td className="px-4 py-3"><StatusBadge status={visibleCase?.status ?? "not-started"} /></td>
+                <td className="px-4 py-3"><ProgressBar value={visibleCompletedTasks} total={visibleTotalTasks} /></td>
                 <td className="px-4 py-3">{review?.statusLabel ?? "Not reviewed"}</td>
               </tr>
             );
@@ -486,8 +554,10 @@ export function StakeholderParticipantDetailPage() {
   if (!participant) return <Navigate to="/stakeholder" replace />;
 
   const participantCases = getScopedCases(user).filter((caseRecord) => caseRecord.participantId === participant.id);
+  const visibleVendorRelationships = getScopedVendorRelationships(user).filter((relationship) => relationship.participantId === participant.id);
   const openCases = participantCases.filter((caseRecord) => caseRecord.status !== "closed").length;
-  const attentionTasks = participantCases.flatMap((caseRecord) => caseRecord.tasks).filter((task) => task.status === "attention").length;
+  const completedVisibleTasks = participantCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
+  const totalVisibleTasks = participantCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
 
   return (
     <ConsoleLayout
@@ -506,10 +576,37 @@ export function StakeholderParticipantDetailPage() {
         items={[
           { label: "Visible DDQ packs", value: String(participantCases.length), tone: "blue" },
           { label: "Open DDQ packs", value: String(openCases), tone: "yellow" },
-          { label: "Items complete", value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
-          { label: "Needs attention", value: String(attentionTasks), tone: attentionTasks > 0 ? "red" : "green" },
+          { label: "Vendor-of-vendor records", value: String(visibleVendorRelationships.length), tone: "yellow" },
+          { label: "Items complete", value: `${completedVisibleTasks}/${totalVisibleTasks}`, tone: "green" },
         ]}
       />
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Visible vendor-of-vendor records</h3>
+        <ResourceTable headings={["Vendor of vendor", "Relationship", "Criticality", "Data exposure", "Linked DDQ packs"]}>
+          {visibleVendorRelationships.map((relationship) => (
+            <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <span className="block font-bold text-[#1d70b8]">{relationship.vendorName}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                  {relationship.status.replace("_", " ").toLowerCase()}
+                </span>
+              </td>
+              <td className="px-4 py-3">{relationship.relationshipType}</td>
+              <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
+              <td className="px-4 py-3">{relationship.dataExposure}</td>
+              <td className="px-4 py-3">
+                {relationship.linkedCases.length > 0
+                  ? relationship.linkedCases.map((caseRecord) => (
+                      <Link key={caseRecord.id} className="block font-bold text-[#1d70b8] hover:underline" to={`/stakeholder/${caseRecord.id}`}>
+                        {caseRecord.title}
+                      </Link>
+                    ))
+                  : "No DDQ pack linked"}
+              </td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Visible DDQ packs</h3>
         <ResourceTable headings={["DDQ pack", "Vendor status", "Progress", "Subscriber review", "Last activity"]}>
@@ -592,7 +689,6 @@ export function StakeholderCaseDetailPage() {
   const participant = getParticipant(caseRecord.participantId);
   const requests = getRequestsForCase(caseRecord.id, user);
   const openRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS").length;
-  const answeredRequests = requests.filter((request) => request.status === "ANSWERED").length;
 
   function saveSubscriberReview() {
     setReviewError(null);
@@ -675,8 +771,8 @@ export function StakeholderCaseDetailPage() {
         items={[
           { label: "Vendor pack status", value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
           { label: "Items complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
+          { label: "Linked vendor", value: caseRecord.vendorRelationshipName ?? "Vendor workspace", tone: caseRecord.vendorRelationshipName ? "yellow" : "blue" },
           { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
-          { label: "Answered requests", value: String(answeredRequests), tone: answeredRequests > 0 ? "yellow" : "blue" },
         ]}
       />
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
@@ -1816,15 +1912,53 @@ export function ParticipantDetailPage() {
 
 export function CaseManagementHome() {
   const { user } = useAuth();
+  const { db, refresh } = useDomainData();
+  const [showCreateVendor, setShowCreateVendor] = useState(false);
+  const [vendorName, setVendorName] = useState("");
+  const [relationshipType, setRelationshipType] = useState("");
+  const [criticality, setCriticality] = useState<VendorRelationshipCriticality>("HIGH");
+  const [servicesProvided, setServicesProvided] = useState("");
+  const [dataExposure, setDataExposure] = useState("");
+  const [vendorError, setVendorError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "helper") return <Navigate to="/helper" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
   const authority = getAuthority(user.authorityId ?? undefined);
+  const participant = getParticipant(user.participantId ?? undefined);
   const scopedCases = getScopedCases(user);
+  const participantVendorRelationships = getVendorRelationshipsForParticipant(user.participantId ?? undefined);
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
   const openRequests = getRequestsForParticipant(user.participantId ?? undefined, user)
     .filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS").length;
+
+  function createVendorRelationship() {
+    setVendorError(null);
+    if (!participant || !user.authorityId) {
+      setVendorError("No vendor workspace is selected.");
+      return;
+    }
+    try {
+      db.createVendorRelationship({
+        authorityId: user.authorityId,
+        participantId: participant.id,
+        vendorName,
+        relationshipType,
+        criticality,
+        servicesProvided,
+        dataExposure,
+      });
+      refresh();
+      setVendorName("");
+      setRelationshipType("");
+      setCriticality("HIGH");
+      setServicesProvided("");
+      setDataExposure("");
+      setShowCreateVendor(false);
+    } catch (caught) {
+      setVendorError(caught instanceof Error ? caught.message : "Vendor-of-vendor record could not be created.");
+    }
+  }
 
   return (
     <ConsoleLayout
@@ -1850,10 +1984,47 @@ export function CaseManagementHome() {
         items={[
           { label: "Association", value: authority?.name ?? "None", tone: "blue" },
           { label: "DDQ packs", value: String(scopedCases.length), tone: "blue" },
+          { label: "Vendors of vendors", value: String(participantVendorRelationships.length), tone: "yellow" },
           { label: "Completed items", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
           { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
         ]}
       />
+      <ResourceActionPanel
+        open={showCreateVendor}
+        title="Create vendor-of-vendor record"
+        description="Record a supplier or subprocessor controlled by this vendor workspace."
+        onClose={() => setShowCreateVendor(false)}
+        footer={
+          <Button type="button" onClick={createVendorRelationship}>
+            <CheckCircle2 />
+            Save vendor
+          </Button>
+        }
+      >
+        <div className="grid gap-4 lg:grid-cols-[1fr_1fr_12rem]">
+          <FormField label="Vendor of vendor">
+            <Input value={vendorName} onChange={(event) => setVendorName(event.target.value)} />
+          </FormField>
+          <FormField label="Relationship">
+            <Input value={relationshipType} onChange={(event) => setRelationshipType(event.target.value)} />
+          </FormField>
+          <FormField label="Criticality">
+            <SelectField value={criticality} onChange={(value) => setCriticality(value as VendorRelationshipCriticality)}>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="CRITICAL">Critical</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Services provided">
+            <Input value={servicesProvided} onChange={(event) => setServicesProvided(event.target.value)} />
+          </FormField>
+          <FormField label="Data exposure">
+            <Input value={dataExposure} onChange={(event) => setDataExposure(event.target.value)} />
+          </FormField>
+        </div>
+        <div className="mt-3"><FormError message={vendorError} /></div>
+      </ResourceActionPanel>
       <section className="mt-8">
         <ResourceTable
           headings={["Due diligence pack", "Type", "Status", "Progress", "Risk", "Last activity"]}
@@ -1876,6 +2047,39 @@ export function CaseManagementHome() {
           })}
         </ResourceTable>
       </section>
+      <section className="mt-8">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-bold">Vendors of vendors</h3>
+          <Button type="button" variant="outline" onClick={() => setShowCreateVendor((current) => !current)}>
+            <Plus />
+            Add vendor
+          </Button>
+        </div>
+        <ResourceTable headings={["Vendor of vendor", "Relationship", "Criticality", "Data exposure", "Linked DDQ packs"]}>
+          {participantVendorRelationships.map((relationship) => (
+            <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <span className="block font-bold text-[#1d70b8]">{relationship.vendorName}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                  {relationship.status.replace("_", " ").toLowerCase()}
+                </span>
+              </td>
+              <td className="px-4 py-3">{relationship.relationshipType}</td>
+              <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
+              <td className="px-4 py-3">{relationship.dataExposure}</td>
+              <td className="px-4 py-3">
+                {relationship.linkedCases.length > 0
+                  ? relationship.linkedCases.map((caseRecord) => (
+                      <Link key={caseRecord.id} className="block font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
+                        {caseRecord.title}
+                      </Link>
+                    ))
+                  : "No DDQ pack linked"}
+              </td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
     </ConsoleLayout>
   );
 }
@@ -1887,6 +2091,8 @@ export function AccessGrantsPage() {
   const [granteeType, setGranteeType] = useState<AccessGrantGranteeType>("STAKEHOLDER");
   const [granteeStakeholderId, setGranteeStakeholderId] = useState("");
   const [permissionLevel, setPermissionLevel] = useState<AccessGrantPermissionLevel>("REQUEST_INFORMATION");
+  const [dataScopeType, setDataScopeType] = useState<AccessGrantDataScopeType>("PARTICIPANT_WORKSPACE");
+  const [dataScopeId, setDataScopeId] = useState("");
   const [status, setStatus] = useState<AccessGrantStatus>("ACTIVE");
   const [error, setError] = useState<string | null>(null);
 
@@ -1899,6 +2105,7 @@ export function AccessGrantsPage() {
 
   const grants = getAccessGrantsForParticipant(participant.id);
   const grantableStakeholders = getGrantableStakeholdersForParticipant(participant.id);
+  const participantVendorRelationships = getVendorRelationshipsForParticipant(participant.id);
   const activeGrants = grants.filter((grant) => grant.status === "ACTIVE");
   const helperGrants = grants.filter((grant) => grant.granteeType === "HELPER");
 
@@ -1915,12 +2122,16 @@ export function AccessGrantsPage() {
         granteeType,
         granteeStakeholderId,
         permissionLevel,
+        dataScopeType,
+        dataScopeId: dataScopeType === "VENDOR_RELATIONSHIP" ? dataScopeId : null,
         status,
         createdByUserId: user.authenticatableUserId ?? "",
       });
       refresh();
       setGranteeStakeholderId("");
       setPermissionLevel("REQUEST_INFORMATION");
+      setDataScopeType("PARTICIPANT_WORKSPACE");
+      setDataScopeId("");
       setStatus("ACTIVE");
       setShowCreate(false);
     } catch (caught) {
@@ -1978,7 +2189,7 @@ export function AccessGrantsPage() {
           </Button>
         }
       >
-        <div className="grid gap-4 md:grid-cols-[12rem_1fr_14rem_10rem]">
+        <div className="grid gap-4 md:grid-cols-[12rem_1fr_14rem_14rem_14rem_10rem]">
           <FormField label="Grantee type">
             <SelectField value={granteeType} onChange={(value) => setGranteeType(value as AccessGrantGranteeType)}>
               <option value="STAKEHOLDER">Subscriber</option>
@@ -2002,6 +2213,30 @@ export function AccessGrantsPage() {
               <option value="REVIEW_AND_COMMENT">Review and comment</option>
               <option value="CREATE_AND_EDIT">Create and edit</option>
               <option value="ADMINISTER_GRANTS">Administer grants</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Scope">
+            <SelectField
+              value={dataScopeType}
+              onChange={(value) => {
+                setDataScopeType(value as AccessGrantDataScopeType);
+                setDataScopeId("");
+              }}
+            >
+              <option value="PARTICIPANT_WORKSPACE">Entire workspace</option>
+              <option value="VENDOR_RELATIONSHIP">Vendor-of-vendor</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Vendor-of-vendor">
+            <SelectField
+              value={dataScopeId}
+              onChange={setDataScopeId}
+              disabled={dataScopeType !== "VENDOR_RELATIONSHIP"}
+            >
+              <option value="">Select record</option>
+              {participantVendorRelationships.map((relationship) => (
+                <option key={relationship.id} value={relationship.id}>{relationship.vendorName}</option>
+              ))}
             </SelectField>
           </FormField>
           <FormField label="Status">
@@ -2168,7 +2403,7 @@ export function CaseDetailPage() {
           { label: "Pack status", value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
           { label: "Items complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
           { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
-          { label: "Reference", value: caseRecord.reference, tone: "blue" },
+          { label: "Linked vendor", value: caseRecord.vendorRelationshipName ?? "Vendor workspace", tone: caseRecord.vendorRelationshipName ? "yellow" : "blue" },
         ]}
       />
       <section className="mt-8">

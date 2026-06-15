@@ -31,7 +31,7 @@ export type AccessGrantPermissionLevel =
   | "REVIEW_AND_COMMENT"
   | "CREATE_AND_EDIT"
   | "ADMINISTER_GRANTS";
-export type AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA";
+export type AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "VENDOR_RELATIONSHIP";
 export type TaskTypeStatus = "ACTIVE" | "DEPRECATED";
 export type CaseTemplateStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type TemplateParticipantStatus = "REQUIRED" | "EXEMPT";
@@ -40,6 +40,8 @@ export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASS
 export type SubscriberReviewStatus = "NOT_REVIEWED" | "IN_REVIEW" | "APPROVED" | "MORE_INFO_REQUESTED";
 export type RequestForInformationStatus = "OPEN" | "IN_PROGRESS" | "ANSWERED" | "ACCEPTED" | "WITHDRAWN";
 export type RequestForInformationScopeType = "PARTICIPANT" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA";
+export type VendorRelationshipCriticality = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type VendorRelationshipStatus = "ACTIVE" | "UNDER_REVIEW" | "SUSPENDED" | "EXITING";
 export type UserAccountStatus = "ACTIVE" | "DISABLED";
 export type Status = "complete" | "in-progress" | "attention" | "not-started" | "withdrawn";
 
@@ -58,6 +60,7 @@ export type StakeholderParticipantAccessId = string;
 export type AccessGrantId = string;
 export type SubscriberReviewId = string;
 export type RequestForInformationId = string;
+export type VendorRelationshipId = string;
 
 type JsonObject = Record<string, unknown>;
 
@@ -174,6 +177,7 @@ export type CaseDto = BaseDto & {
   authorityId: AuthorityId;
   caseTemplateId: CaseTemplateId;
   participantId: ParticipantId;
+  vendorRelationshipId: VendorRelationshipId | null;
   status: CaseStatus;
   submittedAt: string | null;
   closedAt: string | null;
@@ -213,6 +217,17 @@ export type RequestForInformationDto = BaseDto & {
   requestedAt: string;
   respondedAt: string | null;
   statusHistory: Array<{ status: RequestForInformationStatus; at: string; byUserId: UserAccountId; note: string }>;
+};
+
+export type VendorRelationshipDto = BaseDto & {
+  authorityId: AuthorityId;
+  participantId: ParticipantId;
+  vendorName: string;
+  relationshipType: string;
+  criticality: VendorRelationshipCriticality;
+  servicesProvided: string;
+  dataExposure: string;
+  status: VendorRelationshipStatus;
 };
 
 export type CreateParticipantCommand = {
@@ -317,6 +332,16 @@ export type UpdateRequestForInformationStatusCommand = {
   note?: string;
 };
 
+export type CreateVendorRelationshipCommand = {
+  authorityId: AuthorityId;
+  participantId: ParticipantId;
+  vendorName: string;
+  relationshipType: string;
+  criticality: VendorRelationshipCriticality;
+  servicesProvided: string;
+  dataExposure: string;
+};
+
 class DomainEntity<TDto extends BaseDto> {
   constructor(protected readonly dto: TDto) {}
 
@@ -348,6 +373,7 @@ export class CaseEntity extends DomainEntity<CaseDto> {}
 export class CaseTaskEntity extends DomainEntity<CaseTaskDto> {}
 export class SubscriberReviewEntity extends DomainEntity<SubscriberReviewDto> {}
 export class RequestForInformationEntity extends DomainEntity<RequestForInformationDto> {}
+export class VendorRelationshipEntity extends DomainEntity<VendorRelationshipDto> {}
 
 export type AuthenticatableUserMembership =
   | { entityType: "authority"; entityId: AuthorityId }
@@ -408,6 +434,7 @@ export type AccessGrant = {
   permissionLevel: AccessGrantPermissionLevel;
   permissionLabel: string;
   dataScopeType: AccessGrantDataScopeType;
+  dataScopeId: string | null;
   scopeLabel: string;
   status: AccessGrantStatus;
   createdByUserId: UserAccountId;
@@ -416,10 +443,25 @@ export type AccessGrant = {
   expiresAt: string | null;
 };
 
+export type VendorRelationship = {
+  id: VendorRelationshipId;
+  authorityId: AuthorityId;
+  participantId: ParticipantId;
+  participantName: string;
+  vendorName: string;
+  relationshipType: string;
+  criticality: VendorRelationshipCriticality;
+  servicesProvided: string;
+  dataExposure: string;
+  status: VendorRelationshipStatus;
+  linkedCases: CaseRecord[];
+};
+
 export type HelperClientWorkspace = {
   participant: Participant;
   grant: AccessGrant;
   cases: CaseRecord[];
+  vendorRelationships: VendorRelationship[];
   openRequests: number;
   canEdit: boolean;
   canAdministerGrants: boolean;
@@ -478,6 +520,8 @@ export type CaseRecord = {
   participantId: ParticipantId;
   authorityId: AuthorityId;
   caseTemplateId: CaseTemplateId;
+  vendorRelationshipId: VendorRelationshipId | null;
+  vendorRelationshipName: string | null;
   reference: string;
   caseType: string;
   status: "open" | "closed" | "review";
@@ -756,8 +800,52 @@ export class InMemoryAllChecksOutDatabase {
     this.accessGrant("grant-harrington-cobalt", "cobalt-workflow", "STAKEHOLDER", "harrington-financial", "REVIEW_AND_COMMENT", "ACTIVE", "user-lewis-green"),
     this.accessGrant("grant-mercury-cobalt", "cobalt-workflow", "STAKEHOLDER", "mercury-retail", "REQUEST_INFORMATION", "ACTIVE", "user-lewis-green"),
     this.accessGrant("grant-mercury-pinebridge", "pinebridge-data", "STAKEHOLDER", "mercury-retail", "REVIEW_AND_COMMENT", "ACTIVE", "user-maya-patel"),
+    this.accessGrant("grant-mercury-northstar-stratuspay", "northstar-cloud", "STAKEHOLDER", "mercury-retail", "REQUEST_INFORMATION", "ACTIVE", "user-aisha-khan", "VENDOR_RELATIONSHIP", "vendor-rel-northstar-stratuspay"),
     this.accessGrant("grant-sentinel-northstar", "northstar-cloud", "HELPER", "sentinel-grc", "CREATE_AND_EDIT", "ACTIVE", "user-aisha-khan"),
     this.accessGrant("grant-sentinel-asteria", "asteria-identity", "HELPER", "sentinel-grc", "REVIEW_AND_COMMENT", "ACTIVE", "user-owen-clarke"),
+  ];
+
+  readonly vendorRelationships = [
+    this.vendorRelationship(
+      "vendor-rel-northstar-stratuspay",
+      "northstar-cloud",
+      "StratusPay Processing",
+      "Payment processing subprocessor",
+      "CRITICAL",
+      "Hosted payment processing, payment tokenisation, and transaction monitoring for regulated customers.",
+      "Processes production customer identifiers and payment tokens in UK and EU regions.",
+      "UNDER_REVIEW",
+    ),
+    this.vendorRelationship(
+      "vendor-rel-northstar-observiq",
+      "northstar-cloud",
+      "ObservIQ Telemetry",
+      "Monitoring and observability provider",
+      "HIGH",
+      "Infrastructure monitoring, alerting, log aggregation, and incident diagnostics.",
+      "Receives service telemetry and limited diagnostic logs with customer tenant references.",
+      "ACTIVE",
+    ),
+    this.vendorRelationship(
+      "vendor-rel-cobalt-docuhold",
+      "cobalt-workflow",
+      "DocuHold Archive Services",
+      "Document retention provider",
+      "HIGH",
+      "Long-term document retention and secure archive export for workflow records.",
+      "Stores encrypted customer documents and retention metadata.",
+      "ACTIVE",
+    ),
+    this.vendorRelationship(
+      "vendor-rel-pinebridge-eu-host",
+      "pinebridge-data",
+      "Azure EU Hosting Operations",
+      "Cloud hosting provider",
+      "CRITICAL",
+      "Primary database hosting, backup replication, key management integration, and platform telemetry.",
+      "Hosts production customer data and encrypted backups in EU regions.",
+      "UNDER_REVIEW",
+    ),
   ];
 
   readonly taskTypes = [
@@ -777,7 +865,7 @@ export class InMemoryAllChecksOutDatabase {
 
   readonly caseTemplates = [
     this.caseTemplate("template-annual-platform-ddq", "northstar-association", "Annual Platform Vendor DDQ 2026", "Due diligence pack", "PUBLISHED", "user-jonathan-price"),
-    this.caseTemplate("template-critical-supplier-ddq", "northstar-association", "Critical Supplier DDQ", "Vendor-of-vendor due diligence", "DRAFT", "user-jonathan-price"),
+    this.caseTemplate("template-critical-supplier-ddq", "northstar-association", "Critical Supplier DDQ", "Vendor-of-vendor due diligence", "PUBLISHED", "user-jonathan-price"),
   ];
 
   readonly caseTemplateTasks = [
@@ -805,10 +893,11 @@ export class InMemoryAllChecksOutDatabase {
   ];
 
   readonly cases = [
-    this.caseRecord("case-2026-northstar", "northstar-association", "template-annual-platform-ddq", "northstar-cloud", "SUBMITTED", "2026-06-12T15:30:00.000Z", null),
-    this.caseRecord("case-2026-cobalt", "northstar-association", "template-annual-platform-ddq", "cobalt-workflow", "IN_PROGRESS", null, null),
-    this.caseRecord("case-2026-pinebridge", "northstar-association", "template-annual-platform-ddq", "pinebridge-data", "REJECTED", "2026-06-10T12:00:00.000Z", null),
-    this.caseRecord("case-2026-asteria", "northstar-association", "template-annual-platform-ddq", "asteria-identity", "APPROVED", "2026-06-05T11:15:00.000Z", "2026-06-14T09:30:00.000Z"),
+    this.caseRecord("case-2026-northstar", "northstar-association", "template-annual-platform-ddq", "northstar-cloud", null, "SUBMITTED", "2026-06-12T15:30:00.000Z", null),
+    this.caseRecord("case-2026-cobalt", "northstar-association", "template-annual-platform-ddq", "cobalt-workflow", null, "IN_PROGRESS", null, null),
+    this.caseRecord("case-2026-pinebridge", "northstar-association", "template-annual-platform-ddq", "pinebridge-data", null, "REJECTED", "2026-06-10T12:00:00.000Z", null),
+    this.caseRecord("case-2026-asteria", "northstar-association", "template-annual-platform-ddq", "asteria-identity", null, "APPROVED", "2026-06-05T11:15:00.000Z", "2026-06-14T09:30:00.000Z"),
+    this.caseRecord("case-supplier-northstar-stratuspay", "northstar-association", "template-critical-supplier-ddq", "northstar-cloud", "vendor-rel-northstar-stratuspay", "IN_PROGRESS", null, null),
   ];
 
   readonly caseTemplateParticipants = [
@@ -816,6 +905,7 @@ export class InMemoryAllChecksOutDatabase {
     this.templateParticipant("template-participant-cobalt", "template-annual-platform-ddq", "cobalt-workflow", "case-2026-cobalt"),
     this.templateParticipant("template-participant-pinebridge", "template-annual-platform-ddq", "pinebridge-data", "case-2026-pinebridge"),
     this.templateParticipant("template-participant-asteria", "template-annual-platform-ddq", "asteria-identity", "case-2026-asteria"),
+    this.templateParticipant("template-participant-northstar-stratuspay", "template-critical-supplier-ddq", "northstar-cloud", "case-supplier-northstar-stratuspay"),
   ];
 
   readonly caseTasks = [
@@ -891,6 +981,9 @@ export class InMemoryAllChecksOutDatabase {
     this.caseTask("case-task-asteria-ai", "case-2026-asteria", "template-task-ai-disclosure", "PASSED"),
     this.caseTask("case-task-asteria-critical-supplier", "case-2026-asteria", "template-task-critical-supplier", "PASSED"),
     this.caseTask("case-task-asteria-attestation", "case-2026-asteria", "template-task-senior-attestation", "PASSED"),
+    this.caseTask("case-task-stratuspay-profile", "case-supplier-northstar-stratuspay", "template-task-supplier-profile", "PASSED"),
+    this.caseTask("case-task-stratuspay-controls", "case-supplier-northstar-stratuspay", "template-task-supplier-controls", "IN_PROGRESS"),
+    this.caseTask("case-task-stratuspay-risk", "case-supplier-northstar-stratuspay", "template-task-supplier-risk", "NOT_STARTED"),
   ];
 
   readonly subscriberReviews = [
@@ -982,6 +1075,12 @@ export class InMemoryAllChecksOutDatabase {
     return this.cases
       .map((caseRecord) => caseRecord.toDto())
       .filter((caseRecord) => caseRecord.participantId === participantId);
+  }
+
+  getVendorRelationshipsForParticipant(participantId: ParticipantId) {
+    return this.vendorRelationships
+      .map((relationship) => relationship.toDto())
+      .filter((relationship) => relationship.participantId === participantId);
   }
 
   getCaseTasksForCase(caseId: CaseRecordId) {
@@ -1148,6 +1247,15 @@ export class InMemoryAllChecksOutDatabase {
     if (command.granteeType === "USER" && !command.granteeUserId) {
       throw new Error("Select a user for this access grant.");
     }
+    if (command.dataScopeType === "VENDOR_RELATIONSHIP") {
+      if (!command.dataScopeId) {
+        throw new Error("Select a vendor-of-vendor record for this scoped grant.");
+      }
+      const relationship = this.requireVendorRelationship(command.dataScopeId);
+      if (relationship.participantId !== participant.id || relationship.authorityId !== authority.id) {
+        throw new Error("Vendor-of-vendor grant scope must belong to the granting vendor.");
+      }
+    }
 
     const existing = this.accessGrants.some((grant) => {
       const dto = grant.toDto();
@@ -1191,6 +1299,29 @@ export class InMemoryAllChecksOutDatabase {
     return updated;
   }
 
+  createVendorRelationship(command: CreateVendorRelationshipCommand) {
+    const authority = this.requireAuthority(command.authorityId);
+    const participant = this.requireParticipant(command.participantId);
+    if (participant.authorityId !== authority.id) {
+      throw new Error("Vendor-of-vendor record must belong to the selected authority.");
+    }
+    const vendorName = command.vendorName.trim();
+    if (!vendorName) throw new Error("Enter a vendor-of-vendor name.");
+    const relationship = new VendorRelationshipEntity({
+      ...this.createBase(this.nextId("vendor-rel", this.vendorRelationships)),
+      authorityId: command.authorityId,
+      participantId: command.participantId,
+      vendorName,
+      relationshipType: command.relationshipType.trim() || "Supplier",
+      criticality: command.criticality,
+      servicesProvided: command.servicesProvided.trim(),
+      dataExposure: command.dataExposure.trim(),
+      status: "UNDER_REVIEW",
+    });
+    this.vendorRelationships.push(relationship);
+    return relationship.toDto();
+  }
+
   getSubscriberReview(stakeholderId: StakeholderId, caseId: CaseRecordId) {
     return this.subscriberReviews
       .map((review) => review.toDto())
@@ -1202,7 +1333,10 @@ export class InMemoryAllChecksOutDatabase {
     const caseRecord = this.requireCase(command.caseId);
     this.requireUserAccount(command.reviewedByUserId);
     const activeGrant = this.getActiveAccessGrantsForStakeholder(stakeholder.id).find(
-      (grant) => grant.participantId === caseRecord.participantId && grant.granteeType === "STAKEHOLDER",
+      (grant) =>
+        grant.participantId === caseRecord.participantId &&
+        grant.granteeType === "STAKEHOLDER" &&
+        this.accessGrantAllowsCase(grant, caseRecord),
     );
     if (!activeGrant) {
       throw new Error("Subscriber review requires an active vendor access grant.");
@@ -1254,7 +1388,10 @@ export class InMemoryAllChecksOutDatabase {
       }
     }
     const grant = this.getActiveAccessGrantsForStakeholder(stakeholder.id).find(
-      (candidate) => candidate.participantId === caseRecord.participantId && candidate.granteeType === "STAKEHOLDER",
+      (candidate) =>
+        candidate.participantId === caseRecord.participantId &&
+        candidate.granteeType === "STAKEHOLDER" &&
+        this.accessGrantAllowsCase(candidate, caseRecord),
     );
     if (!grant || grant.permissionLevel === "READ_ONLY") {
       throw new Error("Requesting information requires an active vendor access grant with request permission.");
@@ -1301,7 +1438,8 @@ export class InMemoryAllChecksOutDatabase {
       this.getActiveHelperAccessGrants(stakeholderId).some(
         (grant) =>
           grant.participantId === request.participantId &&
-          (grant.permissionLevel === "CREATE_AND_EDIT" || grant.permissionLevel === "ADMINISTER_GRANTS"),
+          (grant.permissionLevel === "CREATE_AND_EDIT" || grant.permissionLevel === "ADMINISTER_GRANTS") &&
+          (!request.caseId || this.accessGrantAllowsCase(grant, this.requireCase(request.caseId))),
       ),
     );
     if (!isVendorUser && !hasHelperEditGrant) {
@@ -1639,6 +1777,8 @@ export class InMemoryAllChecksOutDatabase {
     permissionLevel: AccessGrantPermissionLevel,
     status: AccessGrantStatus,
     createdByUserId: UserAccountId,
+    dataScopeType: AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE",
+    dataScopeId: string | null = null,
   ) {
     const participant = this.participants.find((item) => item.id === participantId)?.toDto();
     return new AccessGrantEntity({
@@ -1649,11 +1789,35 @@ export class InMemoryAllChecksOutDatabase {
       granteeStakeholderId,
       granteeUserId: null,
       permissionLevel,
-      dataScopeType: "PARTICIPANT_WORKSPACE",
-      dataScopeId: null,
+      dataScopeType,
+      dataScopeId,
       status,
       createdByUserId,
       expiresAt: null,
+    });
+  }
+
+  private vendorRelationship(
+    id: VendorRelationshipId,
+    participantId: ParticipantId,
+    vendorName: string,
+    relationshipType: string,
+    criticality: VendorRelationshipCriticality,
+    servicesProvided: string,
+    dataExposure: string,
+    status: VendorRelationshipStatus,
+  ) {
+    const participant = this.participants.find((item) => item.id === participantId)?.toDto();
+    return new VendorRelationshipEntity({
+      ...base(id),
+      authorityId: participant?.authorityId ?? "northstar-association",
+      participantId,
+      vendorName,
+      relationshipType,
+      criticality,
+      servicesProvided,
+      dataExposure,
+      status,
     });
   }
 
@@ -1735,11 +1899,12 @@ export class InMemoryAllChecksOutDatabase {
     authorityId: AuthorityId,
     caseTemplateId: CaseTemplateId,
     participantId: ParticipantId,
+    vendorRelationshipId: VendorRelationshipId | null,
     status: CaseStatus,
     submittedAt: string | null,
     closedAt: string | null,
   ) {
-    return new CaseEntity({ ...base(id), authorityId, caseTemplateId, participantId, status, submittedAt, closedAt });
+    return new CaseEntity({ ...base(id), authorityId, caseTemplateId, participantId, vendorRelationshipId, status, submittedAt, closedAt });
   }
 
   private caseTask(id: CaseTaskId, caseId: CaseRecordId, caseTemplateTaskId: CaseTemplateTaskId, status: CaseTaskStatus) {
@@ -1919,6 +2084,25 @@ export class InMemoryAllChecksOutDatabase {
     return request;
   }
 
+  private accessGrantAllowsCase(grant: AccessGrantDto, caseRecord: CaseDto) {
+    if (grant.status !== "ACTIVE") return false;
+    if (grant.participantId !== caseRecord.participantId) return false;
+    if (grant.dataScopeType === "PARTICIPANT_WORKSPACE") return true;
+    if (grant.dataScopeType === "CASE") return grant.dataScopeId === caseRecord.id;
+    if (grant.dataScopeType === "CASE_TASK") {
+      return this.getCaseTasksForCase(caseRecord.id).some((task) => task.id === grant.dataScopeId);
+    }
+    if (grant.dataScopeType === "VENDOR_RELATIONSHIP") return caseRecord.vendorRelationshipId === grant.dataScopeId;
+    if (grant.dataScopeType === "EVIDENCE_METADATA") return true;
+    return false;
+  }
+
+  private requireVendorRelationship(vendorRelationshipId: VendorRelationshipId) {
+    const relationship = this.vendorRelationships.find((item) => item.id === vendorRelationshipId)?.toDto();
+    if (!relationship) throw new Error(`Vendor-of-vendor record ${vendorRelationshipId} was not found.`);
+    return relationship;
+  }
+
   private getActiveTemplateTasks(caseTemplateId: CaseTemplateId) {
     return this.caseTemplateTasks
       .map((task) => task.toDto())
@@ -1936,6 +2120,7 @@ export class InMemoryAllChecksOutDatabase {
       authorityId: template.authorityId,
       caseTemplateId: template.id,
       participantId,
+      vendorRelationshipId: null,
       status: "NOT_STARTED",
       submittedAt: null,
       closedAt: null,
@@ -2097,6 +2282,9 @@ function buildCaseRecords(): CaseRecord[] {
   return db.cases.map((caseEntity) => {
     const caseDto = caseEntity.toDto();
     const template = db.caseTemplates.find((item) => item.id === caseDto.caseTemplateId)?.toDto();
+    const vendorRelationship = caseDto.vendorRelationshipId
+      ? db.vendorRelationships.find((item) => item.id === caseDto.vendorRelationshipId)?.toDto()
+      : null;
     const caseTasks = db.caseTasks
       .filter((caseTask) => caseTask.toDto().caseId === caseDto.id)
       .map((caseTask) => {
@@ -2137,6 +2325,8 @@ function buildCaseRecords(): CaseRecord[] {
       participantId: caseDto.participantId,
       authorityId: caseDto.authorityId,
       caseTemplateId: caseDto.caseTemplateId,
+      vendorRelationshipId: caseDto.vendorRelationshipId,
+      vendorRelationshipName: vendorRelationship?.vendorName ?? null,
       reference:
         caseDto.id === "case-2026-northstar"
           ? "DDQ-2026-NSCP"
@@ -2144,7 +2334,9 @@ function buildCaseRecords(): CaseRecord[] {
             ? "DDQ-2026-CWS"
             : caseDto.id === "case-2026-pinebridge"
               ? "DDQ-2026-PDE"
-              : "DDQ-2026-AIS",
+              : caseDto.id === "case-2026-asteria"
+                ? "DDQ-2026-AIS"
+                : "VOV-2026-SPP",
       caseType: template?.description ?? "Case",
       status: uiCaseStatus(caseDto.status),
       domainStatus: caseDto.status,
@@ -2166,8 +2358,31 @@ function buildCaseRecords(): CaseRecord[] {
             ? "SOC 2 evidence upload started"
             : caseDto.id === "case-2026-pinebridge"
               ? "Subscriber requested restore-test evidence"
-              : "Senior officer attestation accepted",
+              : caseDto.id === "case-2026-asteria"
+                ? "Senior officer attestation accepted"
+                : "Supplier control attestation updated",
       tasks: caseTasks,
+    };
+  });
+}
+
+function buildVendorRelationships(): VendorRelationship[] {
+  return db.vendorRelationships.map((relationship) => {
+    const dto = relationship.toDto();
+    const participant = getParticipant(dto.participantId);
+    const linkedCases = cases.filter((caseRecord) => caseRecord.vendorRelationshipId === dto.id);
+    return {
+      id: dto.id,
+      authorityId: dto.authorityId,
+      participantId: dto.participantId,
+      participantName: participant?.name ?? "Unknown vendor",
+      vendorName: dto.vendorName,
+      relationshipType: dto.relationshipType,
+      criticality: dto.criticality,
+      servicesProvided: dto.servicesProvided,
+      dataExposure: dto.dataExposure,
+      status: dto.status,
+      linkedCases,
     };
   });
 }
@@ -2200,6 +2415,7 @@ function accessGrantPermissionLabel(permissionLevel: AccessGrantPermissionLevel)
 function accessGrantScopeLabel(dataScopeType: AccessGrantDataScopeType, dataScopeId: string | null) {
   if (dataScopeType === "PARTICIPANT_WORKSPACE") return "Entire vendor workspace";
   if (dataScopeType === "EVIDENCE_METADATA") return "Evidence metadata";
+  if (dataScopeType === "VENDOR_RELATIONSHIP") return vendorRelationships.find((relationship) => relationship.id === dataScopeId)?.vendorName ?? "Specific vendor-of-vendor record";
   if (dataScopeType === "CASE") return cases.find((caseRecord) => caseRecord.id === dataScopeId)?.title ?? "Specific due diligence pack";
   if (dataScopeType === "CASE_TASK") {
     const task = cases.flatMap((caseRecord) => caseRecord.tasks).find((candidate) => candidate.id === dataScopeId);
@@ -2226,6 +2442,7 @@ function buildAccessGrants(): AccessGrant[] {
       permissionLevel: dto.permissionLevel,
       permissionLabel: accessGrantPermissionLabel(dto.permissionLevel),
       dataScopeType: dto.dataScopeType,
+      dataScopeId: dto.dataScopeId,
       scopeLabel: accessGrantScopeLabel(dto.dataScopeType, dto.dataScopeId),
       status: dto.status,
       createdByUserId: dto.createdByUserId,
@@ -2549,6 +2766,7 @@ export let participants: Participant[] = [];
 export let accessGrants: AccessGrant[] = [];
 export let subscriberReviews: SubscriberReview[] = [];
 export let requestsForInformation: RequestForInformation[] = [];
+export let vendorRelationships: VendorRelationship[] = [];
 export let authenticatableUsers: AuthenticatableUser[] = [];
 export let userIdentities: UserIdentity[] = [];
 export let accountContexts: AccountContext[] = [];
@@ -2560,6 +2778,7 @@ export function refreshConsoleViewModels() {
   taskTypes = buildTaskTypes();
   caseTemplates = buildCaseTemplates();
   cases = buildCaseRecords();
+  vendorRelationships = buildVendorRelationships();
   stakeholders = buildStakeholders();
   participants = buildParticipants(cases);
   accessGrants = buildAccessGrants();
@@ -2665,6 +2884,11 @@ export function getAccessGrantsForParticipant(participantId: string | undefined)
   return accessGrants.filter((grant) => grant.participantId === participantId);
 }
 
+export function getVendorRelationshipsForParticipant(participantId: string | undefined) {
+  if (!participantId) return [];
+  return vendorRelationships.filter((relationship) => relationship.participantId === participantId);
+}
+
 export function getGrantableStakeholdersForParticipant(participantId: string | undefined) {
   const participant = getParticipant(participantId);
   if (!participant) return [];
@@ -2693,6 +2917,25 @@ export function getActiveHelperGrantsForUser(user: AuthenticatedUser) {
   );
 }
 
+function grantAllowsCaseVisibility(grant: AccessGrant, caseRecord: CaseRecord) {
+  if (grant.status !== "ACTIVE") return false;
+  if (grant.participantId !== caseRecord.participantId) return false;
+  if (grant.dataScopeType === "PARTICIPANT_WORKSPACE") return true;
+  if (grant.dataScopeType === "CASE") return grant.dataScopeId === caseRecord.id;
+  if (grant.dataScopeType === "CASE_TASK") return caseRecord.tasks.some((task) => task.id === grant.dataScopeId);
+  if (grant.dataScopeType === "VENDOR_RELATIONSHIP") return caseRecord.vendorRelationshipId === grant.dataScopeId;
+  if (grant.dataScopeType === "EVIDENCE_METADATA") return true;
+  return false;
+}
+
+function grantAllowsRelationshipVisibility(grant: AccessGrant, relationship: VendorRelationship) {
+  if (grant.status !== "ACTIVE") return false;
+  if (grant.participantId !== relationship.participantId) return false;
+  if (grant.dataScopeType === "PARTICIPANT_WORKSPACE") return true;
+  if (grant.dataScopeType === "VENDOR_RELATIONSHIP") return grant.dataScopeId === relationship.id;
+  return relationship.linkedCases.some((caseRecord) => grantAllowsCaseVisibility(grant, caseRecord));
+}
+
 export function getHelperGrantForParticipant(user: AuthenticatedUser, participantId: string | undefined) {
   if (!participantId || user.role !== "helper") return undefined;
   return getActiveHelperGrantsForUser(user).find((grant) => grant.participantId === participantId);
@@ -2704,16 +2947,20 @@ export function getHelperClientWorkspaces(user: AuthenticatedUser): HelperClient
     .map((grant) => {
       const participant = getParticipant(grant.participantId);
       if (!participant) return null;
-      const participantCases = cases.filter((caseRecord) => caseRecord.participantId === participant.id);
+      const participantCases = cases.filter((caseRecord) => grantAllowsCaseVisibility(grant, caseRecord));
+      const participantCaseIds = new Set(participantCases.map((caseRecord) => caseRecord.id));
+      const participantVendorRelationships = vendorRelationships.filter((relationship) => grantAllowsRelationshipVisibility(grant, relationship));
       const openRequests = requestsForInformation.filter(
         (request) =>
           request.participantId === participant.id &&
+          (!request.caseId || participantCaseIds.has(request.caseId)) &&
           (request.status === "OPEN" || request.status === "IN_PROGRESS"),
       ).length;
       return {
         participant,
         grant,
         cases: participantCases,
+        vendorRelationships: participantVendorRelationships,
         openRequests,
         canEdit: grantAllowsHelperEdit(grant),
         canAdministerGrants: grantAllowsGrantAdministration(grant),
@@ -2747,8 +2994,8 @@ export function getRequestsForCase(caseId: string | undefined, user?: Authentica
     return caseRequests.filter((request) => request.stakeholderId === stakeholderId);
   }
   if (user.role === "helper") {
-    const helperParticipantIds = new Set(getActiveHelperGrantsForUser(user).map((grant) => grant.participantId));
-    return caseRequests.filter((request) => helperParticipantIds.has(request.participantId));
+    const scopedCaseIds = new Set(getScopedCases(user).map((caseRecord) => caseRecord.id));
+    return caseRequests.filter((request) => request.caseId ? scopedCaseIds.has(request.caseId) : false);
   }
   return [];
 }
@@ -2768,8 +3015,8 @@ export function getRequestsForTask(taskId: string | undefined, user?: Authentica
         return request.stakeholderId === stakeholderId;
       }
       if (user.role === "helper") {
-        const helperParticipantIds = new Set(getActiveHelperGrantsForUser(user).map((grant) => grant.participantId));
-        return helperParticipantIds.has(request.participantId);
+        const scopedCaseIds = new Set(getScopedCases(user).map((caseRecord) => caseRecord.id));
+        return request.caseId ? scopedCaseIds.has(request.caseId) : false;
       }
       return false;
     });
@@ -2788,8 +3035,8 @@ export function getRequestsForParticipant(participantId: string | undefined, use
     return participantRequests.filter((request) => request.stakeholderId === stakeholderId);
   }
   if (user.role === "helper") {
-    const helperParticipantIds = new Set(getActiveHelperGrantsForUser(user).map((grant) => grant.participantId));
-    return participantRequests.filter((request) => helperParticipantIds.has(request.participantId));
+    const scopedCaseIds = new Set(getScopedCases(user).map((caseRecord) => caseRecord.id));
+    return participantRequests.filter((request) => request.caseId ? scopedCaseIds.has(request.caseId) : false);
   }
   return [];
 }
@@ -2871,6 +3118,7 @@ export function getScopedParticipants(user: AuthenticatedUser) {
   if (!stakeholderId) return [];
   const visibleParticipantIds = new Set(
     db.getActiveAccessGrantsForStakeholder(stakeholderId)
+      .filter((grant) => grant.granteeType === "STAKEHOLDER")
       .map((grant) => grant.participantId),
   );
   return authorityParticipants.filter((participant) => visibleParticipantIds.has(participant.id));
@@ -2878,8 +3126,46 @@ export function getScopedParticipants(user: AuthenticatedUser) {
 
 export function getScopedCases(user: AuthenticatedUser) {
   if (user.role === "authority-admin") return [];
-  const scopedParticipantIds = new Set(getScopedParticipants(user).map((participant) => participant.id));
-  return cases.filter((caseRecord) => scopedParticipantIds.has(caseRecord.participantId));
+  if (user.role === "participant") {
+    const scopedParticipantIds = new Set(getScopedParticipants(user).map((participant) => participant.id));
+    return cases.filter((caseRecord) => scopedParticipantIds.has(caseRecord.participantId));
+  }
+  if (user.role === "helper") {
+    const grants = getActiveHelperGrantsForUser(user);
+    return cases.filter((caseRecord) => grants.some((grant) => grantAllowsCaseVisibility(grant, caseRecord)));
+  }
+
+  const stakeholderId =
+    user.stakeholderId ??
+    (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
+    undefined;
+  if (!stakeholderId) return [];
+  const grants = db.getActiveAccessGrantsForStakeholder(stakeholderId)
+    .filter((grant) => grant.granteeType === "STAKEHOLDER")
+    .map((grant) => accessGrants.find((viewGrant) => viewGrant.id === grant.id))
+    .filter((grant): grant is AccessGrant => Boolean(grant));
+  return cases.filter((caseRecord) => grants.some((grant) => grantAllowsCaseVisibility(grant, caseRecord)));
+}
+
+export function getScopedVendorRelationships(user: AuthenticatedUser) {
+  if (user.role === "authority-admin") return [];
+  if (user.role === "participant") {
+    return getVendorRelationshipsForParticipant(user.participantId ?? undefined);
+  }
+  if (user.role === "helper") {
+    const grants = getActiveHelperGrantsForUser(user);
+    return vendorRelationships.filter((relationship) => grants.some((grant) => grantAllowsRelationshipVisibility(grant, relationship)));
+  }
+  const stakeholderId =
+    user.stakeholderId ??
+    (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
+    undefined;
+  if (!stakeholderId) return [];
+  const grants = db.getActiveAccessGrantsForStakeholder(stakeholderId)
+    .filter((grant) => grant.granteeType === "STAKEHOLDER")
+    .map((grant) => accessGrants.find((viewGrant) => viewGrant.id === grant.id))
+    .filter((grant): grant is AccessGrant => Boolean(grant));
+  return vendorRelationships.filter((relationship) => grants.some((grant) => grantAllowsRelationshipVisibility(grant, relationship)));
 }
 
 export function getCase(id: string | undefined) {
