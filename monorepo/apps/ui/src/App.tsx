@@ -8,6 +8,8 @@ import {
   AdminHome,
   CaseDetailPage,
   CaseManagementHome,
+  CaseTemplateDetailPage,
+  CaseTemplatesPage,
   TaskDetailPage,
   ParticipantsPage,
   ParticipantDetailPage,
@@ -42,7 +44,8 @@ const AppContent = () => {
         <Route path="/admin/participants/:participantId" element={<ParticipantDetailPage />} />
         <Route path="/admin/stakeholders" element={<StakeholdersPage />} />
         <Route path="/admin/stakeholders/:stakeholderId" element={<StakeholderDetailPage />} />
-        <Route path="/admin/case-templates" element={<PlaceholderResourcePage app="admin" />} />
+        <Route path="/admin/case-templates" element={<CaseTemplatesPage />} />
+        <Route path="/admin/case-templates/:templateId" element={<CaseTemplateDetailPage />} />
         <Route path="/admin/task-types" element={<PlaceholderResourcePage app="admin" />} />
         <Route path="/admin/users" element={<PlaceholderResourcePage app="admin" />} />
 

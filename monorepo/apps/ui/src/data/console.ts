@@ -351,6 +351,30 @@ export type TaskType = {
   status: TaskTypeStatus;
 };
 
+export type CaseTemplateTask = {
+  id: CaseTemplateTaskId;
+  caseTemplateId: CaseTemplateId;
+  taskTypeId: TaskTypeId;
+  taskTypeName: string;
+  title: string;
+  description: string;
+  due: string;
+  sortOrder: number;
+  status: "ACTIVE" | "WITHDRAWN";
+  createdAfterPublish: boolean;
+};
+
+export type CaseTemplateParticipant = {
+  id: CaseTemplateParticipantId;
+  caseTemplateId: CaseTemplateId;
+  participantId: ParticipantId;
+  participantName: string;
+  participantType: string;
+  status: TemplateParticipantStatus;
+  caseId: CaseRecordId | null;
+  exemptionReason: string | null;
+};
+
 export type SearchItem = {
   title: string;
   description: string;
@@ -1721,6 +1745,53 @@ export function getStakeholdersForAuthority(authorityId: string | undefined) {
 
 export function getCaseTemplatesForAuthority(authorityId: string | undefined) {
   return caseTemplates.filter((template) => template.authorityId === authorityId);
+}
+
+export function getCaseTemplate(id: string | undefined) {
+  return caseTemplates.find((template) => template.id === id);
+}
+
+export function getCaseTemplateTasks(caseTemplateId: string | undefined): CaseTemplateTask[] {
+  if (!caseTemplateId) return [];
+  return db.caseTemplateTasks
+    .map((task) => task.toDto())
+    .filter((task) => task.caseTemplateId === caseTemplateId)
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+    .map((task) => {
+      const taskType = taskTypes.find((item) => item.id === task.taskTypeId);
+      return {
+        id: task.id,
+        caseTemplateId: task.caseTemplateId,
+        taskTypeId: task.taskTypeId,
+        taskTypeName: taskType?.name ?? "Task type",
+        title: task.title,
+        description: task.description,
+        due: typeof task.parametersJson.due === "string" ? task.parametersJson.due : "No due date",
+        sortOrder: task.sortOrder,
+        status: task.status,
+        createdAfterPublish: task.createdAfterPublish,
+      };
+    });
+}
+
+export function getCaseTemplateParticipants(caseTemplateId: string | undefined): CaseTemplateParticipant[] {
+  if (!caseTemplateId) return [];
+  return db.caseTemplateParticipants
+    .map((assignment) => assignment.toDto())
+    .filter((assignment) => assignment.caseTemplateId === caseTemplateId)
+    .map((assignment) => {
+      const participant = getParticipant(assignment.participantId);
+      return {
+        id: assignment.id,
+        caseTemplateId: assignment.caseTemplateId,
+        participantId: assignment.participantId,
+        participantName: participant?.name ?? "Unknown participant",
+        participantType: participant?.type ?? "Participant",
+        status: assignment.status,
+        caseId: assignment.caseId,
+        exemptionReason: assignment.exemptionReason,
+      };
+    });
 }
 
 export function getScopedParticipants(user: AuthenticatedUser) {

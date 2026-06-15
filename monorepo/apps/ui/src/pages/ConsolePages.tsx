@@ -12,6 +12,9 @@ import {
   getStakeholder,
   getParticipant,
   getAuthority,
+  getCaseTemplate,
+  getCaseTemplateParticipants,
+  getCaseTemplateTasks,
   getCaseTemplatesForAuthority,
   getScopedCases,
   getScopedParticipants,
@@ -29,6 +32,7 @@ import {
   FileText,
   History,
   Plus,
+  Rocket,
   Upload,
   UserPlus,
 } from "lucide-react";
@@ -665,6 +669,386 @@ export function StakeholderDetailPage() {
               <td className="px-4 py-3"><ProgressBar value={participant.completedTasks} total={participant.totalTasks} /></td>
             </tr>
           ))}
+        </ResourceTable>
+      </section>
+    </ConsoleLayout>
+  );
+}
+
+export function CaseTemplatesPage() {
+  const { user } = useAuth();
+  const { db, refresh } = useDomainData();
+  const [showCreate, setShowCreate] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const scopedTemplates = getCaseTemplatesForAuthority(user.authorityId ?? undefined);
+
+  function createTemplate() {
+    setError(null);
+    if (!user.authorityId) {
+      setError("No authority is selected for this session.");
+      return;
+    }
+    if (!name.trim()) {
+      setError("Enter a template name.");
+      return;
+    }
+    try {
+      db.createCaseTemplate({
+        authorityId: user.authorityId,
+        name: name.trim(),
+        description: description.trim() || "Reusable case template",
+      });
+      refresh();
+      setName("");
+      setDescription("");
+      setShowCreate(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Template could not be created.");
+    }
+  }
+
+  return (
+    <ConsoleLayout
+      affirmativeActionCompleteLabel="Updated"
+      affirmativeActionLabel="Update"
+      appName="Administration"
+      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
+      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Case templates" }]}
+    >
+      <PageTitle
+        eyebrow="Resource list"
+        title="Case templates"
+        description="Create reusable authority-owned case definitions, add tasks, assign participants, and publish cases."
+        actions={
+          <Button onClick={() => setShowCreate((current) => !current)}>
+            <Plus />
+            Create template
+          </Button>
+        }
+      />
+      <AdministrationResourceNav />
+      <ResourceActionPanel
+        open={showCreate}
+        title="Create case template"
+        description="Create a draft template inside the current authority."
+        onClose={() => setShowCreate(false)}
+        footer={
+          <Button type="button" onClick={createTemplate}>
+            <CheckCircle2 />
+            Save
+          </Button>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-[1fr_1.5fr]">
+          <FormField label="Name">
+            <Input value={name} onChange={(event) => setName(event.target.value)} />
+          </FormField>
+          <FormField label="Description">
+            <Input value={description} onChange={(event) => setDescription(event.target.value)} />
+          </FormField>
+        </div>
+        <div className="mt-3"><FormError message={error} /></div>
+      </ResourceActionPanel>
+      <ResourceTable headings={["Template", "Status", "Tasks", "Participants", "Published"]}>
+        {scopedTemplates.map((template) => (
+          <tr key={template.id} className="border-b border-[#b1b4b6] last:border-b-0">
+            <td className="px-4 py-3">
+              <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/case-templates/${template.id}`}>
+                {template.name}
+              </Link>
+              <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{template.description}</span>
+            </td>
+            <td className="px-4 py-3">{template.status}</td>
+            <td className="px-4 py-3">{template.taskCount}</td>
+            <td className="px-4 py-3">{template.participantCount}</td>
+            <td className="px-4 py-3">{template.publishedAt ? "Published" : "Not published"}</td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </ConsoleLayout>
+  );
+}
+
+export function CaseTemplateDetailPage() {
+  const { user } = useAuth();
+  const { db, refresh } = useDomainData();
+  const { templateId } = useParams();
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [showAssignParticipant, setShowAssignParticipant] = useState(false);
+  const [taskTypeId, setTaskTypeId] = useState(taskTypes[0]?.id ?? "");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskDue, setTaskDue] = useState("");
+  const [participantId, setParticipantId] = useState("");
+  const [assignmentStatus, setAssignmentStatus] = useState<"REQUIRED" | "EXEMPT">("REQUIRED");
+  const [exemptionReason, setExemptionReason] = useState("");
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const template = getCaseTemplate(templateId);
+  if (!template) return <Navigate to="/admin/case-templates" replace />;
+  const scopedTemplates = getCaseTemplatesForAuthority(user.authorityId ?? undefined);
+  const templateRecord = template;
+  if (!scopedTemplates.some((item) => item.id === templateRecord.id)) return <Navigate to="/admin/case-templates" replace />;
+  const templateTasks = getCaseTemplateTasks(templateRecord.id);
+  const templateParticipants = getCaseTemplateParticipants(templateRecord.id);
+  const generatedCases = getScopedCases(user).filter((caseRecord) => caseRecord.caseTemplateId === templateRecord.id);
+  const assignedParticipantIds = new Set(templateParticipants.map((assignment) => assignment.participantId));
+  const assignableParticipants = getScopedParticipants(user).filter((participant) => !assignedParticipantIds.has(participant.id));
+
+  function addTask() {
+    setTaskError(null);
+    if (!taskTypeId) {
+      setTaskError("Select a task type.");
+      return;
+    }
+    if (!taskTitle.trim()) {
+      setTaskError("Enter a task title.");
+      return;
+    }
+    try {
+      db.addTaskToTemplate({
+        caseTemplateId: templateRecord.id,
+        taskTypeId,
+        title: taskTitle.trim(),
+        description: taskDescription.trim() || "Configured template task",
+        parametersJson: { due: taskDue.trim() || "No due date" },
+      });
+      refresh();
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskDue("");
+      setShowAddTask(false);
+    } catch (caught) {
+      setTaskError(caught instanceof Error ? caught.message : "Task could not be added.");
+    }
+  }
+
+  function assignParticipant() {
+    setAssignmentError(null);
+    if (!participantId) {
+      setAssignmentError("Select a participant.");
+      return;
+    }
+    try {
+      db.assignParticipantToTemplate({
+        caseTemplateId: templateRecord.id,
+        participantId,
+        status: assignmentStatus,
+        exemptionReason: assignmentStatus === "EXEMPT" ? exemptionReason.trim() || "Exempted by authority" : null,
+        decidedByUserId: user.authenticatableUserId,
+      });
+      refresh();
+      setParticipantId("");
+      setAssignmentStatus("REQUIRED");
+      setExemptionReason("");
+      setShowAssignParticipant(false);
+    } catch (caught) {
+      setAssignmentError(caught instanceof Error ? caught.message : "Participant could not be assigned.");
+    }
+  }
+
+  function publishTemplate() {
+    setPublishError(null);
+    if (!user.authenticatableUserId) {
+      setPublishError("No authority user is selected for this session.");
+      return;
+    }
+    try {
+      db.publishTemplate(templateRecord.id, user.authenticatableUserId);
+      refresh();
+    } catch (caught) {
+      setPublishError(caught instanceof Error ? caught.message : "Template could not be published.");
+    }
+  }
+
+  return (
+    <ConsoleLayout
+      affirmativeActionCompleteLabel="Saved"
+      affirmativeActionLabel="Save"
+      appName="Administration"
+      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
+      breadcrumbs={[
+        { label: "Administration", path: "/admin" },
+        { label: "Case templates", path: "/admin/case-templates" },
+        { label: templateRecord.name },
+      ]}
+    >
+      <PageTitle
+        eyebrow="Case template"
+        title={templateRecord.name}
+        description={templateRecord.description}
+        actions={
+          templateRecord.status === "DRAFT" ? (
+            <Button type="button" onClick={publishTemplate}>
+              <Rocket />
+              Publish
+            </Button>
+          ) : undefined
+        }
+      />
+      <AdministrationResourceNav />
+      <Tabs
+        current="Overview"
+        tabs={[
+          { label: "Overview", path: `/admin/case-templates/${templateRecord.id}` },
+          { label: "Tasks", path: `/admin/case-templates/${templateRecord.id}` },
+          { label: "Participants", path: `/admin/case-templates/${templateRecord.id}` },
+          { label: "Generated cases", path: `/admin/case-templates/${templateRecord.id}` },
+          { label: "Activity", path: `/admin/case-templates/${templateRecord.id}` },
+        ]}
+      />
+      <MetricStrip
+        items={[
+          { label: "Status", value: templateRecord.status.toLowerCase(), tone: templateRecord.status === "PUBLISHED" ? "green" : "yellow" },
+          { label: "Tasks", value: String(templateRecord.taskCount), tone: "blue" },
+          { label: "Participants", value: String(templateRecord.participantCount), tone: "blue" },
+          { label: "Generated cases", value: String(generatedCases.length), tone: "green" },
+        ]}
+      />
+      <div className="mt-3"><FormError message={publishError} /></div>
+      <section className="mt-8">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-bold">Tasks</h3>
+          <Button type="button" onClick={() => setShowAddTask((current) => !current)}>
+            <Plus />
+            Add task
+          </Button>
+        </div>
+        <ResourceActionPanel
+          open={showAddTask}
+          title="Add task"
+          description={templateRecord.status === "PUBLISHED" ? "Adding a task to a published template creates a case task for every generated case." : "Add a configured task type to this template."}
+          onClose={() => setShowAddTask(false)}
+          footer={
+            <Button type="button" onClick={addTask}>
+              <CheckCircle2 />
+              Save
+            </Button>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr_12rem]">
+            <FormField label="Task type">
+              <SelectField value={taskTypeId} onChange={setTaskTypeId}>
+                {taskTypes.map((taskType) => (
+                  <option key={taskType.id} value={taskType.id}>{taskType.name}</option>
+                ))}
+              </SelectField>
+            </FormField>
+            <FormField label="Title">
+              <Input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
+            </FormField>
+            <FormField label="Due">
+              <Input value={taskDue} onChange={(event) => setTaskDue(event.target.value)} placeholder="20 Jun 2026" />
+            </FormField>
+          </div>
+          <div className="mt-4">
+            <FormField label="Description">
+              <Input value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} />
+            </FormField>
+          </div>
+          <div className="mt-3"><FormError message={taskError} /></div>
+        </ResourceActionPanel>
+        <ResourceTable headings={["Order", "Task", "Type", "Due", "Status"]}>
+          {templateTasks.map((task) => (
+            <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">{task.sortOrder}</td>
+              <td className="px-4 py-3">
+                <span className="block font-bold text-[#0b0c0c] dark:text-white">{task.title}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{task.description}</span>
+              </td>
+              <td className="px-4 py-3">{task.taskTypeName}</td>
+              <td className="px-4 py-3">{task.due}</td>
+              <td className="px-4 py-3">
+                {task.status}{task.createdAfterPublish ? " after publish" : ""}
+              </td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+      <section className="mt-8">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-bold">Participants</h3>
+          <Button type="button" onClick={() => setShowAssignParticipant((current) => !current)} disabled={assignableParticipants.length === 0}>
+            <Plus />
+            Assign participant
+          </Button>
+        </div>
+        <ResourceActionPanel
+          open={showAssignParticipant}
+          title="Assign participant"
+          description={templateRecord.status === "PUBLISHED" ? "Required participants assigned after publication get a case immediately." : "Choose whether the participant is required or exempt for this template."}
+          onClose={() => setShowAssignParticipant(false)}
+          footer={
+            <Button type="button" onClick={assignParticipant}>
+              <CheckCircle2 />
+              Save
+            </Button>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-[1fr_12rem_1fr]">
+            <FormField label="Participant">
+              <SelectField value={participantId} onChange={setParticipantId}>
+                <option value="">Select participant</option>
+                {assignableParticipants.map((participant) => (
+                  <option key={participant.id} value={participant.id}>{participant.name}</option>
+                ))}
+              </SelectField>
+            </FormField>
+            <FormField label="Status">
+              <SelectField value={assignmentStatus} onChange={(value) => setAssignmentStatus(value as "REQUIRED" | "EXEMPT")}>
+                <option value="REQUIRED">Required</option>
+                <option value="EXEMPT">Exempt</option>
+              </SelectField>
+            </FormField>
+            <FormField label="Exemption reason">
+              <Input value={exemptionReason} onChange={(event) => setExemptionReason(event.target.value)} disabled={assignmentStatus !== "EXEMPT"} />
+            </FormField>
+          </div>
+          <div className="mt-3"><FormError message={assignmentError} /></div>
+        </ResourceActionPanel>
+        <ResourceTable headings={["Participant", "Type", "Status", "Generated case"]}>
+          {templateParticipants.map((assignment) => (
+            <tr key={assignment.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3 font-bold text-[#1d70b8]">{assignment.participantName}</td>
+              <td className="px-4 py-3">{assignment.participantType}</td>
+              <td className="px-4 py-3">{assignment.status}{assignment.exemptionReason ? ` - ${assignment.exemptionReason}` : ""}</td>
+              <td className="px-4 py-3">
+                {assignment.caseId ? (
+                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${assignment.caseId}`}>
+                    Open case
+                  </Link>
+                ) : (
+                  "Not generated"
+                )}
+              </td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Generated cases</h3>
+        <ResourceTable headings={["Case", "Participant", "Status", "Progress", "Outcome"]}>
+          {generatedCases.map((caseRecord) => {
+            const participant = getParticipant(caseRecord.participantId);
+            return (
+              <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">
+                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
+                    {caseRecord.title}
+                  </Link>
+                </td>
+                <td className="px-4 py-3">{participant?.name ?? "Unknown participant"}</td>
+                <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
+                <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
+                <td className="px-4 py-3">{caseRecord.outcome}</td>
+              </tr>
+            );
+          })}
         </ResourceTable>
       </section>
     </ConsoleLayout>

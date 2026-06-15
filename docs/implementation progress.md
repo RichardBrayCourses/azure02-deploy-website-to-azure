@@ -39,7 +39,7 @@ The app now has:
 - Authority/Participant/Stakeholder case experience partially separated by role
 - Authority setup CRUD flows for participants, participant users, stakeholders, stakeholder users and stakeholder access
 
-The next implementation work should start Phase 3: Case Template Workflow.
+The next implementation work should start Phase 4: Participant Case Workflow.
 
 ---
 
@@ -219,7 +219,7 @@ Acceptance covered:
 Status:
 
 ```text
-Not started
+Complete
 ```
 
 Stories covered:
@@ -244,7 +244,7 @@ db.assignParticipantToTemplate(...)
 db.publishTemplate(...)
 ```
 
-UI work remaining:
+Implemented:
 
 - Replace Case Templates placeholder with real list page
 - Add Case Template detail page
@@ -252,12 +252,27 @@ UI work remaining:
 - Add participant assignment UI
 - Add publish action
 - Show generated cases after publish
+- Use Administration resource navigation
+- Use `ResourceActionPanel` for create/add/assign flows
+- Use `useDomainData()`, domain commands and `refresh()`
 
-Recommended route additions:
+Important files:
 
 ```text
+/admin/case-templates
 /admin/case-templates/:templateId
 ```
+
+Acceptance covered:
+
+- Authority admin can create a draft template
+- Authority admin can add configured tasks to a template
+- Authority admin can assign required or exempt participants
+- Authority admin can publish a valid draft template
+- Publishing creates generated cases and case tasks through the domain command
+- Generated cases appear on the template detail page
+- `npm run type-check` passes
+- `npm run build` passes
 
 ---
 
@@ -519,13 +534,13 @@ Do not implement this before the main user-story flows unless activity accuracy 
 Recommended immediate next step:
 
 ```text
-Start Phase 3 with Case Template list/detail pages.
+Start Phase 4 with real Participant task completion, evidence upload metadata, task submission and case submission.
 ```
 
 Suggested agent prompt:
 
 ```text
-Please implement Phase 3, first slice only: Case Template list/detail pages.
+Please implement Phase 4, first slice: Participant task workbench commands.
 
 Read:
 - fullhandover.md
@@ -535,12 +550,13 @@ Read:
 
 Requirements:
 - Preserve the login screen
-- Replace the Case Templates placeholder with a real list page
-- Add /admin/case-templates/:templateId
+- Keep Authority users out of the participant task workbench
+- Wire TaskDetailPage to domain commands
 - Use useDomainData()
-- Use the existing Administration resource navigation
-- Use ResourceActionPanel when actions are added
-- Start with read-only template detail before adding create/publish actions
+- Implement response_json editing with db.completeTask(...)
+- Implement fake evidence metadata upload with db.uploadEvidence(...)
+- Implement task submission with db.submitTask(...)
+- Call refresh() after mutations
 - Keep the existing UI style
 - Run npm run type-check and npm run build
 ```
@@ -556,10 +572,10 @@ Requirements:
 - [x] Create Stakeholder
 - [x] Create Stakeholder User
 - [x] Grant Stakeholder Access
-- [ ] Create Case Template
-- [ ] Add Tasks to Case Template
-- [ ] Assign Participants to Template
-- [ ] Publish Template
+- [x] Create Case Template
+- [x] Add Tasks to Case Template
+- [x] Assign Participants to Template
+- [x] Publish Template
 - [ ] Review Participant Submissions
 - [ ] Withdraw Task After Publication
 - [ ] Add New Task After Publication
