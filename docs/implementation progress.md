@@ -1,0 +1,544 @@
+# All Checks Out - Implementation Progress
+
+# Purpose
+
+This document tracks progress against `docs/implementation plan.md`.
+
+Future agents should read these documents in this order:
+
+1. `fullhandover.md`
+2. `docs/user stories.md`
+3. `docs/implementation plan.md`
+4. `docs/implementation progress.md`
+
+Use this file to understand:
+
+- What has already been implemented
+- What is partially implemented
+- What remains
+- What the next recommended coding step is
+- Which checks were last run
+
+---
+
+# Current Status Summary
+
+Phase 1 is complete.
+
+The app now has:
+
+- In-memory domain DTOs and entity classes
+- An `InMemoryAllChecksOutDatabase`
+- Domain command/query methods for the major user stories
+- Refreshable view-model exports
+- `DomainDataContext`
+- App-level `DomainDataProvider`
+- Existing screens subscribed to domain data refreshes
+- Authority/Participant/Stakeholder case experience partially separated by role
+
+The UI is still mostly read-oriented. The next implementation work should start Phase 2: Authority setup CRUD.
+
+---
+
+# Last Verified Checks
+
+Last known successful checks:
+
+```text
+npm run type-check
+npm run build
+```
+
+Working directory for checks:
+
+```text
+monorepo/apps/ui
+```
+
+---
+
+# Phase Progress
+
+## Phase 1 - Domain Store Plumbing
+
+Status:
+
+```text
+Complete
+```
+
+Implemented:
+
+- Added `DomainDataContext`
+- Added `DomainDataProvider`
+- Added `useDomainData`
+- Provider wraps the application in `App.tsx`
+- View-model exports in `console.ts` are refreshable
+- Added `refreshConsoleViewModels()`
+- Existing UI can re-render after future domain mutations via `refresh()`
+
+Important files:
+
+```text
+monorepo/apps/ui/src/context/DomainDataContext.tsx
+monorepo/apps/ui/src/App.tsx
+monorepo/apps/ui/src/data/console.ts
+```
+
+How future UI code should mutate data:
+
+```ts
+const { db, refresh } = useDomainData();
+
+db.createParticipant(...);
+refresh();
+```
+
+Notes:
+
+- Existing helper imports such as `participants`, `cases`, `authorities`, `getScopedCases`, etc. still work.
+- The exported view arrays are live bindings rebuilt by `refreshConsoleViewModels()`.
+- React screens subscribe to `version` from `useDomainData()`.
+
+---
+
+## Phase 2 - Authority Setup CRUD
+
+Status:
+
+```text
+Not started
+```
+
+Stories covered:
+
+- Authority User Story 1 - Create a Participant
+- Authority User Story 2 - Create Participant User
+- Authority User Story 3 - Create a Stakeholder
+- Authority User Story 4 - Create Stakeholder User
+- Authority User Story 5 - Grant Stakeholder Access
+
+Domain support:
+
+```text
+Available
+```
+
+Relevant domain commands already exist:
+
+```ts
+db.createParticipant(...)
+db.createParticipantUser(...)
+db.createStakeholder(...)
+db.createStakeholderUser(...)
+db.grantStakeholderAccess(...)
+```
+
+UI work remaining:
+
+- Add Create Participant flow on Participants page
+- Add participant users list/flow on Participant detail
+- Replace Stakeholders placeholder with real Stakeholders page
+- Add Stakeholder detail page
+- Add Stakeholder users flow
+- Add Grant Participant Access flow
+
+Recommended next task:
+
+```text
+Implement Create Participant on /admin/participants.
+```
+
+Suggested first small slice:
+
+- Add a form/dialog for participant type and display name
+- Call `db.createParticipant(...)`
+- Call `refresh()`
+- Verify the new participant appears in the table
+
+Acceptance for first slice:
+
+- Authority admin can create an Organisation participant
+- Authority admin can create a Person participant
+- New participant is scoped to the current authority
+- Login screen is unchanged
+- `npm run type-check` passes
+- `npm run build` passes
+
+---
+
+## Phase 3 - Case Template Workflow
+
+Status:
+
+```text
+Not started
+```
+
+Stories covered:
+
+- Authority User Story 6 - Create a Case Template
+- Authority User Story 7 - Add Tasks to a Case Template
+- Authority User Story 8 - Assign Participants to a Template
+- Authority User Story 9 - Publish a Template
+
+Domain support:
+
+```text
+Available
+```
+
+Relevant domain commands already exist:
+
+```ts
+db.createCaseTemplate(...)
+db.addTaskToTemplate(...)
+db.assignParticipantToTemplate(...)
+db.publishTemplate(...)
+```
+
+UI work remaining:
+
+- Replace Case Templates placeholder with real list page
+- Add Case Template detail page
+- Add task configuration UI
+- Add participant assignment UI
+- Add publish action
+- Show generated cases after publish
+
+Recommended route additions:
+
+```text
+/admin/case-templates/:templateId
+```
+
+---
+
+## Phase 4 - Participant Case Workflow
+
+Status:
+
+```text
+Partially started
+```
+
+Stories covered:
+
+- Participant User Story 1 - View Assigned Cases
+- Participant User Story 2 - Open a Case
+- Participant User Story 3 - Complete a Task
+- Participant User Story 4 - Upload Evidence
+- Participant User Story 5 - Submit a Task
+- Participant User Story 6 - Submit a Case
+- Participant User Story 7 - View Review Outcomes
+
+Already implemented:
+
+- Participant users can view scoped cases
+- Participant users can open a case
+- Participant users can open task workbench screens
+- Authority users are blocked from direct task workbench access
+- Stakeholders are blocked from participant task workbench access
+
+Domain support:
+
+```text
+Available
+```
+
+Relevant domain commands already exist:
+
+```ts
+db.completeTask(...)
+db.uploadEvidence(...)
+db.submitTask(...)
+db.submitCase(...)
+```
+
+UI work remaining:
+
+- Replace mock task buttons with real command calls
+- Add simple response form
+- Add fake evidence metadata upload
+- Submit task using domain command
+- Submit case using domain command
+- Show review outcomes from domain data
+
+Important note:
+
+The current task detail page still uses local `isEdited` state and mock upload/submit behaviour. It does not yet call the domain commands.
+
+---
+
+## Phase 5 - Authority Review Workflow
+
+Status:
+
+```text
+Partially started
+```
+
+Stories covered:
+
+- Authority User Story 10 - Review Participant Submissions
+
+Already implemented:
+
+- Authority case detail no longer links into participant task workbench
+- Authority case detail shows task activity summary
+- Direct navigation to `/cases/:caseId/tasks/:taskId` redirects Authority users back to case summary
+
+Domain support:
+
+```text
+Available
+```
+
+Relevant domain command already exists:
+
+```ts
+db.reviewTask(caseTaskId, "PASSED" | "FAILED")
+```
+
+UI work remaining:
+
+- Add authority review controls for submitted tasks
+- Call `db.reviewTask(...)`
+- Refresh UI after review
+- Show updated case status
+- Show participant review outcome
+
+Important note:
+
+Task activity timestamps are currently UI-side mock data in `ConsolePages.tsx`. Long term, move this into domain audit/activity records.
+
+---
+
+## Phase 6 - Stakeholder Read-Only Portal
+
+Status:
+
+```text
+Partially started
+```
+
+Stories covered:
+
+- Stakeholder User Story 1 - View Accessible Participants
+- Stakeholder User Story 2 - View Participant Status
+- Stakeholder User Story 3 - View Case Details
+- Stakeholder User Story 4 - View Task Outcomes
+- Stakeholder User Story 5 - View Evidence
+
+Already implemented:
+
+- Stakeholder users see scoped participants via approved access
+- Stakeholder portal shows visible cases
+- Stakeholder case detail no longer shows full task list
+- Stakeholder case detail now shows outcome and participant performance summary
+
+Domain support:
+
+```text
+Partially available
+```
+
+Relevant query exists:
+
+```ts
+db.getAccessibleParticipantsForStakeholder(...)
+```
+
+UI work remaining:
+
+- Add participant-level stakeholder detail route
+- Add stronger read-only participant performance view
+- Decide and implement evidence visibility rule
+- Optionally add task outcome summary without task workbench detail
+
+Recommended evidence visibility rule for first release:
+
+```text
+Stakeholders see evidence metadata for submitted, passed or failed tasks on participants they are approved to monitor.
+```
+
+---
+
+## Phase 7 - Published Template Changes
+
+Status:
+
+```text
+Not started
+```
+
+Stories covered:
+
+- Authority User Story 11 - Withdraw a Task After Publication
+- Authority User Story 12 - Add a New Task After Publication
+
+Domain support:
+
+```text
+Available
+```
+
+Relevant domain commands already exist:
+
+```ts
+db.withdrawTemplateTask(...)
+db.addTaskToTemplate(...)
+```
+
+UI work remaining:
+
+- Add withdraw task action on template task list
+- Add reason capture
+- Show withdrawn task state
+- Show created-after-publish state
+- Confirm existing cases receive new tasks after published template update
+
+Recommended timing:
+
+Implement after Phase 3 and Phase 4 are stable.
+
+---
+
+# Cross-Cutting Work Remaining
+
+## Tests
+
+Status:
+
+```text
+Not started
+```
+
+Recommended:
+
+- Add Vitest
+- Add domain command tests for `InMemoryAllChecksOutDatabase`
+
+High-value tests:
+
+- User kind exclusivity
+- Create participant scopes to authority
+- Create participant user creates UserAccount and ParticipantUser
+- Grant stakeholder access blocks cross-authority access
+- Publish template creates cases and case tasks
+- Submit case fails while active tasks are incomplete
+- Review task recalculates case status
+- Withdraw template task withdraws incomplete case tasks
+- Add task after publication creates case tasks for existing cases
+
+## Audit / Activity Model
+
+Status:
+
+```text
+Not started
+```
+
+Current situation:
+
+- Authority task activity display uses mock UI-side data
+
+Recommended future model:
+
+```text
+AuditEvent
+```
+
+Possible fields:
+
+```text
+id
+authority_id
+actor_user_account_id
+entity_type
+entity_id
+event_type
+summary
+metadata_json
+created_at
+```
+
+Do not implement this before the main user-story flows unless activity accuracy becomes blocking.
+
+---
+
+# What To Do Next
+
+Recommended immediate next step:
+
+```text
+Start Phase 2 with Create Participant.
+```
+
+Suggested agent prompt:
+
+```text
+Please implement Phase 2, first slice only: Create Participant.
+
+Read:
+- fullhandover.md
+- docs/user stories.md
+- docs/implementation plan.md
+- docs/implementation progress.md
+
+Requirements:
+- Preserve the login screen
+- Add a Create Participant flow to /admin/participants
+- Use useDomainData()
+- Call db.createParticipant(...)
+- Call refresh()
+- Keep the existing UI style
+- Run npm run type-check and npm run build
+```
+
+---
+
+# Implementation Checklist
+
+## Authority
+
+- [ ] Create Participant
+- [ ] Create Participant User
+- [ ] Create Stakeholder
+- [ ] Create Stakeholder User
+- [ ] Grant Stakeholder Access
+- [ ] Create Case Template
+- [ ] Add Tasks to Case Template
+- [ ] Assign Participants to Template
+- [ ] Publish Template
+- [ ] Review Participant Submissions
+- [ ] Withdraw Task After Publication
+- [ ] Add New Task After Publication
+
+## Participant
+
+- [x] View Assigned Cases
+- [x] Open a Case
+- [ ] Complete a Task
+- [ ] Upload Evidence
+- [ ] Submit a Task
+- [ ] Submit a Case
+- [ ] View Review Outcomes
+
+## Stakeholder
+
+- [x] View Accessible Participants
+- [x] View Participant Status
+- [x] View Case Details
+- [ ] View Task Outcomes
+- [ ] View Evidence
+
+## Plumbing
+
+- [x] Domain DTOs and entity classes
+- [x] In-memory database
+- [x] Domain commands
+- [x] Refreshable view models
+- [x] Domain data React provider
+- [ ] Domain command tests
+
