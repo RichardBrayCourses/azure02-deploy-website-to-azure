@@ -139,7 +139,11 @@ export default function SignInPage() {
 
             {requiresOperationalParticipant && (
               <div>
-                <h2 className="text-xl font-bold">Which operational participant are you interested in?</h2>
+                <h2 className="text-xl font-bold">
+                  {role === "operational-participant"
+                    ? "Which operational participant are you?"
+                    : "Which operational participant are you interested in?"}
+                </h2>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   {operationalParticipants.map((participant) => (
                     <button

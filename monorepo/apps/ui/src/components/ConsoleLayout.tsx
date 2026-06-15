@@ -16,6 +16,8 @@ type ConsoleLayoutProps = {
   actions?: ReactNode;
   affirmativeActionLabel?: string;
   affirmativeActionCompleteLabel?: string;
+  isEdited?: boolean;
+  onAffirmativeAction?: () => void;
   readOnly?: boolean;
   children: ReactNode;
 };
@@ -66,21 +68,36 @@ export function ConsoleLayout({
   affirmativeActionLabel = "Save changes",
   breadcrumbs,
   actions,
+  isEdited,
+  onAffirmativeAction,
   readOnly = false,
   children,
 }: ConsoleLayoutProps) {
   const location = useLocation();
-  const [hasPendingChanges, setHasPendingChanges] = useState(!readOnly);
+  const isControlled = isEdited !== undefined;
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  const hasEdits = readOnly ? false : isEdited ?? hasPendingChanges;
+  const affirmativeText = hasEdits || isControlled ? affirmativeActionLabel : affirmativeActionCompleteLabel;
 
   useEffect(() => {
-    setHasPendingChanges(!readOnly);
-  }, [location.pathname, readOnly]);
+    if (!isControlled) {
+      setHasPendingChanges(false);
+    }
+  }, [isControlled, location.pathname]);
+
+  function completeAffirmativeAction() {
+    if (onAffirmativeAction) {
+      onAffirmativeAction();
+    } else {
+      setHasPendingChanges(false);
+    }
+  }
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-[#f8f8f8] text-[#0b0c0c] dark:bg-background dark:text-foreground">
       <div className="border-b border-[#b1b4b6] bg-white dark:bg-card">
         <div className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6">
-          <Breadcrumbs hasPendingChanges={hasPendingChanges} items={breadcrumbs} />
+          <Breadcrumbs hasPendingChanges={hasEdits} items={breadcrumbs} />
         </div>
       </div>
 
@@ -92,12 +109,12 @@ export function ConsoleLayout({
               {!readOnly && (
                 <Button
                   type="button"
-                  variant={hasPendingChanges ? "default" : "outline"}
-                  onClick={() => setHasPendingChanges(false)}
-                  disabled={!hasPendingChanges}
+                  variant={hasEdits ? "default" : "outline"}
+                  onClick={completeAffirmativeAction}
+                  disabled={!hasEdits}
                 >
                   <CheckCircle2 />
-                  {hasPendingChanges ? affirmativeActionLabel : affirmativeActionCompleteLabel}
+                  {affirmativeText}
                 </Button>
               )}
             </div>

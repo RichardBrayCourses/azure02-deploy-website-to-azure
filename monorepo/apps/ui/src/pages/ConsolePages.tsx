@@ -22,7 +22,7 @@ import {
   Plus,
   Upload,
 } from "lucide-react";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 
 function StatusBadge({ status }: { status: Status | "open" | "closed" | "review" }) {
@@ -221,8 +221,8 @@ export function AdminHome() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Configuration applied"
-      affirmativeActionLabel="Apply configuration"
+      affirmativeActionCompleteLabel="Applied"
+      affirmativeActionLabel="Apply"
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[{ label: "Administration" }]}
@@ -259,8 +259,8 @@ export function OperationalParticipantsPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Participants updated"
-      affirmativeActionLabel="Update participants"
+      affirmativeActionCompleteLabel="Updated"
+      affirmativeActionLabel="Update"
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Operational participants" }]}
@@ -272,7 +272,7 @@ export function OperationalParticipantsPage() {
         actions={
           <Button>
             <Plus />
-            Add operational participant
+            Add
           </Button>
         }
       />
@@ -313,8 +313,8 @@ export function OperationalParticipantDetailPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Participant saved"
-      affirmativeActionLabel="Save participant"
+      affirmativeActionCompleteLabel="Saved"
+      affirmativeActionLabel="Save"
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[
@@ -372,6 +372,7 @@ export function CaseManagementHome() {
   const { user } = useAuth();
   if (user.role === "interested-party") return <Navigate to="/verification" replace />;
   const umbrellaOrganization = getUmbrellaOrganization(user.umbrellaOrganizationId ?? undefined);
+  const isUmbrellaAdmin = user.role === "umbrella-organization-admin";
   const scopedCases = getScopedCases(user);
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
@@ -379,11 +380,10 @@ export function CaseManagementHome() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Case register updated"
-      affirmativeActionLabel="Update case register"
       appName="Case Management"
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[{ label: "Case Management" }]}
+      readOnly
     >
       <PageTitle
         eyebrow="Case Management"
@@ -393,7 +393,7 @@ export function CaseManagementHome() {
           <Button asChild>
             <Link to="/cases">
               <Plus />
-              New case
+              Create
             </Link>
           </Button>
         }
@@ -407,7 +407,13 @@ export function CaseManagementHome() {
         ]}
       />
       <section className="mt-8">
-        <ResourceTable headings={["Case", "Operational participant", "Type", "Status", "Progress", "Risk", "Last activity"]}>
+        <ResourceTable
+          headings={
+            isUmbrellaAdmin
+              ? ["Case", "Operational participant", "Type", "Status", "Progress", "Risk", "Last activity"]
+              : ["Case", "Type", "Status", "Progress", "Risk", "Last activity"]
+          }
+        >
           {scopedCases.map((caseRecord) => {
             const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
             return (
@@ -417,7 +423,7 @@ export function CaseManagementHome() {
                     {caseRecord.title}
                   </Link>
                 </td>
-                <td className="px-4 py-3">{operationalParticipant?.name}</td>
+                {isUmbrellaAdmin && <td className="px-4 py-3">{operationalParticipant?.name}</td>}
                 <td className="px-4 py-3">{caseRecord.caseType}</td>
                 <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
@@ -446,14 +452,13 @@ export function CaseDetailPage() {
 
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Case saved"
-      affirmativeActionLabel="Save case"
       appName="Case Management"
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
         { label: "Case Management", path: "/cases" },
         { label: `${operationalParticipant?.name ?? "Organization"} ${caseRecord.reference}` },
       ]}
+      readOnly
     >
       <PageTitle
         eyebrow="Case"
@@ -513,6 +518,12 @@ export function TaskDetailPage() {
   const { user } = useAuth();
   if (user.role === "interested-party") return <Navigate to="/verification" replace />;
   const { caseId, taskId } = useParams();
+  const [isEdited, setIsEdited] = useState(false);
+
+  useEffect(() => {
+    setIsEdited(false);
+  }, [caseId, taskId]);
+
   const caseRecord = getCase(caseId);
   const task = getTask(caseId, taskId);
   if (!caseRecord || !task) return <Navigate to="/cases" replace />;
@@ -522,10 +533,18 @@ export function TaskDetailPage() {
   const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
   const Icon = task.Icon;
 
+  function uploadEvidence() {
+    setIsEdited(true);
+  }
+
+  function submitTaskUpdate() {
+    setIsEdited(false);
+  }
+
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Task submitted"
-      affirmativeActionLabel="Submit task update"
+      affirmativeActionCompleteLabel="Submitted"
+      affirmativeActionLabel="Submit"
       appName="Case Management"
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
@@ -533,15 +552,17 @@ export function TaskDetailPage() {
         { label: `${operationalParticipant?.name ?? "Organization"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
         { label: task.title },
       ]}
+      isEdited={isEdited}
+      onAffirmativeAction={submitTaskUpdate}
     >
       <PageTitle
         eyebrow="Task"
         title={task.title}
         description={task.description}
         actions={
-          <Button>
+          <Button onClick={uploadEvidence}>
             <Upload />
-            Upload evidence
+            Upload
           </Button>
         }
       />
@@ -569,15 +590,17 @@ export function TaskDetailPage() {
           </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {[
-              { label: "Upload new evidence", Icon: Upload },
-              { label: "View current file", Icon: FileText },
-              { label: "Review AI tags", Icon: CheckCircle2 },
-              { label: "Submit for review", Icon: Activity },
+              { label: "Upload", Icon: Upload },
+              { label: "View", Icon: FileText },
+              { label: "Review", Icon: CheckCircle2 },
+              { label: "Submit", Icon: Activity },
             ].map((action) => (
               <button
                 key={action.label}
                 type="button"
-                className="flex items-center gap-3 border border-[#b1b4b6] bg-[#f8f8f8] p-4 text-left font-bold hover:border-[#1d70b8] dark:bg-background"
+                className="flex items-center gap-3 border border-[#b1b4b6] bg-[#f8f8f8] p-4 text-left font-bold hover:border-[#1d70b8] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-background"
+                onClick={action.label === "Upload" ? uploadEvidence : action.label === "Submit" ? submitTaskUpdate : undefined}
+                disabled={action.label === "Submit" && !isEdited}
               >
                 <action.Icon className="size-5 text-[#1d70b8]" />
                 {action.label}
@@ -618,8 +641,8 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
   const isAdmin = app === "admin";
   return (
     <ConsoleLayout
-      affirmativeActionCompleteLabel="Resource updated"
-      affirmativeActionLabel="Update resource"
+      affirmativeActionCompleteLabel="Updated"
+      affirmativeActionLabel="Update"
       appName={isAdmin ? "Administration" : "Case Management"}
       appDescription={isAdmin ? "Configuration for case types, participants, workflow, and review." : "Operational workspace for case tasks, forms, evidence, and workflow."}
       breadcrumbs={[
