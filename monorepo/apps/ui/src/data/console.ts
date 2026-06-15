@@ -1468,7 +1468,7 @@ export const consoleApps: ConsoleApp[] = [
     path: "/cases",
     accent: "bg-[#0078d4]",
     Icon: FolderKanban,
-    audience: ["authority-admin", "participant"],
+    audience: ["participant"],
   },
   {
     id: "stakeholder-portal",
@@ -1819,7 +1819,7 @@ function buildSearchItems(): SearchItem[] {
         description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} due diligence items complete`,
         path: `/cases/${caseRecord.id}`,
         group: "Due diligence packs",
-        audience: ["authority-admin", "participant"] as UserRole[],
+        audience: ["participant"] as UserRole[],
       };
     }),
     ...cases.flatMap((caseRecord) => caseRecord.tasks.map((task) => ({
@@ -1827,7 +1827,7 @@ function buildSearchItems(): SearchItem[] {
       description: task.type,
       path: `/cases/${caseRecord.id}/tasks/${task.id}`,
       group: "Due diligence items",
-      audience: ["authority-admin", "participant"] as UserRole[],
+      audience: ["participant"] as UserRole[],
     }))),
   ];
 }
@@ -2026,6 +2026,7 @@ export function getScopedParticipants(user: AuthenticatedUser) {
 }
 
 export function getScopedCases(user: AuthenticatedUser) {
+  if (user.role === "authority-admin") return [];
   const scopedParticipantIds = new Set(getScopedParticipants(user).map((participant) => participant.id));
   return cases.filter((caseRecord) => scopedParticipantIds.has(caseRecord.participantId));
 }
