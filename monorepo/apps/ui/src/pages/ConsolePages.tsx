@@ -16,9 +16,14 @@ import {
   getCaseTemplateParticipants,
   getCaseTemplateTasks,
   getCaseTemplatesForAuthority,
+  getAccessGrantsForParticipant,
+  getGrantableStakeholdersForParticipant,
   getScopedCases,
   getScopedParticipants,
   getStakeholdersForAuthority,
+  AccessGrantPermissionLevel,
+  AccessGrantStatus,
+  AccessGrantGranteeType,
   MembershipRole,
   PartyType,
   Status,
@@ -57,6 +62,22 @@ function StatusBadge({ status }: { status: Status | "open" | "closed" | "review"
   return (
     <span className={cn("inline-flex rounded-sm px-2 py-1 text-xs font-bold uppercase", classes[status])}>
       {label}
+    </span>
+  );
+}
+
+function GrantStatusBadge({ status }: { status: AccessGrantStatus }) {
+  const classes: Record<AccessGrantStatus, string> = {
+    INVITED: "bg-[#ffdd00] text-[#0b0c0c]",
+    ACTIVE: "bg-[#00703c] text-white",
+    SUSPENDED: "bg-[#505a5f] text-white",
+    REVOKED: "bg-[#d4351c] text-white",
+    EXPIRED: "bg-[#f3f2f1] text-[#0b0c0c] ring-1 ring-[#b1b4b6]",
+  };
+
+  return (
+    <span className={cn("inline-flex rounded-sm px-2 py-1 text-xs font-bold uppercase", classes[status])}>
+      {status.replace("_", " ").toLowerCase()}
     </span>
   );
 }
@@ -1312,7 +1333,10 @@ export function ParticipantDetailPage() {
   if (!scopedParticipantIds.has(participant.id)) return <Navigate to="/admin/participants" replace />;
   const participantRecord = participant;
 
-  const stakeholder = getStakeholder(participantRecord.stakeholderId);
+  const participantAccessGrants = getAccessGrantsForParticipant(participantRecord.id);
+  const activeSubscriberGrants = participantAccessGrants.filter(
+    (grant) => grant.status === "ACTIVE" && grant.granteeType === "STAKEHOLDER",
+  ).length;
   const participantUsers = authenticatableUsers.filter(
     (account) =>
       account.membership.entityType === "participant" &&
@@ -1375,7 +1399,7 @@ export function ParticipantDetailPage() {
           { label: "Current status", value: participant.status.replace("-", " "), tone: participant.status === "attention" ? "red" : "blue" },
           { label: "Open cases", value: String(participant.openCases), tone: "blue" },
           { label: "Tasks complete", value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
-          { label: "Stakeholder", value: stakeholder?.name ?? "None", tone: "yellow" },
+          { label: "Active subscriber grants", value: String(activeSubscriberGrants), tone: "yellow" },
         ]}
       />
       <section className="mt-8">
@@ -1455,14 +1479,14 @@ export function CaseManagementHome() {
       readOnly
     >
       <PageTitle
-        eyebrow="Case Management"
-        title="Cases"
-        description="Configured case instances across service, compliance, renewal, and stakeholder visibility workflows."
+        eyebrow="Vendor workspace"
+        title="Due diligence packs"
+        description="Complete vendor-owned DDQs, upload evidence metadata, and control who can review this workspace."
         actions={
           <Button asChild>
-            <Link to="/cases">
-              <Plus />
-              Create
+            <Link to="/cases/access-grants">
+              <UserPlus />
+              Access grants
             </Link>
           </Button>
         }
@@ -1477,7 +1501,7 @@ export function CaseManagementHome() {
       />
       <section className="mt-8">
         <ResourceTable
-          headings={["Case", "Type", "Status", "Progress", "Risk", "Last activity"]}
+          headings={["Due diligence pack", "Type", "Status", "Progress", "Risk", "Last activity"]}
         >
           {scopedCases.map((caseRecord) => {
             return (
@@ -1495,6 +1519,184 @@ export function CaseManagementHome() {
               </tr>
             );
           })}
+        </ResourceTable>
+      </section>
+    </ConsoleLayout>
+  );
+}
+
+export function AccessGrantsPage() {
+  const { user } = useAuth();
+  const { db, refresh } = useDomainData();
+  const [showCreate, setShowCreate] = useState(false);
+  const [granteeType, setGranteeType] = useState<AccessGrantGranteeType>("STAKEHOLDER");
+  const [granteeStakeholderId, setGranteeStakeholderId] = useState("");
+  const [permissionLevel, setPermissionLevel] = useState<AccessGrantPermissionLevel>("REQUEST_INFORMATION");
+  const [status, setStatus] = useState<AccessGrantStatus>("ACTIVE");
+  const [error, setError] = useState<string | null>(null);
+
+  if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
+  if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+
+  const participant = getParticipant(user.participantId ?? undefined);
+  if (!participant || !user.authorityId || !user.authenticatableUserId) return <Navigate to="/cases" replace />;
+
+  const grants = getAccessGrantsForParticipant(participant.id);
+  const grantableStakeholders = getGrantableStakeholdersForParticipant(participant.id);
+  const activeGrants = grants.filter((grant) => grant.status === "ACTIVE");
+  const helperGrants = grants.filter((grant) => grant.granteeType === "HELPER");
+
+  function createGrant() {
+    setError(null);
+    if (!granteeStakeholderId) {
+      setError("Select a subscriber or service provider.");
+      return;
+    }
+    try {
+      db.createAccessGrant({
+        authorityId: user.authorityId ?? "",
+        participantId: participant?.id ?? "",
+        granteeType,
+        granteeStakeholderId,
+        permissionLevel,
+        status,
+        createdByUserId: user.authenticatableUserId ?? "",
+      });
+      refresh();
+      setGranteeStakeholderId("");
+      setPermissionLevel("REQUEST_INFORMATION");
+      setStatus("ACTIVE");
+      setShowCreate(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Access grant could not be created.");
+    }
+  }
+
+  function updateGrantStatus(accessGrantId: string, nextStatus: AccessGrantStatus) {
+    setError(null);
+    try {
+      db.updateAccessGrantStatus(accessGrantId, nextStatus);
+      refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Access grant status could not be updated.");
+    }
+  }
+
+  return (
+    <ConsoleLayout
+      appName="Due Diligence Packs"
+      appDescription="Operational workspace for due diligence packs, evidence, and controlled review access."
+      breadcrumbs={[
+        { label: "Due diligence packs", path: "/cases" },
+        { label: "Access grants" },
+      ]}
+    >
+      <PageTitle
+        eyebrow="Vendor-controlled access"
+        title="Access grants"
+        description="Invite subscribers and service providers into this vendor workspace without giving the association default access to private DDQ answers or evidence."
+        actions={
+          <Button type="button" onClick={() => setShowCreate((current) => !current)}>
+            <UserPlus />
+            Create grant
+          </Button>
+        }
+      />
+      <MetricStrip
+        items={[
+          { label: "Vendor", value: participant.name, tone: "blue" },
+          { label: "Active grants", value: String(activeGrants.length), tone: "green" },
+          { label: "Service providers", value: String(helperGrants.length), tone: "yellow" },
+          { label: "Total grants", value: String(grants.length), tone: "blue" },
+        ]}
+      />
+      <ResourceActionPanel
+        open={showCreate}
+        title="Create access grant"
+        description="Grant a subscriber or service provider scoped access to this vendor workspace."
+        onClose={() => setShowCreate(false)}
+        footer={
+          <Button type="button" onClick={createGrant}>
+            <CheckCircle2 />
+            Save grant
+          </Button>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-[12rem_1fr_14rem_10rem]">
+          <FormField label="Grantee type">
+            <SelectField value={granteeType} onChange={(value) => setGranteeType(value as AccessGrantGranteeType)}>
+              <option value="STAKEHOLDER">Subscriber</option>
+              <option value="HELPER">Service provider</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Grantee">
+            <SelectField value={granteeStakeholderId} onChange={setGranteeStakeholderId}>
+              <option value="">Select organisation</option>
+              {grantableStakeholders.map((stakeholder) => (
+                <option key={stakeholder.id} value={stakeholder.id}>
+                  {stakeholder.name}
+                </option>
+              ))}
+            </SelectField>
+          </FormField>
+          <FormField label="Permission">
+            <SelectField value={permissionLevel} onChange={(value) => setPermissionLevel(value as AccessGrantPermissionLevel)}>
+              <option value="READ_ONLY">Read only</option>
+              <option value="REQUEST_INFORMATION">Request information</option>
+              <option value="REVIEW_AND_COMMENT">Review and comment</option>
+              <option value="CREATE_AND_EDIT">Create and edit</option>
+              <option value="ADMINISTER_GRANTS">Administer grants</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Status">
+            <SelectField value={status} onChange={(value) => setStatus(value as AccessGrantStatus)}>
+              <option value="INVITED">Invited</option>
+              <option value="ACTIVE">Active</option>
+              <option value="SUSPENDED">Suspended</option>
+            </SelectField>
+          </FormField>
+        </div>
+        <div className="mt-3"><FormError message={error} /></div>
+      </ResourceActionPanel>
+      <section className="mt-8">
+        <ResourceTable headings={["Grantee", "Type", "Permission", "Scope", "Status", "Created", "Actions"]}>
+          {grants.map((grant) => (
+            <tr key={grant.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <span className="block font-bold text-[#1d70b8]">{grant.granteeName}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                  Created by {grant.createdByName}
+                </span>
+              </td>
+              <td className="px-4 py-3">{grant.granteeType === "HELPER" ? "Service provider" : "Subscriber"}</td>
+              <td className="px-4 py-3">{grant.permissionLabel}</td>
+              <td className="px-4 py-3">{grant.scopeLabel}</td>
+              <td className="px-4 py-3"><GrantStatusBadge status={grant.status} /></td>
+              <td className="px-4 py-3">{new Date(grant.createdAt).toLocaleDateString("en-GB")}</td>
+              <td className="px-4 py-3">
+                <div className="flex flex-wrap gap-2">
+                  {grant.status !== "ACTIVE" && (
+                    <Button type="button" variant="outline" onClick={() => updateGrantStatus(grant.id, "ACTIVE")}>
+                      <CheckCircle2 />
+                      Activate
+                    </Button>
+                  )}
+                  {grant.status === "ACTIVE" && (
+                    <Button type="button" variant="outline" onClick={() => updateGrantStatus(grant.id, "SUSPENDED")}>
+                      <Clock3 />
+                      Suspend
+                    </Button>
+                  )}
+                  {grant.status !== "REVOKED" && (
+                    <Button type="button" variant="outline" onClick={() => updateGrantStatus(grant.id, "REVOKED")}>
+                      <XCircle />
+                      Revoke
+                    </Button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
         </ResourceTable>
       </section>
     </ConsoleLayout>

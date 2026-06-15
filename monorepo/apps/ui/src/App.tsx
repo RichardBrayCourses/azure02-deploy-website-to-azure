@@ -6,6 +6,7 @@ import ThemeProvider, { useTheme } from "./context/ThemeContext";
 import { getDefaultConsolePath } from "./data/console";
 import {
   AdminHome,
+  AccessGrantsPage,
   CaseDetailPage,
   CaseManagementHome,
   CaseTemplateDetailPage,
@@ -51,6 +52,7 @@ const AppContent = () => {
         <Route path="/admin/users" element={<PlaceholderResourcePage app="admin" />} />
 
         <Route path="/cases" element={<CaseManagementHome />} />
+        <Route path="/cases/access-grants" element={<AccessGrantsPage />} />
         <Route path="/cases/:caseId" element={<CaseDetailPage />} />
         <Route path="/cases/:caseId/tasks/:taskId" element={<TaskDetailPage />} />
         <Route path="/cases/tasks" element={<PlaceholderResourcePage app="cases" />} />
