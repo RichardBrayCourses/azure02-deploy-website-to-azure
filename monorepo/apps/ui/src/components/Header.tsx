@@ -13,9 +13,9 @@ import { useTheme } from "@/context/ThemeContext";
 import {
   getConsoleAppsForRole,
   getDefaultConsolePath,
-  getInterestedParty,
-  getOperationalParticipant,
-  getUmbrellaOrganization,
+  getStakeholder,
+  getParticipant,
+  getAuthority,
   getSearchItemsForUser,
 } from "@/data/console";
 import { cn } from "@/lib/utils";
@@ -121,15 +121,15 @@ const Header = () => {
   const { dark, setDark } = useTheme();
   const { user, logout } = useAuth();
   const availableApps = getConsoleAppsForRole(user.role);
-  const umbrellaOrganization = getUmbrellaOrganization(user.umbrellaOrganizationId ?? undefined);
-  const operationalParticipant = getOperationalParticipant(user.operationalParticipantId ?? undefined);
-  const interestedParty = getInterestedParty(operationalParticipant?.interestedPartyId);
+  const authority = getAuthority(user.authorityId ?? undefined);
+  const participant = getParticipant(user.participantId ?? undefined);
+  const stakeholder = getStakeholder(participant?.stakeholderId);
   const entityName =
-    user.role === "umbrella-organization-admin"
-      ? umbrellaOrganization?.name
-      : user.role === "operational-participant"
-        ? operationalParticipant?.name
-        : interestedParty?.name;
+    user.role === "authority-admin"
+      ? authority?.name
+      : user.role === "participant"
+        ? participant?.name
+        : stakeholder?.name;
 
   return (
     <header className="sticky top-0 z-40 border-b border-black bg-[#0b1f33] text-white">

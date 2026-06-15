@@ -4,7 +4,7 @@
 
 In this lesson, you build and deploy a real React application to Azure using a small production-style monorepo.
 
-The application is a CaseFlow console built with React, TypeScript, Vite, Tailwind CSS, and shadcn-style UI components. It has client-side routing, a role-scoped demo sign-in flow, app navigation, global search, dark-mode persistence, and typed fixture data for umbrella organizations, operational participants, interested parties, cases, and tasks. That gives us a useful frontend without adding a backend before the course needs one.
+The application is a CaseFlow console built with React, TypeScript, Vite, Tailwind CSS, and shadcn-style UI components. It has client-side routing, a role-scoped demo sign-in flow, app navigation, global search, dark-mode persistence, and typed fixture data for authorities, participants, stakeholders, cases, and tasks. That gives us a useful frontend without adding a backend before the course needs one.
 
 The infrastructure is written in Bicep. Bicep creates an Azure Storage account, and the deployment scripts enable Azure Blob static website hosting for the built frontend files. The Vite build output is uploaded into the special `$web` container, and Azure serves the app from the storage account's static website endpoint.
 
@@ -82,7 +82,7 @@ flowchart LR
 - **The app includes real client-side behavior.** Students can sign into a scoped demo account, search apps/cases/organizations/tasks, browse case-management and administration screens, submit demo page actions, use breadcrumb navigation, and switch between light and dark themes.
 - **Infrastructure is written in Bicep.** `infra/main.bicep` creates an Azure Storage account using `StorageV2`, `Standard_LRS`, HTTPS-only traffic, TLS 1.2, and a deterministic globally valid account name.
 - **Static website hosting is enabled by script.** The deployment script uses Azure CLI to enable static website hosting with `index.html` as both the index document and the not-found document.
-- **Single-page app routing is supported for this lesson.** Because the not-found document is also `index.html`, direct visits to routes such as `/cases` or `/admin/operational-participants` return the React app instead of a storage error page.
+- **Single-page app routing is supported for this lesson.** Because the not-found document is also `index.html`, direct visits to routes such as `/cases` or `/admin/participants` return the React app instead of a storage error page.
 - **The upload script publishes the Vite build.** `scripts/upload-ui.sh` uploads `apps/ui/dist` into the `$web` container with overwrite enabled.
 - **Root scripts hide command complexity.** Students can run `pnpm run deploy-everything` for the full path, or run `infra:deploy`, `ui:build`, `ui:upload`, and `ui:url` one step at a time from the repository root.
 - **The live URL can be printed after deployment.** `pnpm run ui:url` reads the deployed storage account and prints the Azure Blob static website endpoint so it can be opened directly from the terminal.
@@ -242,7 +242,7 @@ apps/ui/src/context/ThemeContext.tsx
 apps/ui/src/data/console.ts
 ```
 
-`App.tsx` sets up the browser router, auth provider, and theme provider. Signed-out users see the demo sign-in page. Signed-in users are routed into their default workspace: umbrella-organization admins land on operational participants, operational participants land on cases, and interested parties land on the assurance portal.
+`App.tsx` sets up the browser router, auth provider, and theme provider. Signed-out users see the demo sign-in page. Signed-in users are routed into their default workspace: authority admins land on participants, participants land on cases, and stakeholders land on the stakeholder portal.
 
 `ConsolePages.tsx` renders the administration, case-management, task-detail, and assurance-portal screens. The pages share layout, tables, metrics, breadcrumbs, tabs, and demo action buttons.
 
@@ -256,12 +256,12 @@ apps/ui/src/data/console.ts
 
 `console.ts` contains typed fixture data for the demo. The model separates the main party types and links them by dataless IDs:
 
-- `UmbrellaOrganization` has an `id`, `name`, and descriptive metadata.
-- `OperationalParticipant` has an `id`, `name`, `umbrellaOrganizationId`, and `interestedPartyId`.
-- `InterestedParty` has an `id` and `name`.
-- `CaseRecord` references an operational participant by `operationalParticipantId`.
+- `Authority` has an `id`, `name`, and descriptive metadata.
+- `Participant` has an `id`, `name`, `authorityId`, and `stakeholderId`.
+- `Stakeholder` has an `id` and `name`.
+- `CaseRecord` references a participant by `participantId`.
 
-The model intentionally avoids a generic `owner` field because ownership is ambiguous in this domain. Screens resolve IDs to display names through helper functions such as `getUmbrellaOrganization`, `getOperationalParticipant`, and `getInterestedParty`.
+The model intentionally avoids a generic `owner` field because ownership is ambiguous in this domain. Screens resolve IDs to display names through helper functions such as `getAuthority`, `getParticipant`, and `getStakeholder`.
 
 ## Infrastructure
 
@@ -308,7 +308,7 @@ az storage blob service-properties update \
   --auth-mode "$AZURE_STORAGE_AUTH_MODE"
 ```
 
-The key detail is the not-found document. This React app uses browser routing. If a user visits `/cases` or `/admin/operational-participants` directly, Azure Blob static website hosting does not know that route exists as a physical file. Returning `index.html` lets React Router take over in the browser.
+The key detail is the not-found document. This React app uses browser routing. If a user visits `/cases` or `/admin/participants` directly, Azure Blob static website hosting does not know that route exists as a physical file. Returning `index.html` lets React Router take over in the browser.
 
 ## Deployment Scripts
 
@@ -445,10 +445,10 @@ The app entry point is `apps/ui/src/main.tsx`. It finds the root DOM element, cr
 ```tsx
 <Routes>
   <Route path="/" element={<Navigate to={getDefaultConsolePath(user.role)} replace />} />
-  <Route path="/admin/operational-participants" element={<OperationalParticipantsPage />} />
+  <Route path="/admin/participants" element={<ParticipantsPage />} />
   <Route path="/cases" element={<CaseManagementHome />} />
   <Route path="/cases/:caseId" element={<CaseDetailPage />} />
-  <Route path="/verification" element={<VerificationPortalPage />} />
+  <Route path="/stakeholder" element={<StakeholderPortalPage />} />
   <Route path="*" element={<NotFound />} />
 </Routes>
 ```
@@ -469,16 +469,16 @@ Both contexts use `localStorage`, which means students can refresh the deployed 
 Create `apps/ui/src/data/console.ts` with small typed arrays for the console demo. The important entity types are:
 
 ```ts
-UmbrellaOrganization
-OperationalParticipant
-InterestedParty
+Authority
+Participant
+Stakeholder
 CaseRecord
 Task
 ```
 
-Use dataless relationship keys between entities. For example, `OperationalParticipant` should store `umbrellaOrganizationId` and `interestedPartyId`, and `CaseRecord` should store `operationalParticipantId`. Avoid a generic `owner` field; it is too ambiguous for this domain.
+Use dataless relationship keys between entities. For example, `Participant` should store `authorityId` and `stakeholderId`, and `CaseRecord` should store `participantId`. Avoid a generic `owner` field; it is too ambiguous for this domain.
 
-The console pages import this data, scope it to the signed-in demo user, and render role-appropriate administration, case-management, and assurance views.
+The console pages import this data, scope it to the signed-in demo user, and render role-appropriate administration, case-management, and stakeholder views.
 
 ### 6. Add Bicep
 
@@ -551,10 +551,10 @@ pnpm run deploy-everything
 Open the printed URL. Test:
 
 - the sign-in page loads
-- selecting an umbrella organization and role signs into the console
+- selecting an authority and role signs into the console
 - `/cases` shows the case list for a case-management user
-- `/admin/operational-participants` shows the operational participant list for an umbrella-organization admin
-- `/verification` shows the assurance portal for an interested party
+- `/admin/participants` shows the participant list for an authority admin
+- `/stakeholder` shows the stakeholder portal for a stakeholder
 - global search finds apps, cases, organizations, and tasks
 - page action buttons clear the breadcrumb warning for demo navigation
 - the theme toggle works

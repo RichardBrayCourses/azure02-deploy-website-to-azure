@@ -20,7 +20,7 @@ This makes the platform flexible enough to support many scenarios, including:
 - Contractor approvals
 - Annual declarations
 
-The system should be configurable so that each umbrella organization can define its own terminology, forms, workflows, participants, permissions, and completion rules.
+The system should be configurable so that each authority can define its own terminology, forms, workflows, participants, permissions, and completion rules.
 
 ---
 
@@ -28,7 +28,7 @@ The system should be configurable so that each umbrella organization can define 
 
 This is a configurable **Case, Compliance and Service Management Platform**.
 
-It allows umbrella organizations to define repeatable business processes where people or organizations must:
+It allows authorities to define repeatable business processes where people or organizations must:
 
 - create or receive a case
 - complete tasks
@@ -53,9 +53,9 @@ These are deliberately generic. Each case type can rename them or use only the o
 
 ---
 
-## 1. Umbrella Organization
+## 1. Authority
 
-The umbrella organization is the body that manages the system configuration, rules, workflows, branding, reporting, and access control for one or more operational participants.
+The authority is the body that manages the system configuration, rules, workflows, branding, reporting, and access control for one or more participants.
 
 Examples:
 
@@ -67,7 +67,7 @@ Examples:
 - Property management company
 - Membership body
 
-The umbrella organization may define:
+The authority may define:
 
 - case types
 - forms
@@ -81,9 +81,9 @@ The umbrella organization may define:
 
 ---
 
-## 2. Operational Participants
+## 2. Participants
 
-Operational participants are the people or organizations who carry out work, administer the process, complete duties, submit information, or provide evidence.
+Participants are the people or organizations who carry out work, administer the process, complete duties, submit information, or provide evidence.
 
 Examples:
 
@@ -100,9 +100,9 @@ Examples:
 
 This category is intentionally broad.
 
-In one scenario, the operational participant might be an employee completing a service visit. In another, it might be a resident renewing a permit, a supplier submitting compliance documents, or a member organization completing an annual declaration.
+In one scenario, the participant might be an employee completing a service visit. In another, it might be a resident renewing a permit, a supplier submitting compliance documents, or a member organization completing an annual declaration.
 
-Operational participants may:
+Participants may:
 
 - create cases
 - be assigned cases
@@ -116,13 +116,13 @@ Operational participants may:
 
 ---
 
-## 3. Interested Parties
+## 3. Stakeholders
 
-Interested parties are people or organizations who need visibility, assurance, confirmation, audit access, or outcome verification.
+Stakeholders are people or organizations who need visibility, assurance, confirmation, audit access, or outcome verification.
 
 Examples:
 
-- Customers
+- Stakeholders
 - Patients
 - Inspectors
 - Auditors
@@ -132,7 +132,7 @@ Examples:
 - Internal managers
 - Association stakeholders
 
-Interested parties may:
+Stakeholders may:
 
 - view selected case information
 - receive notifications
@@ -142,7 +142,7 @@ Interested parties may:
 - download documents
 - provide feedback or signatures
 
-Not every case type needs interested parties. In some workflows, the case may only involve the umbrella organization and the operational participant.
+Not every case type needs stakeholders. In some workflows, the case may only involve the authority and the participant.
 
 ---
 
@@ -150,10 +150,10 @@ Not every case type needs interested parties. In some workflows, the case may on
 
 The platform can be described using the following generic concepts:
 
-- **Umbrella Organization**: the tenant-level organization that defines configuration, workflows, permissions, and reporting
+- **Authority**: the tenant-level organization that defines configuration, workflows, permissions, and reporting
 - **Case Type**: a configurable template for a business process
 - **Case**: a single instance of that process
-- **Operational Participant**: a person or organization involved in doing the work, submitting information, or completing case duties
+- **Participant**: a person or organization involved in doing the work, submitting information, or completing case duties
 - **Role**: what a participant is allowed to do
 - **Task**: a required action within a case
 - **Form**: structured data to be captured
@@ -166,11 +166,11 @@ The platform can be described using the following generic concepts:
 
 The current demo data model keeps the three main party types separate:
 
-- **Umbrella Organization**: `id`, `name`, and descriptive metadata
-- **Operational Participant**: `id`, `name`, and an `umbrellaOrganizationId` reference
-- **Interested Party**: `id` and `name`, referenced from an operational participant by `interestedPartyId`
+- **Authority**: `id`, `name`, and descriptive metadata
+- **Participant**: `id`, `name`, and an `authorityId` reference
+- **Stakeholder**: `id` and `name`, referenced from a participant by `stakeholderId`
 
-Relationships should be stored as dataless keys rather than embedded display fields. For example, an operational participant references its umbrella organization by `umbrellaOrganizationId`; the UI resolves that key when it needs a display name. The model should not use a generic `owner` field, because that blurs the difference between umbrella organizations, operational participants, interested parties, and task responsibility.
+Relationships should be stored as dataless keys rather than embedded display fields. For example, a participant references its authority by `authorityId`; the UI resolves that key when it needs a display name. The model should not use a generic `owner` field, because that blurs the difference between authorities, participants, stakeholders, and task responsibility.
 
 ---
 
@@ -203,9 +203,9 @@ This allows the platform to support different industries while retaining one com
 
 | Generic Concept | Plumbing / Electrical Firm | Nurse / Healthcare Visit | Council Permit Renewal |
 |---|---|---|---|
-| Umbrella Organization | Plumbing firm | NHS trust | Local council |
-| Operational Participant | Engineer or employee | Nurse or care worker | Resident / applicant / admin officer |
-| Interested Party | Customer | Patient / inspector | Usually none, or internal council reviewer |
+| Authority | Plumbing firm | NHS trust | Local council |
+| Participant | Engineer or employee | Nurse or care worker | Resident / applicant / admin officer |
+| Stakeholder | Customer / service recipient | Patient / inspector | Usually none, or internal council reviewer |
 | Case | Service visit | Patient visit | Permit renewal |
 | Evidence | Photos, work notes, signature | Assessment form, notes, care record | Vehicle documents, driving licence, proof of address, payment |
 | Workflow | Scheduled, completed, approved, invoiced | Scheduled, submitted, reviewed, closed | Draft, submitted, awaiting review, approved, rejected |
@@ -215,11 +215,11 @@ This allows the platform to support different industries while retaining one com
 
 ## Example: Plumbing or Electrical Firm
 
-The umbrella organization is the firm.
+The authority is the firm.
 
-Operational participants are the employees, contractors, or engineers who fulfil the tasks.
+Participants are the employees, contractors, or engineers who fulfil the tasks.
 
-Interested parties are the customers who want to verify that the service was completed and that all required work, photos, notes, and signatures are present.
+Stakeholders are the people or organizations who want to verify that the service was completed and that all required work, photos, notes, and signatures are present.
 
 Possible case type:
 
@@ -227,22 +227,22 @@ Possible case type:
 
 Required evidence:
 
-- Customer details
+- Stakeholder details
 - Job notes
 - Photos
 - Work completed checklist
-- Customer signature
+- Stakeholder signature
 - Invoice
 
 ---
 
 ## Example: Nurse or Healthcare Visit
 
-The umbrella organization is the NHS trust or healthcare provider.
+The authority is the NHS trust or healthcare provider.
 
-Operational participants are the nurses, care workers, admin staff, or inspectors.
+Participants are the nurses, care workers, admin staff, or inspectors.
 
-Interested parties may include patients, inspectors, family members, or internal reviewers, depending on the use case.
+Stakeholders may include patients, inspectors, family members, or internal reviewers, depending on the use case.
 
 Possible case type:
 
@@ -260,11 +260,11 @@ Required evidence:
 
 ## Example: Council Permit Renewal
 
-The umbrella organization is the council.
+The authority is the council.
 
-Operational participants include the residents who must complete the renewal duties and the council employees who administer or review the process.
+Participants include the residents who must complete the renewal duties and the council employees who administer or review the process.
 
-Interested parties may not exist in this scenario, unless an internal reviewer, auditor, or external authority needs visibility.
+Stakeholders may not exist in this scenario, unless an internal reviewer, auditor, or external authority needs visibility.
 
 Possible case type:
 
@@ -287,8 +287,8 @@ The system should not assume that:
 - cases are always created by staff
 - tasks are always completed by employees
 - evidence is always submitted by internal users
-- customers always exist
-- every case needs an interested party
+- stakeholders always exist
+- every case needs a stakeholder
 - every workflow ends in an invoice
 - every case represents an incident
 
@@ -303,8 +303,8 @@ This makes it possible to support service delivery, compliance, renewals, approv
 At a high level, the system can be thought of as:
 
 ```text
-Umbrella Organization
-  -> Operational Participants
+Authority
+  -> Participants
   -> Case Types
     -> Cases
       -> Participants
@@ -321,14 +321,14 @@ Umbrella Organization
 Or more compactly:
 
 ```text
-Umbrella Organization | Operational Participants | Case Type | Case | Forms | Tasks | Evidence | Workflow | Reports | Notifications | Integrations
+Authority | Participants | Case Type | Case | Forms | Tasks | Evidence | Workflow | Reports | Notifications | Integrations
 ```
 
 ---
 
 ## Long-Term Vision
 
-The long-term vision is to build a reusable configurable platform where umbrella organizations can define:
+The long-term vision is to build a reusable configurable platform where authorities can define:
 
 - their own case types
 - their own participant roles

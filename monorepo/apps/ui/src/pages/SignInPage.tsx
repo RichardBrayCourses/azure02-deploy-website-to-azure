@@ -2,80 +2,80 @@ import { USER_ROLES, UserRole, useAuth } from "@/context/AuthContext";
 import {
   type AuthenticatableUserMembership,
   getAuthenticatableUsersForEntity,
-  getOperationalParticipantsForUmbrellaOrganization,
-  umbrellaOrganizations,
+  getParticipantsForAuthority,
+  authorities,
 } from "@/data/console";
 import { cn } from "@/lib/utils";
 import { Building2, CheckCircle2, UserRoundCheck, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 
 const roleIcons = {
-  "umbrella-organization-admin": Building2,
-  "operational-participant": UsersRound,
-  "interested-party": UserRoundCheck,
+  "authority-admin": Building2,
+  "participant": UsersRound,
+  "stakeholder": UserRoundCheck,
 };
 
 export default function SignInPage() {
   const { login } = useAuth();
-  const [umbrellaOrganizationId, setUmbrellaOrganizationId] = useState<string | null>(null);
+  const [authorityId, setAuthorityId] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
-  const [operationalParticipantId, setOperationalParticipantId] = useState<string | null>(null);
+  const [participantId, setParticipantId] = useState<string | null>(null);
 
-  const operationalParticipants = useMemo(
-    () => getOperationalParticipantsForUmbrellaOrganization(umbrellaOrganizationId ?? undefined),
-    [umbrellaOrganizationId],
+  const participants = useMemo(
+    () => getParticipantsForAuthority(authorityId ?? undefined),
+    [authorityId],
   );
-  const requiresOperationalParticipant = role === "operational-participant" || role === "interested-party";
-  const step = !umbrellaOrganizationId ? 1 : !role ? 2 : requiresOperationalParticipant && !operationalParticipantId ? 3 : 4;
-  const selectedUmbrellaOrganization = umbrellaOrganizations.find((organization) => organization.id === umbrellaOrganizationId);
-  const selectedParticipant = operationalParticipants.find((participant) => participant.id === operationalParticipantId);
+  const requiresParticipant = role === "participant" || role === "stakeholder";
+  const step = !authorityId ? 1 : !role ? 2 : requiresParticipant && !participantId ? 3 : 4;
+  const selectedAuthority = authorities.find((organization) => organization.id === authorityId);
+  const selectedParticipant = participants.find((participant) => participant.id === participantId);
   const selectedMembership: AuthenticatableUserMembership | null =
-    !umbrellaOrganizationId || !role
+    !authorityId || !role
       ? null
-      : role === "umbrella-organization-admin"
-        ? { entityType: "umbrella-organization", entityId: umbrellaOrganizationId }
+      : role === "authority-admin"
+        ? { entityType: "authority", entityId: authorityId }
         : !selectedParticipant
           ? null
-          : role === "operational-participant"
-            ? { entityType: "operational-participant", entityId: selectedParticipant.id }
-            : { entityType: "interested-party", entityId: selectedParticipant.interestedPartyId };
+          : role === "participant"
+            ? { entityType: "participant", entityId: selectedParticipant.id }
+            : { entityType: "stakeholder", entityId: selectedParticipant.stakeholderId };
   const authenticatableUsers = getAuthenticatableUsersForEntity(selectedMembership);
 
-  function selectUmbrellaOrganization(id: string) {
-    setUmbrellaOrganizationId(id);
+  function selectAuthority(id: string) {
+    setAuthorityId(id);
     setRole(null);
-    setOperationalParticipantId(null);
+    setParticipantId(null);
   }
 
   function selectRole(nextRole: UserRole) {
     setRole(nextRole);
-    setOperationalParticipantId(null);
+    setParticipantId(null);
   }
 
-  function changeUmbrellaOrganization() {
-    setUmbrellaOrganizationId(null);
+  function changeAuthority() {
+    setAuthorityId(null);
     setRole(null);
-    setOperationalParticipantId(null);
+    setParticipantId(null);
   }
 
   function changeRole() {
     setRole(null);
-    setOperationalParticipantId(null);
+    setParticipantId(null);
   }
 
-  function changeOperationalParticipant() {
-    setOperationalParticipantId(null);
+  function changeParticipant() {
+    setParticipantId(null);
   }
 
   function submit(authenticatableUser: (typeof authenticatableUsers)[number]) {
-    if (!umbrellaOrganizationId || !role || !selectedMembership) return;
+    if (!authorityId || !role || !selectedMembership) return;
     login({
       authenticatableUserId: authenticatableUser.id,
       name: authenticatableUser.name,
       email: authenticatableUser.email,
-      umbrellaOrganizationId,
+      authorityId,
       role,
-      operationalParticipantId: role === "umbrella-organization-admin" ? null : operationalParticipantId,
+      participantId: role === "authority-admin" ? null : participantId,
     });
   }
 
@@ -93,7 +93,7 @@ export default function SignInPage() {
         <section className="grid gap-6 lg:grid-cols-[minmax(20rem,32rem)_22rem]">
           <div className="border border-[#b1b4b6] bg-white p-4 dark:bg-card">
             <div className="mb-4 flex flex-wrap gap-2 text-xs font-bold">
-              {["Umbrella organization", "Role", "Operational participant"].map((label, index) => {
+              {["Authority", "Role", "Participant"].map((label, index) => {
                 const active = step === index + 1;
                 const done = step > index + 1;
                 return (
@@ -115,24 +115,24 @@ export default function SignInPage() {
 
             <div className="grid gap-5">
               <div>
-                <h2 className="text-base font-bold">Which umbrella organization are you interested in?</h2>
-                {selectedUmbrellaOrganization ? (
+                <h2 className="text-base font-bold">Which authority do you want to sign in under?</h2>
+                {selectedAuthority ? (
                   <div className="mt-2 flex items-center justify-between gap-3 border border-[#00703c] bg-[#eaf7ef] p-2">
                     <div>
-                      <span className="block text-sm font-bold text-[#00703c]">{selectedUmbrellaOrganization.name}</span>
-                      <span className="block text-xs text-[#505a5f]">{selectedUmbrellaOrganization.scenario}</span>
+                      <span className="block text-sm font-bold text-[#00703c]">{selectedAuthority.name}</span>
+                      <span className="block text-xs text-[#505a5f]">{selectedAuthority.scenario}</span>
                     </div>
-                    <button className="text-xs font-bold text-[#1d70b8] hover:underline" type="button" onClick={changeUmbrellaOrganization}>
+                    <button className="text-xs font-bold text-[#1d70b8] hover:underline" type="button" onClick={changeAuthority}>
                       Change
                     </button>
                   </div>
                 ) : (
                   <div className="mt-3 grid gap-2">
-                    {umbrellaOrganizations.map((organization) => (
+                    {authorities.map((organization) => (
                       <button
                         key={organization.id}
                         type="button"
-                        onClick={() => selectUmbrellaOrganization(organization.id)}
+                        onClick={() => selectAuthority(organization.id)}
                         className="border border-[#b1b4b6] bg-[#f8f8f8] p-3 text-left hover:border-[#1d70b8] dark:bg-background"
                       >
                         <span className="block text-sm font-bold text-[#1d70b8]">{organization.name}</span>
@@ -146,7 +146,7 @@ export default function SignInPage() {
                 )}
               </div>
 
-              {umbrellaOrganizationId && (
+              {authorityId && (
                 <div>
                   <h2 className="text-base font-bold">Are you signing in as?</h2>
                   {role ? (
@@ -180,12 +180,12 @@ export default function SignInPage() {
                 </div>
               )}
 
-              {requiresOperationalParticipant && (
+              {requiresParticipant && (
                 <div>
                   <h2 className="text-base font-bold">
-                    {role === "operational-participant"
-                      ? "Which operational participant are you?"
-                      : "Which operational participant are you interested in?"}
+                    {role === "participant"
+                      ? "Which participant are you?"
+                      : "Which participant do you want to view?"}
                   </h2>
                   {selectedParticipant ? (
                     <div className="mt-2 flex items-center justify-between gap-3 border border-[#00703c] bg-[#eaf7ef] p-2">
@@ -193,23 +193,23 @@ export default function SignInPage() {
                         <span className="block text-sm font-bold text-[#00703c]">{selectedParticipant.name}</span>
                         <span className="block text-xs text-[#505a5f]">{selectedParticipant.type}</span>
                       </div>
-                      <button className="text-xs font-bold text-[#1d70b8] hover:underline" type="button" onClick={changeOperationalParticipant}>
+                      <button className="text-xs font-bold text-[#1d70b8] hover:underline" type="button" onClick={changeParticipant}>
                         Change
                       </button>
                     </div>
                   ) : (
                     <div className="mt-3 grid gap-2">
-                      {operationalParticipants.map((participant) => (
+                      {participants.map((participant) => (
                         <button
                           key={participant.id}
                           type="button"
-                          onClick={() => setOperationalParticipantId(participant.id)}
+                          onClick={() => setParticipantId(participant.id)}
                           className="border border-[#b1b4b6] bg-[#f8f8f8] p-3 text-left hover:border-[#1d70b8] dark:bg-background"
                         >
                           <span className="block text-sm font-bold text-[#1d70b8]">{participant.name}</span>
                           <span className="mt-1 block text-xs font-bold">{participant.type}</span>
                           <span className="mt-1 block text-xs leading-5 text-[#505a5f] dark:text-muted-foreground">
-                            {participant.operationalRole}
+                            {participant.participantRole}
                           </span>
                         </button>
                       ))}

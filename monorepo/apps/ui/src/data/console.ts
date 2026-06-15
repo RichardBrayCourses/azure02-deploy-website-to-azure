@@ -17,17 +17,17 @@ import {
 import type { AuthenticatedUser, UserRole } from "@/context/AuthContext";
 
 export type Status = "complete" | "in-progress" | "attention" | "not-started";
-export type UmbrellaOrganizationId = string;
-export type OperationalParticipantId = string;
-export type InterestedPartyId = string;
+export type AuthorityId = string;
+export type ParticipantId = string;
+export type StakeholderId = string;
 export type AuthenticatableUserId = string;
 export type AuthenticatableUserMembership =
-  | { entityType: "umbrella-organization"; entityId: UmbrellaOrganizationId }
-  | { entityType: "operational-participant"; entityId: OperationalParticipantId }
-  | { entityType: "interested-party"; entityId: InterestedPartyId };
+  | { entityType: "authority"; entityId: AuthorityId }
+  | { entityType: "participant"; entityId: ParticipantId }
+  | { entityType: "stakeholder"; entityId: StakeholderId };
 
 export type ConsoleApp = {
-  id: "administration" | "case-management" | "verification-portal";
+  id: "administration" | "case-management" | "stakeholder-portal";
   name: string;
   shortName: string;
   description: string;
@@ -37,13 +37,13 @@ export type ConsoleApp = {
   audience: UserRole[];
 };
 
-export type OperationalParticipant = {
-  id: OperationalParticipantId;
+export type Participant = {
+  id: ParticipantId;
   name: string;
-  umbrellaOrganizationId: UmbrellaOrganizationId;
-  interestedPartyId: InterestedPartyId;
+  authorityId: AuthorityId;
+  stakeholderId: StakeholderId;
   type: string;
-  operationalRole: string;
+  participantRole: string;
   status: Status;
   openCases: number;
   completedTasks: number;
@@ -51,15 +51,15 @@ export type OperationalParticipant = {
   lastActivity: string;
 };
 
-export type UmbrellaOrganization = {
-  id: UmbrellaOrganizationId;
+export type Authority = {
+  id: AuthorityId;
   name: string;
   scenario: string;
   description: string;
 };
 
-export type InterestedParty = {
-  id: InterestedPartyId;
+export type Stakeholder = {
+  id: StakeholderId;
   name: string;
 };
 
@@ -83,7 +83,7 @@ export type Task = {
 export type CaseRecord = {
   id: string;
   title: string;
-  operationalParticipantId: OperationalParticipantId;
+  participantId: ParticipantId;
   reference: string;
   caseType: string;
   status: "open" | "closed" | "review";
@@ -109,10 +109,10 @@ export const consoleApps: ConsoleApp[] = [
     name: "Administration",
     shortName: "Admin",
     description: "Manage organizations, case types, roles, workflows, and review queues.",
-    path: "/admin/operational-participants",
+    path: "/admin/participants",
     accent: "bg-[#1d70b8]",
     Icon: Landmark,
-    audience: ["umbrella-organization-admin"],
+    audience: ["authority-admin"],
   },
   {
     id: "case-management",
@@ -122,32 +122,32 @@ export const consoleApps: ConsoleApp[] = [
     path: "/cases",
     accent: "bg-[#0078d4]",
     Icon: FolderKanban,
-    audience: ["umbrella-organization-admin", "operational-participant"],
+    audience: ["authority-admin", "participant"],
   },
   {
-    id: "verification-portal",
-    name: "Assurance Portal",
-    shortName: "Assure",
+    id: "stakeholder-portal",
+    name: "Stakeholder Portal",
+    shortName: "Stakeholders",
     description: "View case status, completed tasks, evidence summaries, and outcomes.",
-    path: "/verification",
+    path: "/stakeholder",
     accent: "bg-[#00703c]",
     Icon: BadgeCheck,
-    audience: ["interested-party"],
+    audience: ["stakeholder"],
   },
 ];
 
-export const umbrellaOrganizations: UmbrellaOrganization[] = [
+export const authorities: Authority[] = [
   {
     id: "northstar-association",
     name: "Northstar Trade Association",
-    scenario: "Trade association assurance",
-    description: "A master organization manages annual assurance cases for member IT platform providers.",
+    scenario: "Trade association verification",
+    description: "An authority manages annual verification cases for member IT platform providers.",
   },
   {
     id: "cobalt-home-services",
     name: "Cobalt Home Services",
     scenario: "Plumbing and electrical service visits",
-    description: "A firm assigns field engineers to service visits and exposes completed work to customers.",
+    description: "A firm assigns field engineers to service visits and exposes completed work to stakeholders.",
   },
   {
     id: "pinebridge-council",
@@ -157,14 +157,14 @@ export const umbrellaOrganizations: UmbrellaOrganization[] = [
   },
 ];
 
-export const interestedParties: InterestedParty[] = [
+export const stakeholders: Stakeholder[] = [
   {
-    id: "supplier-customers",
-    name: "Supplier customers",
+    id: "supplier-stakeholders",
+    name: "Supplier stakeholders",
   },
   {
-    id: "household-customers",
-    name: "Household customers",
+    id: "household-stakeholders",
+    name: "Household stakeholders",
   },
   {
     id: "internal-compliance-team",
@@ -177,120 +177,120 @@ export const authenticatableUsers: AuthenticatableUser[] = [
     id: "user-jonathan-price",
     name: "Jonathan Price",
     email: "jonathan.price@northstar.example",
-    membership: { entityType: "umbrella-organization", entityId: "northstar-association" },
+    membership: { entityType: "authority", entityId: "northstar-association" },
   },
   {
     id: "user-amara-singh",
     name: "Amara Singh",
     email: "amara.singh@northstar.example",
-    membership: { entityType: "umbrella-organization", entityId: "northstar-association" },
+    membership: { entityType: "authority", entityId: "northstar-association" },
   },
   {
     id: "user-hannah-cole",
     name: "Hannah Cole",
     email: "hannah.cole@cobalt.example",
-    membership: { entityType: "umbrella-organization", entityId: "cobalt-home-services" },
+    membership: { entityType: "authority", entityId: "cobalt-home-services" },
   },
   {
     id: "user-marcus-hill",
     name: "Marcus Hill",
     email: "marcus.hill@cobalt.example",
-    membership: { entityType: "umbrella-organization", entityId: "cobalt-home-services" },
+    membership: { entityType: "authority", entityId: "cobalt-home-services" },
   },
   {
     id: "user-eleanor-brooks",
     name: "Eleanor Brooks",
     email: "eleanor.brooks@pinebridge.example",
-    membership: { entityType: "umbrella-organization", entityId: "pinebridge-council" },
+    membership: { entityType: "authority", entityId: "pinebridge-council" },
   },
   {
     id: "user-owen-clarke",
     name: "Owen Clarke",
     email: "owen.clarke@pinebridge.example",
-    membership: { entityType: "umbrella-organization", entityId: "pinebridge-council" },
+    membership: { entityType: "authority", entityId: "pinebridge-council" },
   },
   {
     id: "user-aisha-khan",
     name: "Aisha Khan",
     email: "aisha.khan@northstar-cloud.example",
-    membership: { entityType: "operational-participant", entityId: "northstar-cloud" },
+    membership: { entityType: "participant", entityId: "northstar-cloud" },
   },
   {
     id: "user-michael-reeves",
     name: "Michael Reeves",
     email: "michael.reeves@northstar-cloud.example",
-    membership: { entityType: "operational-participant", entityId: "northstar-cloud" },
+    membership: { entityType: "participant", entityId: "northstar-cloud" },
   },
   {
     id: "user-lewis-green",
     name: "Lewis Green",
     email: "lewis.green@cobalt-field.example",
-    membership: { entityType: "operational-participant", entityId: "cobalt-data" },
+    membership: { entityType: "participant", entityId: "cobalt-data" },
   },
   {
     id: "user-amelia-wright",
     name: "Amelia Wright",
     email: "amelia.wright@cobalt-field.example",
-    membership: { entityType: "operational-participant", entityId: "cobalt-data" },
+    membership: { entityType: "participant", entityId: "cobalt-data" },
   },
   {
     id: "user-margaret-jones",
     name: "Margaret Jones",
     email: "margaret.jones@example.net",
-    membership: { entityType: "operational-participant", entityId: "pinebridge-systems" },
+    membership: { entityType: "participant", entityId: "pinebridge-systems" },
   },
   {
     id: "user-david-jones",
     name: "David Jones",
     email: "david.jones@example.net",
-    membership: { entityType: "operational-participant", entityId: "pinebridge-systems" },
+    membership: { entityType: "participant", entityId: "pinebridge-systems" },
   },
   {
     id: "user-rachel-morgan",
     name: "Rachel Morgan",
-    email: "rachel.morgan@supplier-customer.example",
-    membership: { entityType: "interested-party", entityId: "supplier-customers" },
+    email: "rachel.morgan@supplier-stakeholder.example",
+    membership: { entityType: "stakeholder", entityId: "supplier-stakeholders" },
   },
   {
     id: "user-peter-walsh",
     name: "Peter Walsh",
-    email: "peter.walsh@supplier-customer.example",
-    membership: { entityType: "interested-party", entityId: "supplier-customers" },
+    email: "peter.walsh@supplier-stakeholder.example",
+    membership: { entityType: "stakeholder", entityId: "supplier-stakeholders" },
   },
   {
     id: "user-sophie-turner",
     name: "Sophie Turner",
     email: "sophie.turner@household.example",
-    membership: { entityType: "interested-party", entityId: "household-customers" },
+    membership: { entityType: "stakeholder", entityId: "household-stakeholders" },
   },
   {
     id: "user-benjamin-foster",
     name: "Benjamin Foster",
     email: "benjamin.foster@household.example",
-    membership: { entityType: "interested-party", entityId: "household-customers" },
+    membership: { entityType: "stakeholder", entityId: "household-stakeholders" },
   },
   {
     id: "user-priya-shah",
     name: "Priya Shah",
     email: "priya.shah@pinebridge-compliance.example",
-    membership: { entityType: "interested-party", entityId: "internal-compliance-team" },
+    membership: { entityType: "stakeholder", entityId: "internal-compliance-team" },
   },
   {
     id: "user-george-evans",
     name: "George Evans",
     email: "george.evans@pinebridge-compliance.example",
-    membership: { entityType: "interested-party", entityId: "internal-compliance-team" },
+    membership: { entityType: "stakeholder", entityId: "internal-compliance-team" },
   },
 ];
 
-export const operationalParticipants: OperationalParticipant[] = [
+export const participants: Participant[] = [
   {
     id: "northstar-cloud",
-    umbrellaOrganizationId: "northstar-association",
-    interestedPartyId: "supplier-customers",
+    authorityId: "northstar-association",
+    stakeholderId: "supplier-stakeholders",
     name: "Northstar Cloud Platforms",
     type: "IT platform provider",
-    operationalRole: "Member provider administrators",
+    participantRole: "Member provider administrators",
     status: "in-progress",
     openCases: 1,
     completedTasks: 4,
@@ -299,11 +299,11 @@ export const operationalParticipants: OperationalParticipant[] = [
   },
   {
     id: "cobalt-data",
-    umbrellaOrganizationId: "cobalt-home-services",
-    interestedPartyId: "household-customers",
+    authorityId: "cobalt-home-services",
+    stakeholderId: "household-stakeholders",
     name: "Cobalt Field Engineering Team",
     type: "Operational team",
-    operationalRole: "Field engineers",
+    participantRole: "Field engineers",
     status: "attention",
     openCases: 1,
     completedTasks: 2,
@@ -312,11 +312,11 @@ export const operationalParticipants: OperationalParticipant[] = [
   },
   {
     id: "pinebridge-systems",
-    umbrellaOrganizationId: "pinebridge-council",
-    interestedPartyId: "internal-compliance-team",
+    authorityId: "pinebridge-council",
+    stakeholderId: "internal-compliance-team",
     name: "Mrs Jones",
     type: "Permit applicants",
-    operationalRole: "Residents and council reviewers",
+    participantRole: "Residents and council reviewers",
     status: "complete",
     openCases: 0,
     completedTasks: 3,
@@ -328,15 +328,15 @@ export const operationalParticipants: OperationalParticipant[] = [
 export const cases: CaseRecord[] = [
   {
     id: "case-2026-northstar",
-    title: "Provider annual assurance",
-    operationalParticipantId: "northstar-cloud",
+    title: "Provider annual verification",
+    participantId: "northstar-cloud",
     reference: "2026",
     caseType: "Annual compliance case",
     status: "open",
     completedTasks: 4,
     totalTasks: 7,
     risk: "medium",
-    outcome: "Provider can be shown as in progress to interested customers",
+    outcome: "Provider can be shown as in progress to stakeholders",
     lastActivity: "Photo identity evidence uploaded",
     tasks: [
       {
@@ -381,7 +381,7 @@ export const cases: CaseRecord[] = [
         type: "Three fixed questions",
         status: "complete",
         due: "16 Jun 2026",
-        description: "Answer the umbrella organization's fixed questions for this case type.",
+        description: "Answer the authority's fixed questions for this case type.",
         Icon: FileQuestion,
       },
       {
@@ -394,12 +394,12 @@ export const cases: CaseRecord[] = [
         Icon: ClipboardCheck,
       },
       {
-        id: "customer-preview",
-        title: "Interested party preview",
-        type: "Read-only assurance view",
+        id: "stakeholder-preview",
+        title: "Stakeholder preview",
+        type: "Read-only stakeholder view",
         status: "complete",
         due: "26 Jun 2026",
-        description: "Preview what interested parties can see about the case outcome.",
+        description: "Preview what stakeholders can see about the case outcome.",
         Icon: BadgeCheck,
       },
     ],
@@ -407,14 +407,14 @@ export const cases: CaseRecord[] = [
   {
     id: "case-2026-cobalt",
     title: "Emergency plumbing visit",
-    operationalParticipantId: "cobalt-data",
+    participantId: "cobalt-data",
     reference: "JOB-4821",
     caseType: "Service visit",
     status: "review",
     completedTasks: 2,
     totalTasks: 4,
     risk: "high",
-    outcome: "Customer confirmation is blocked until job evidence is complete",
+    outcome: "Stakeholder confirmation is blocked until job evidence is complete",
     lastActivity: "Reviewer requested completion photo resubmission",
     tasks: [
       {
@@ -423,7 +423,7 @@ export const cases: CaseRecord[] = [
         type: "GPS evidence",
         status: "complete",
         due: "15 Jun 2026",
-        description: "Record visit arrival time and location for the customer service record.",
+        description: "Record visit arrival time and location for the stakeholder service record.",
         Icon: Landmark,
       },
       {
@@ -436,12 +436,12 @@ export const cases: CaseRecord[] = [
         Icon: ImageUp,
       },
       {
-        id: "customer-signature",
-        title: "Customer sign-off",
+        id: "stakeholder-signature",
+        title: "Stakeholder sign-off",
         type: "Digital signature",
         status: "in-progress",
         due: "15 Jun 2026",
-        description: "Collect a signature from the customer confirming the visit outcome.",
+        description: "Collect a signature from the stakeholder confirming the visit outcome.",
         Icon: FileSignature,
       },
       {
@@ -458,7 +458,7 @@ export const cases: CaseRecord[] = [
   {
     id: "case-2025-pinebridge",
     title: "Resident permit renewal",
-    operationalParticipantId: "pinebridge-systems",
+    participantId: "pinebridge-systems",
     reference: "PERMIT-2026",
     caseType: "Annual permit renewal",
     status: "closed",
@@ -500,7 +500,7 @@ export const cases: CaseRecord[] = [
 ];
 
 export const adminResources = [
-  { name: "Operational participants", path: "/admin/operational-participants", Icon: Building2, count: "3 examples" },
+  { name: "Participants", path: "/admin/participants", Icon: Building2, count: "3 examples" },
   { name: "Case types", path: "/admin/case-types", Icon: ShieldCheck, count: "3 configured" },
   { name: "Task templates", path: "/admin/task-templates", Icon: ClipboardCheck, count: "14 tasks" },
   { name: "Users and roles", path: "/admin/users", Icon: Users, count: "18 users" },
@@ -514,21 +514,21 @@ export const searchItems: SearchItem[] = [
     group: "Apps",
     audience: app.audience,
   })),
-  ...operationalParticipants.map((operationalParticipant) => ({
-    title: operationalParticipant.name,
-    description: `${operationalParticipant.type} - ${operationalParticipant.openCases} open case`,
-    path: `/admin/operational-participants/${operationalParticipant.id}`,
-    group: "Operational participants",
-    audience: ["umbrella-organization-admin", "interested-party"] as UserRole[],
+  ...participants.map((participant) => ({
+    title: participant.name,
+    description: `${participant.type} - ${participant.openCases} open case`,
+    path: `/admin/participants/${participant.id}`,
+    group: "Participants",
+    audience: ["authority-admin", "stakeholder"] as UserRole[],
   })),
   ...cases.map((caseRecord) => {
-    const operationalParticipant = operationalParticipants.find((item) => item.id === caseRecord.operationalParticipantId);
+    const participant = participants.find((item) => item.id === caseRecord.participantId);
     return {
-      title: `${caseRecord.title} - ${operationalParticipant?.name ?? "Unknown operational participant"}`,
+      title: `${caseRecord.title} - ${participant?.name ?? "Unknown participant"}`,
       description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} tasks complete`,
       path: `/cases/${caseRecord.id}`,
       group: "Cases",
-      audience: ["umbrella-organization-admin", "operational-participant"] as UserRole[],
+      audience: ["authority-admin", "participant"] as UserRole[],
     };
   }),
   ...cases.flatMap((caseRecord) => caseRecord.tasks.map((task) => ({
@@ -536,7 +536,7 @@ export const searchItems: SearchItem[] = [
     description: task.type,
     path: `/cases/${caseRecord.id}/tasks/${task.id}`,
     group: "Tasks",
-    audience: ["umbrella-organization-admin", "operational-participant"] as UserRole[],
+    audience: ["authority-admin", "participant"] as UserRole[],
   }))),
 ];
 
@@ -545,21 +545,21 @@ export function getConsoleAppsForRole(role: UserRole) {
 }
 
 export function getDefaultConsolePath(role: UserRole) {
-  if (role === "interested-party") return "/verification";
-  if (role === "umbrella-organization-admin") return "/admin/operational-participants";
+  if (role === "stakeholder") return "/stakeholder";
+  if (role === "authority-admin") return "/admin/participants";
   return "/cases";
 }
 
 export function getSearchItemsForUser(user: AuthenticatedUser) {
-  const scopedOperationalParticipants = getScopedOperationalParticipants(user);
+  const scopedParticipants = getScopedParticipants(user);
   const scopedCases = getScopedCases(user);
-  const scopedOperationalParticipantIds = new Set(scopedOperationalParticipants.map((operationalParticipant) => operationalParticipant.id));
+  const scopedParticipantIds = new Set(scopedParticipants.map((participant) => participant.id));
   const scopedCaseIds = new Set(scopedCases.map((caseRecord) => caseRecord.id));
 
   return searchItems.filter((item) => {
     if (!item.audience.includes(user.role)) return false;
-    if (item.group === "Operational participants") {
-      return scopedOperationalParticipants.some((operationalParticipant) => item.path.endsWith(operationalParticipant.id));
+    if (item.group === "Participants") {
+      return scopedParticipants.some((participant) => item.path.endsWith(participant.id));
     }
     if (item.group === "Cases") {
       return scopedCases.some((caseRecord) => item.path.endsWith(caseRecord.id));
@@ -568,19 +568,19 @@ export function getSearchItemsForUser(user: AuthenticatedUser) {
       return scopedCaseIds.has(item.path.split("/")[2] ?? "");
     }
     return true;
-  }).filter((item) => item.group !== "Operational participants" || scopedOperationalParticipantIds.size > 0);
+  }).filter((item) => item.group !== "Participants" || scopedParticipantIds.size > 0);
 }
 
-export function getOperationalParticipant(id: string | undefined) {
-  return operationalParticipants.find((operationalParticipant) => operationalParticipant.id === id);
+export function getParticipant(id: string | undefined) {
+  return participants.find((participant) => participant.id === id);
 }
 
-export function getUmbrellaOrganization(id: string | undefined) {
-  return umbrellaOrganizations.find((organization) => organization.id === id);
+export function getAuthority(id: string | undefined) {
+  return authorities.find((organization) => organization.id === id);
 }
 
-export function getInterestedParty(id: string | undefined) {
-  return interestedParties.find((interestedParty) => interestedParty.id === id);
+export function getStakeholder(id: string | undefined) {
+  return stakeholders.find((stakeholder) => stakeholder.id === id);
 }
 
 export function getAuthenticatableUsersForEntity(membership: AuthenticatableUserMembership | null) {
@@ -592,20 +592,20 @@ export function getAuthenticatableUsersForEntity(membership: AuthenticatableUser
   );
 }
 
-export function getOperationalParticipantsForUmbrellaOrganization(umbrellaOrganizationId: string | undefined) {
-  return operationalParticipants.filter((operationalParticipant) => operationalParticipant.umbrellaOrganizationId === umbrellaOrganizationId);
+export function getParticipantsForAuthority(authorityId: string | undefined) {
+  return participants.filter((participant) => participant.authorityId === authorityId);
 }
 
-export function getScopedOperationalParticipants(user: AuthenticatedUser) {
-  if (!user.umbrellaOrganizationId) return [];
-  const organizationOperationalParticipants = getOperationalParticipantsForUmbrellaOrganization(user.umbrellaOrganizationId);
-  if (user.role === "umbrella-organization-admin") return organizationOperationalParticipants;
-  return organizationOperationalParticipants.filter((operationalParticipant) => operationalParticipant.id === user.operationalParticipantId);
+export function getScopedParticipants(user: AuthenticatedUser) {
+  if (!user.authorityId) return [];
+  const organizationParticipants = getParticipantsForAuthority(user.authorityId);
+  if (user.role === "authority-admin") return organizationParticipants;
+  return organizationParticipants.filter((participant) => participant.id === user.participantId);
 }
 
 export function getScopedCases(user: AuthenticatedUser) {
-  const scopedOperationalParticipantIds = new Set(getScopedOperationalParticipants(user).map((operationalParticipant) => operationalParticipant.id));
-  return cases.filter((caseRecord) => scopedOperationalParticipantIds.has(caseRecord.operationalParticipantId));
+  const scopedParticipantIds = new Set(getScopedParticipants(user).map((participant) => participant.id));
+  return cases.filter((caseRecord) => scopedParticipantIds.has(caseRecord.participantId));
 }
 
 export function getCase(id: string | undefined) {

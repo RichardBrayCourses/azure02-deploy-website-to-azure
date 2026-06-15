@@ -7,11 +7,11 @@ import {
   CaseDetailPage,
   CaseManagementHome,
   TaskDetailPage,
-  OperationalParticipantsPage,
-  OperationalParticipantDetailPage,
+  ParticipantsPage,
+  ParticipantDetailPage,
   PlaceholderResourcePage,
-  VerificationCaseDetailPage,
-  VerificationPortalPage,
+  StakeholderCaseDetailPage,
+  StakeholderPortalPage,
 } from "./pages/ConsolePages";
 import NotFound from "./pages/NotFound";
 import SignInPage from "./pages/SignInPage";
@@ -31,9 +31,9 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Navigate to={getDefaultConsolePath(user.role)} replace />} />
 
-        <Route path="/admin" element={<Navigate to="/admin/operational-participants" replace />} />
-        <Route path="/admin/operational-participants" element={<OperationalParticipantsPage />} />
-        <Route path="/admin/operational-participants/:operationalParticipantId" element={<OperationalParticipantDetailPage />} />
+        <Route path="/admin" element={<Navigate to="/admin/participants" replace />} />
+        <Route path="/admin/participants" element={<ParticipantsPage />} />
+        <Route path="/admin/participants/:participantId" element={<ParticipantDetailPage />} />
         <Route path="/admin/case-types" element={<PlaceholderResourcePage app="admin" />} />
         <Route path="/admin/task-templates" element={<PlaceholderResourcePage app="admin" />} />
         <Route path="/admin/users" element={<PlaceholderResourcePage app="admin" />} />
@@ -43,9 +43,9 @@ const AppContent = () => {
         <Route path="/cases/:caseId/tasks/:taskId" element={<TaskDetailPage />} />
         <Route path="/cases/tasks" element={<PlaceholderResourcePage app="cases" />} />
         <Route path="/cases/evidence" element={<PlaceholderResourcePage app="cases" />} />
-        <Route path="/cases/customer-preview" element={<PlaceholderResourcePage app="cases" />} />
-        <Route path="/verification" element={<VerificationPortalPage />} />
-        <Route path="/verification/:caseId" element={<VerificationCaseDetailPage />} />
+        <Route path="/cases/stakeholder-preview" element={<PlaceholderResourcePage app="cases" />} />
+        <Route path="/stakeholder" element={<StakeholderPortalPage />} />
+        <Route path="/stakeholder/:caseId" element={<StakeholderCaseDetailPage />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -16,37 +16,37 @@ export type AuthenticatedUser = {
   name: string | null;
   email: string | null;
   role: UserRole;
-  umbrellaOrganizationId: string | null;
-  operationalParticipantId: string | null;
+  authorityId: string | null;
+  participantId: string | null;
 };
 
-export type UserRole = "umbrella-organization-admin" | "operational-participant" | "interested-party";
-type StoredUserRole = UserRole | "owning-organisation-admin";
+export type UserRole = "authority-admin" | "participant" | "stakeholder";
+type StoredUserRole = UserRole | "authority-admin";
 type StoredUser = Partial<Omit<AuthenticatedUser, "role">> & {
   role?: StoredUserRole;
-  owningOrganisationId?: string | null;
+  authorityId?: string | null;
 };
 
 export const USER_ROLES: Array<{ id: UserRole; label: string; description: string }> = [
   {
-    id: "umbrella-organization-admin",
-    label: "Umbrella organization",
+    id: "authority-admin",
+    label: "Authority",
     description: "Configure case types, roles, workflow, and review",
   },
   {
-    id: "operational-participant",
-    label: "Operational participant",
+    id: "participant",
+    label: "Participant",
     description: "Complete tasks, submit forms, and upload evidence",
   },
   {
-    id: "interested-party",
-    label: "Interested party",
+    id: "stakeholder",
+    label: "Stakeholder",
     description: "Read-only assurance, status, and outcome visibility",
   },
 ];
 
 export function getUserRoleLabel(role: UserRole) {
-  return USER_ROLES.find((item) => item.id === role)?.label ?? "Umbrella organization";
+  return USER_ROLES.find((item) => item.id === role)?.label ?? "Authority";
 }
 
 ////////////////////////////////////
@@ -58,9 +58,9 @@ const LOGGED_IN_USER = {
   authenticatableUserId: null,
   name: null,
   email: null,
-  role: "umbrella-organization-admin" as UserRole,
-  umbrellaOrganizationId: null,
-  operationalParticipantId: null,
+  role: "authority-admin" as UserRole,
+  authorityId: null,
+  participantId: null,
 };
 
 const LOGGED_OUT_USER = {
@@ -68,9 +68,9 @@ const LOGGED_OUT_USER = {
   authenticatableUserId: null,
   name: null,
   email: null,
-  role: "umbrella-organization-admin" as UserRole,
-  umbrellaOrganizationId: null,
-  operationalParticipantId: null,
+  role: "authority-admin" as UserRole,
+  authorityId: null,
+  participantId: null,
 };
 
 /////////////
@@ -84,9 +84,9 @@ export type SignInSelection = {
   authenticatableUserId: string;
   name: string;
   email: string;
-  umbrellaOrganizationId: string;
+  authorityId: string;
   role: UserRole;
-  operationalParticipantId: string | null;
+  participantId: string | null;
 };
 
 interface AuthContextValue extends AuthContextData {
@@ -107,8 +107,8 @@ export function useAuth() {
 }
 
 function normalizeRole(role: StoredUserRole | undefined): UserRole {
-  if (role === "owning-organisation-admin") return "umbrella-organization-admin";
-  return role ?? "umbrella-organization-admin";
+  if (role === "authority-admin") return "authority-admin";
+  return role ?? "authority-admin";
 }
 
 ////////////////////////
@@ -126,8 +126,8 @@ function loadContext(): AuthContextData {
     return { user: LOGGED_OUT_USER };
   } else {
     const storedUser = JSON.parse(storedData) as StoredUser;
-    const umbrellaOrganizationId = storedUser.umbrellaOrganizationId ?? storedUser.owningOrganisationId ?? null;
-    const isLoggedIn = Boolean(storedUser.isLoggedIn && umbrellaOrganizationId && storedUser.authenticatableUserId);
+    const authorityId = storedUser.authorityId ?? storedUser.authorityId ?? null;
+    const isLoggedIn = Boolean(storedUser.isLoggedIn && authorityId && storedUser.authenticatableUserId);
     return {
       user: {
         isLoggedIn,
@@ -135,8 +135,8 @@ function loadContext(): AuthContextData {
         name: isLoggedIn ? storedUser.name ?? null : null,
         email: isLoggedIn ? storedUser.email ?? null : null,
         role: normalizeRole(storedUser.role),
-        umbrellaOrganizationId: isLoggedIn ? umbrellaOrganizationId : null,
-        operationalParticipantId: isLoggedIn ? storedUser.operationalParticipantId ?? null : null,
+        authorityId: isLoggedIn ? authorityId : null,
+        participantId: isLoggedIn ? storedUser.participantId ?? null : null,
       },
     };
   }
@@ -164,9 +164,9 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       name: selection.name,
       email: selection.email,
       role: selection.role,
-      umbrellaOrganizationId: selection.umbrellaOrganizationId,
-      operationalParticipantId:
-        selection.role === "umbrella-organization-admin" ? null : selection.operationalParticipantId,
+      authorityId: selection.authorityId,
+      participantId:
+        selection.role === "authority-admin" ? null : selection.participantId,
     });
 
   const logout = () => setUser(LOGGED_OUT_USER);

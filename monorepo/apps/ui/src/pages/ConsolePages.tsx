@@ -5,11 +5,11 @@ import {
   adminResources,
   getCase,
   getTask,
-  getInterestedParty,
-  getOperationalParticipant,
-  getUmbrellaOrganization,
+  getStakeholder,
+  getParticipant,
+  getAuthority,
   getScopedCases,
-  getScopedOperationalParticipants,
+  getScopedParticipants,
   Status,
 } from "@/data/console";
 import { cn } from "@/lib/utils";
@@ -86,22 +86,22 @@ function ResourceTable({
   );
 }
 
-export function VerificationPortalPage() {
+export function StakeholderPortalPage() {
   const { user } = useAuth();
-  if (user.role !== "interested-party") return <Navigate to="/" replace />;
-  const scopedOperationalParticipants = getScopedOperationalParticipants(user);
+  if (user.role !== "stakeholder") return <Navigate to="/" replace />;
+  const scopedParticipants = getScopedParticipants(user);
   const scopedCases = getScopedCases(user);
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
 
   return (
     <ConsoleLayout
-      breadcrumbs={[{ label: "Assurance Portal" }]}
+      breadcrumbs={[{ label: "Stakeholder Portal" }]}
       readOnly
     >
       <PageTitle
-        eyebrow="Interested party"
-        title="Case assurance"
+        eyebrow="Stakeholder"
+        title="Case visibility"
         description="Read-only status and outcome visibility for cases you are allowed to inspect."
       />
       <MetricStrip
@@ -115,21 +115,21 @@ export function VerificationPortalPage() {
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Visible case status</h3>
         <ResourceTable headings={["Organization", "Visible case", "Status", "Tasks", "Visible outcome"]}>
-          {scopedOperationalParticipants.map((operationalParticipant) => {
-            const interestedParty = getInterestedParty(operationalParticipant.interestedPartyId);
-            const visibleCase = scopedCases.find((caseRecord) => caseRecord.operationalParticipantId === operationalParticipant.id);
+          {scopedParticipants.map((participant) => {
+            const stakeholder = getStakeholder(participant.stakeholderId);
+            const visibleCase = scopedCases.find((caseRecord) => caseRecord.participantId === participant.id);
             return (
-              <tr key={operationalParticipant.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
-                  <span className="font-bold text-[#1d70b8]">{operationalParticipant.name}</span>
+                  <span className="font-bold text-[#1d70b8]">{participant.name}</span>
                   <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                    {interestedParty?.name}
+                    {stakeholder?.name}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   {visibleCase ? (
                     <>
-                      <Link className="font-bold text-[#1d70b8] hover:underline" to={`/verification/${visibleCase.id}`}>
+                      <Link className="font-bold text-[#1d70b8] hover:underline" to={`/stakeholder/${visibleCase.id}`}>
                         {visibleCase.title}
                       </Link>
                       <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
@@ -140,12 +140,12 @@ export function VerificationPortalPage() {
                     "No visible case"
                   )}
                 </td>
-                <td className="px-4 py-3"><StatusBadge status={operationalParticipant.status} /></td>
-                <td className="px-4 py-3"><ProgressBar value={operationalParticipant.completedTasks} total={operationalParticipant.totalTasks} /></td>
+                <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
+                <td className="px-4 py-3"><ProgressBar value={participant.completedTasks} total={participant.totalTasks} /></td>
                 <td className="px-4 py-3">
-                  {operationalParticipant.status === "complete"
+                  {participant.status === "complete"
                     ? "Approved"
-                    : operationalParticipant.status === "attention"
+                    : participant.status === "attention"
                       ? "More evidence requested"
                       : "Case in progress"}
                 </td>
@@ -161,29 +161,29 @@ export function VerificationPortalPage() {
   );
 }
 
-export function VerificationCaseDetailPage() {
+export function StakeholderCaseDetailPage() {
   const { user } = useAuth();
-  if (user.role !== "interested-party") return <Navigate to="/" replace />;
+  if (user.role !== "stakeholder") return <Navigate to="/" replace />;
   const { caseId } = useParams();
   const caseRecord = getCase(caseId);
-  if (!caseRecord) return <Navigate to="/verification" replace />;
+  if (!caseRecord) return <Navigate to="/stakeholder" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
-  if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/verification" replace />;
+  if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/stakeholder" replace />;
 
-  const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
+  const participant = getParticipant(caseRecord.participantId);
 
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: "Assurance Portal", path: "/verification" },
-        { label: `${operationalParticipant?.name ?? "Organization"} ${caseRecord.reference}` },
+        { label: "Stakeholder Portal", path: "/stakeholder" },
+        { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}` },
       ]}
       readOnly
     >
       <PageTitle
         eyebrow="Read-only case"
         title={caseRecord.title}
-        description={`${operationalParticipant?.name ?? "Unknown organization"} ${caseRecord.caseType.toLowerCase()} status, task completion, and visible outcome.`}
+        description={`${participant?.name ?? "Unknown organization"} ${caseRecord.caseType.toLowerCase()} status, task completion, and visible outcome.`}
       />
       <MetricStrip
         items={[
@@ -217,7 +217,7 @@ export function VerificationCaseDetailPage() {
 
 export function AdminHome() {
   const { user } = useAuth();
-  if (user.role !== "umbrella-organization-admin") return <Navigate to="/" replace />;
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
 
   return (
     <ConsoleLayout
@@ -230,7 +230,7 @@ export function AdminHome() {
       <PageTitle
         eyebrow="Administration"
         title="Platform configuration"
-        description="Configure case types, operational participant roles, task templates, and access to the management console."
+        description="Configure case types, participant roles, task templates, and access to the management console."
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {adminResources.map((resource) => {
@@ -252,10 +252,10 @@ export function AdminHome() {
   );
 }
 
-export function OperationalParticipantsPage() {
+export function ParticipantsPage() {
   const { user } = useAuth();
-  if (user.role !== "umbrella-organization-admin") return <Navigate to="/" replace />;
-  const scopedOperationalParticipants = getScopedOperationalParticipants(user);
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const scopedParticipants = getScopedParticipants(user);
 
   return (
     <ConsoleLayout
@@ -263,12 +263,12 @@ export function OperationalParticipantsPage() {
       affirmativeActionLabel="Update"
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
-      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Operational participants" }]}
+      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Participants" }]}
     >
       <PageTitle
         eyebrow="Resource list"
-        title="Operational participants"
-        description="Select an operational participant to review organization links, cases, participant roles, status, and audit activity."
+        title="Participants"
+        description="Select a participant to review organization links, cases, participant roles, status, and audit activity."
         actions={
           <Button>
             <Plus />
@@ -276,22 +276,22 @@ export function OperationalParticipantsPage() {
           </Button>
         }
       />
-      <ResourceTable headings={["Operational participant", "Type", "Status", "Open cases", "Progress", "Last activity"]}>
-        {scopedOperationalParticipants.map((operationalParticipant) => (
-          <tr key={operationalParticipant.id} className="border-b border-[#b1b4b6] last:border-b-0">
+      <ResourceTable headings={["Participant", "Type", "Status", "Open cases", "Progress", "Last activity"]}>
+        {scopedParticipants.map((participant) => (
+          <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
-              <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/operational-participants/${operationalParticipant.id}`}>
-                {operationalParticipant.name}
+              <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/participants/${participant.id}`}>
+                {participant.name}
               </Link>
               <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                Role: {operationalParticipant.operationalRole}
+                Role: {participant.participantRole}
               </span>
             </td>
-            <td className="px-4 py-3">{operationalParticipant.type}</td>
-            <td className="px-4 py-3"><StatusBadge status={operationalParticipant.status} /></td>
-            <td className="px-4 py-3">{operationalParticipant.openCases}</td>
-            <td className="px-4 py-3"><ProgressBar value={operationalParticipant.completedTasks} total={operationalParticipant.totalTasks} /></td>
-            <td className="px-4 py-3">{operationalParticipant.lastActivity}</td>
+            <td className="px-4 py-3">{participant.type}</td>
+            <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
+            <td className="px-4 py-3">{participant.openCases}</td>
+            <td className="px-4 py-3"><ProgressBar value={participant.completedTasks} total={participant.totalTasks} /></td>
+            <td className="px-4 py-3">{participant.lastActivity}</td>
           </tr>
         ))}
       </ResourceTable>
@@ -299,17 +299,17 @@ export function OperationalParticipantsPage() {
   );
 }
 
-export function OperationalParticipantDetailPage() {
+export function ParticipantDetailPage() {
   const { user } = useAuth();
-  if (user.role !== "umbrella-organization-admin") return <Navigate to="/" replace />;
-  const { operationalParticipantId } = useParams();
-  const operationalParticipant = getOperationalParticipant(operationalParticipantId);
-  if (!operationalParticipant) return <Navigate to="/admin/operational-participants" replace />;
-  const scopedOperationalParticipantIds = new Set(getScopedOperationalParticipants(user).map((item) => item.id));
-  if (!scopedOperationalParticipantIds.has(operationalParticipant.id)) return <Navigate to="/admin/operational-participants" replace />;
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const { participantId } = useParams();
+  const participant = getParticipant(participantId);
+  if (!participant) return <Navigate to="/admin/participants" replace />;
+  const scopedParticipantIds = new Set(getScopedParticipants(user).map((item) => item.id));
+  if (!scopedParticipantIds.has(participant.id)) return <Navigate to="/admin/participants" replace />;
 
-  const participantCases = getScopedCases(user).filter((caseRecord) => caseRecord.operationalParticipantId === operationalParticipant.id);
-  const interestedParty = getInterestedParty(operationalParticipant.interestedPartyId);
+  const participantCases = getScopedCases(user).filter((caseRecord) => caseRecord.participantId === participant.id);
+  const stakeholder = getStakeholder(participant.stakeholderId);
 
   return (
     <ConsoleLayout
@@ -319,30 +319,30 @@ export function OperationalParticipantDetailPage() {
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[
         { label: "Administration", path: "/admin" },
-        { label: "Operational participants", path: "/admin/operational-participants" },
-        { label: operationalParticipant.name },
+        { label: "Participants", path: "/admin/participants" },
+        { label: participant.name },
       ]}
     >
       <PageTitle
-        eyebrow="Operational participant"
-        title={operationalParticipant.name}
-        description="Review organization links, participant roles, case progress, users, and audit activity for this operational participant."
+        eyebrow="Participant"
+        title={participant.name}
+        description="Review organization links, participant roles, case progress, users, and audit activity for this participant."
       />
       <Tabs
         current="Overview"
         tabs={[
-          { label: "Overview", path: `/admin/operational-participants/${operationalParticipant.id}` },
-          { label: "Participants", path: `/admin/operational-participants/${operationalParticipant.id}` },
-          { label: "Cases", path: `/admin/operational-participants/${operationalParticipant.id}` },
-          { label: "Audit", path: `/admin/operational-participants/${operationalParticipant.id}` },
+          { label: "Overview", path: `/admin/participants/${participant.id}` },
+          { label: "Participants", path: `/admin/participants/${participant.id}` },
+          { label: "Cases", path: `/admin/participants/${participant.id}` },
+          { label: "Audit", path: `/admin/participants/${participant.id}` },
         ]}
       />
       <MetricStrip
         items={[
-          { label: "Current status", value: operationalParticipant.status.replace("-", " "), tone: operationalParticipant.status === "attention" ? "red" : "blue" },
-          { label: "Open cases", value: String(operationalParticipant.openCases), tone: "blue" },
-          { label: "Tasks complete", value: `${operationalParticipant.completedTasks}/${operationalParticipant.totalTasks}`, tone: "green" },
-          { label: "Interested party", value: interestedParty?.name ?? "None", tone: "yellow" },
+          { label: "Current status", value: participant.status.replace("-", " "), tone: participant.status === "attention" ? "red" : "blue" },
+          { label: "Open cases", value: String(participant.openCases), tone: "blue" },
+          { label: "Tasks complete", value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
+          { label: "Stakeholder", value: stakeholder?.name ?? "None", tone: "yellow" },
         ]}
       />
       <section className="mt-8">
@@ -370,9 +370,9 @@ export function OperationalParticipantDetailPage() {
 
 export function CaseManagementHome() {
   const { user } = useAuth();
-  if (user.role === "interested-party") return <Navigate to="/verification" replace />;
-  const umbrellaOrganization = getUmbrellaOrganization(user.umbrellaOrganizationId ?? undefined);
-  const isUmbrellaAdmin = user.role === "umbrella-organization-admin";
+  if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
+  const authority = getAuthority(user.authorityId ?? undefined);
+  const isAuthorityAdmin = user.role === "authority-admin";
   const scopedCases = getScopedCases(user);
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
@@ -388,7 +388,7 @@ export function CaseManagementHome() {
       <PageTitle
         eyebrow="Case Management"
         title="Cases"
-        description="Configured case instances across service, compliance, renewal, and assurance workflows."
+        description="Configured case instances across service, compliance, renewal, and stakeholder visibility workflows."
         actions={
           <Button asChild>
             <Link to="/cases">
@@ -400,7 +400,7 @@ export function CaseManagementHome() {
       />
       <MetricStrip
         items={[
-          { label: "Umbrella organization", value: umbrellaOrganization?.name ?? "None", tone: "blue" },
+          { label: "Authority", value: authority?.name ?? "None", tone: "blue" },
           { label: "Cases", value: String(scopedCases.length), tone: "blue" },
           { label: "Completed tasks", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
           { label: "Blocked tasks", value: String(blockedTasks), tone: "red" },
@@ -409,13 +409,13 @@ export function CaseManagementHome() {
       <section className="mt-8">
         <ResourceTable
           headings={
-            isUmbrellaAdmin
-              ? ["Case", "Operational participant", "Type", "Status", "Progress", "Risk", "Last activity"]
+            isAuthorityAdmin
+              ? ["Case", "Participant", "Type", "Status", "Progress", "Risk", "Last activity"]
               : ["Case", "Type", "Status", "Progress", "Risk", "Last activity"]
           }
         >
           {scopedCases.map((caseRecord) => {
-            const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
+            const participant = getParticipant(caseRecord.participantId);
             return (
               <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
@@ -423,7 +423,7 @@ export function CaseManagementHome() {
                     {caseRecord.title}
                   </Link>
                 </td>
-                {isUmbrellaAdmin && <td className="px-4 py-3">{operationalParticipant?.name}</td>}
+                {isAuthorityAdmin && <td className="px-4 py-3">{participant?.name}</td>}
                 <td className="px-4 py-3">{caseRecord.caseType}</td>
                 <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
@@ -440,14 +440,14 @@ export function CaseManagementHome() {
 
 export function CaseDetailPage() {
   const { user } = useAuth();
-  if (user.role === "interested-party") return <Navigate to="/verification" replace />;
+  if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   const { caseId } = useParams();
   const caseRecord = getCase(caseId);
   if (!caseRecord) return <Navigate to="/cases" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
   if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/cases" replace />;
 
-  const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
+  const participant = getParticipant(caseRecord.participantId);
   const tasks = caseRecord.tasks;
 
   return (
@@ -456,14 +456,14 @@ export function CaseDetailPage() {
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
         { label: "Case Management", path: "/cases" },
-        { label: `${operationalParticipant?.name ?? "Organization"} ${caseRecord.reference}` },
+        { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}` },
       ]}
       readOnly
     >
       <PageTitle
         eyebrow="Case"
         title={caseRecord.title}
-        description={`${operationalParticipant?.name ?? "Unknown organization"} ${caseRecord.caseType.toLowerCase()} for task completion, evidence collection, review, and outcome visibility.`}
+        description={`${participant?.name ?? "Unknown organization"} ${caseRecord.caseType.toLowerCase()} for task completion, evidence collection, review, and outcome visibility.`}
       />
       <Tabs
         current="Summary"
@@ -516,7 +516,7 @@ export function CaseDetailPage() {
 
 export function TaskDetailPage() {
   const { user } = useAuth();
-  if (user.role === "interested-party") return <Navigate to="/verification" replace />;
+  if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   const { caseId, taskId } = useParams();
   const [isEdited, setIsEdited] = useState(false);
 
@@ -530,7 +530,7 @@ export function TaskDetailPage() {
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
   if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/cases" replace />;
 
-  const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
+  const participant = getParticipant(caseRecord.participantId);
   const Icon = task.Icon;
 
   function uploadEvidence() {
@@ -549,7 +549,7 @@ export function TaskDetailPage() {
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
         { label: "Case Management", path: "/cases" },
-        { label: `${operationalParticipant?.name ?? "Organization"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
+        { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
         { label: task.title },
       ]}
       isEdited={isEdited}
