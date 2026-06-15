@@ -3,14 +3,18 @@ import { ConsoleLayout, MetricStrip, PageTitle, Tabs } from "@/components/Consol
 import { useAuth } from "@/context/AuthContext";
 import {
   adminResources,
+  authenticatableUsers,
   getCase,
   getTask,
   getStakeholder,
   getParticipant,
   getAuthority,
+  getCaseTemplatesForAuthority,
   getScopedCases,
   getScopedParticipants,
+  getStakeholdersForAuthority,
   Status,
+  taskTypes,
 } from "@/data/console";
 import { cn } from "@/lib/utils";
 import {
@@ -23,7 +27,7 @@ import {
   Upload,
 } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 
 function StatusBadge({ status }: { status: Status | "open" | "closed" | "review" }) {
   const classes = {
@@ -183,7 +187,7 @@ export function StakeholderCaseDetailPage() {
       <PageTitle
         eyebrow="Read-only case"
         title={caseRecord.title}
-        description={`${participant?.name ?? "Unknown organization"} ${caseRecord.caseType.toLowerCase()} status, task completion, and visible outcome.`}
+        description={`${participant?.name ?? "Unknown participant"} ${caseRecord.caseType.toLowerCase()} status, task completion, and visible outcome.`}
       />
       <MetricStrip
         items={[
@@ -224,7 +228,7 @@ export function AdminHome() {
       affirmativeActionCompleteLabel="Applied"
       affirmativeActionLabel="Apply"
       appName="Administration"
-      appDescription="Configuration for case types, participants, workflow, and review."
+      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
       breadcrumbs={[{ label: "Administration" }]}
     >
       <PageTitle
@@ -268,7 +272,7 @@ export function ParticipantsPage() {
       <PageTitle
         eyebrow="Resource list"
         title="Participants"
-        description="Select a participant to review organization links, cases, participant roles, status, and audit activity."
+        description="Select a participant to review membership, stakeholder access, generated cases, task status, and activity."
         actions={
           <Button>
             <Plus />
@@ -284,7 +288,7 @@ export function ParticipantsPage() {
                 {participant.name}
               </Link>
               <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                Role: {participant.participantRole}
+                {participant.participantRole}
               </span>
             </td>
             <td className="px-4 py-3">{participant.type}</td>
@@ -316,7 +320,7 @@ export function ParticipantDetailPage() {
       affirmativeActionCompleteLabel="Saved"
       affirmativeActionLabel="Save"
       appName="Administration"
-      appDescription="Configuration for case types, participants, workflow, and review."
+      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
       breadcrumbs={[
         { label: "Administration", path: "/admin" },
         { label: "Participants", path: "/admin/participants" },
@@ -326,13 +330,13 @@ export function ParticipantDetailPage() {
       <PageTitle
         eyebrow="Participant"
         title={participant.name}
-        description="Review organization links, participant roles, case progress, users, and audit activity for this participant."
+        description="Review participant membership, stakeholder access, generated cases, users, and audit activity."
       />
       <Tabs
         current="Overview"
         tabs={[
           { label: "Overview", path: `/admin/participants/${participant.id}` },
-          { label: "Participants", path: `/admin/participants/${participant.id}` },
+          { label: "Users", path: `/admin/participants/${participant.id}` },
           { label: "Cases", path: `/admin/participants/${participant.id}` },
           { label: "Audit", path: `/admin/participants/${participant.id}` },
         ]}
@@ -463,7 +467,7 @@ export function CaseDetailPage() {
       <PageTitle
         eyebrow="Case"
         title={caseRecord.title}
-        description={`${participant?.name ?? "Unknown organization"} ${caseRecord.caseType.toLowerCase()} for task completion, evidence collection, review, and outcome visibility.`}
+        description={`${participant?.name ?? "Unknown participant"} ${caseRecord.caseType.toLowerCase()} for task completion, evidence collection, review, and outcome visibility.`}
       />
       <Tabs
         current="Summary"
@@ -638,23 +642,127 @@ export function TaskDetailPage() {
 }
 
 export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
+  const { user } = useAuth();
+  const location = useLocation();
   const isAdmin = app === "admin";
+  const authorityId = user.authorityId ?? undefined;
+  const scopedParticipants = getScopedParticipants(user);
+  const scopedStakeholders = getStakeholdersForAuthority(authorityId);
+  const scopedTemplates = getCaseTemplatesForAuthority(authorityId);
+  const scopedUsers = authenticatableUsers.filter((account) => {
+    if (account.membership.entityType === "authority") return account.membership.entityId === authorityId;
+    if (account.membership.entityType === "participant") {
+      return scopedParticipants.some((participant) => participant.id === account.membership.entityId);
+    }
+    if (account.membership.entityType === "stakeholder") {
+      return scopedStakeholders.some((stakeholder) => stakeholder.id === account.membership.entityId);
+    }
+    return false;
+  });
+  const resource =
+    location.pathname.includes("stakeholders")
+      ? "stakeholders"
+      : location.pathname.includes("case-templates")
+        ? "case-templates"
+        : location.pathname.includes("task-types")
+          ? "task-types"
+          : location.pathname.includes("users")
+            ? "users"
+            : "placeholder";
+  const titleMap = {
+    stakeholders: "Stakeholders",
+    "case-templates": "Case templates",
+    "task-types": "Task types",
+    users: "Users",
+    placeholder: "Coming next",
+  };
+
   return (
     <ConsoleLayout
       affirmativeActionCompleteLabel="Updated"
       affirmativeActionLabel="Update"
       appName={isAdmin ? "Administration" : "Case Management"}
-      appDescription={isAdmin ? "Configuration for case types, participants, workflow, and review." : "Operational workspace for case tasks, forms, evidence, and workflow."}
+      appDescription={isAdmin ? "Configuration for participants, stakeholders, case templates, task types, and review." : "Operational workspace for case tasks, forms, evidence, and workflow."}
       breadcrumbs={[
         { label: isAdmin ? "Administration" : "Case Management", path: isAdmin ? "/admin" : "/cases" },
-        { label: "Resource area" },
+        { label: titleMap[resource] },
       ]}
     >
       <PageTitle
         eyebrow="Resource console"
-        title="Coming next"
-        description="This resource area is ready for the next implementation lesson."
+        title={titleMap[resource]}
+        description={
+          resource === "stakeholders"
+            ? "Stakeholders belong to the selected authority and receive explicit participant access records."
+            : resource === "case-templates"
+              ? "Case templates are reusable authority definitions. Publishing them creates participant cases immediately."
+              : resource === "task-types"
+                ? "Task types are global software capabilities configured into authority-owned case templates."
+                : resource === "users"
+                  ? "Users authenticate through Entra and have exactly one application user kind plus Admin or Member membership."
+                  : "This resource area is ready for the next implementation lesson."
+        }
       />
+      {resource === "stakeholders" && (
+        <ResourceTable headings={["Stakeholder", "Type", "Status", "Participant access"]}>
+          {scopedStakeholders.map((stakeholder) => (
+            <tr key={stakeholder.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3 font-bold text-[#1d70b8]">{stakeholder.name}</td>
+              <td className="px-4 py-3">{stakeholder.type}</td>
+              <td className="px-4 py-3">{stakeholder.status}</td>
+              <td className="px-4 py-3">{stakeholder.visibleParticipants} approved</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      )}
+      {resource === "case-templates" && (
+        <ResourceTable headings={["Template", "Status", "Tasks", "Participants", "Published"]}>
+          {scopedTemplates.map((template) => (
+            <tr key={template.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <span className="block font-bold text-[#1d70b8]">{template.name}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{template.description}</span>
+              </td>
+              <td className="px-4 py-3">{template.status}</td>
+              <td className="px-4 py-3">{template.taskCount}</td>
+              <td className="px-4 py-3">{template.participantCount}</td>
+              <td className="px-4 py-3">{template.publishedAt ? "Published" : "Not published"}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      )}
+      {resource === "task-types" && (
+        <ResourceTable headings={["Code", "Name", "Status", "Description"]}>
+          {taskTypes.map((taskType) => (
+            <tr key={taskType.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3 font-mono text-xs">{taskType.code}</td>
+              <td className="px-4 py-3 font-bold text-[#1d70b8]">{taskType.name}</td>
+              <td className="px-4 py-3">{taskType.status}</td>
+              <td className="px-4 py-3">{taskType.description}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      )}
+      {resource === "users" && (
+        <ResourceTable headings={["User", "Kind", "Membership", "Role"]}>
+          {scopedUsers.map((account) => (
+            <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <span className="block font-bold text-[#1d70b8]">{account.name}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{account.email}</span>
+              </td>
+              <td className="px-4 py-3">{account.userKind}</td>
+              <td className="px-4 py-3">{account.membership.entityType}</td>
+              <td className="px-4 py-3">{account.membershipRole}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      )}
+      {resource === "placeholder" && (
+        <section className="border border-dashed border-[#b1b4b6] bg-white p-5 text-sm text-[#505a5f] dark:bg-card dark:text-muted-foreground">
+          This resource area is ready for the next implementation lesson.
+        </section>
+      )}
     </ConsoleLayout>
   );
 }
