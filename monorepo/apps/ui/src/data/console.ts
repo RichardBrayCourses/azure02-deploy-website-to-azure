@@ -159,6 +159,64 @@ export type CaseTaskDto = BaseDto & {
   withdrawnAt: string | null;
 };
 
+export type CreateParticipantCommand = {
+  authorityId: AuthorityId;
+  participantType: PartyType;
+  displayName: string;
+  status?: InviteStatus;
+};
+
+export type CreateStakeholderCommand = {
+  authorityId: AuthorityId;
+  stakeholderType: PartyType;
+  displayName: string;
+  status?: InviteStatus;
+};
+
+export type CreateEntityUserCommand = {
+  displayName: string;
+  email: string;
+  role: MembershipRole;
+};
+
+export type GrantStakeholderAccessCommand = {
+  stakeholderId: StakeholderId;
+  participantId: ParticipantId;
+  approvedByUserId: UserAccountId;
+};
+
+export type CreateCaseTemplateCommand = {
+  authorityId: AuthorityId;
+  name: string;
+  description: string;
+};
+
+export type AddTaskToTemplateCommand = {
+  caseTemplateId: CaseTemplateId;
+  taskTypeId: TaskTypeId;
+  title: string;
+  description: string;
+  parametersJson?: JsonObject;
+};
+
+export type AssignParticipantToTemplateCommand = {
+  caseTemplateId: CaseTemplateId;
+  participantId: ParticipantId;
+  status: TemplateParticipantStatus;
+  exemptionReason?: string | null;
+  decidedByUserId?: UserAccountId | null;
+};
+
+export type CompleteTaskCommand = {
+  caseTaskId: CaseTaskId;
+  responseJson: JsonObject;
+};
+
+export type UploadEvidenceCommand = {
+  caseTaskId: CaseTaskId;
+  evidenceJson: JsonObject;
+};
+
 class DomainEntity<TDto extends BaseDto> {
   constructor(protected readonly dto: TDto) {}
 
@@ -547,6 +605,417 @@ export class InMemoryAllChecksOutDatabase {
     this.assertUserKindExclusivity();
   }
 
+  listAuthorities() {
+    return this.authorities.map((authority) => authority.toDto());
+  }
+
+  getAuthority(authorityId: AuthorityId) {
+    return this.authorities.find((authority) => authority.id === authorityId)?.toDto() ?? null;
+  }
+
+  getParticipant(participantId: ParticipantId) {
+    return this.participants.find((participant) => participant.id === participantId)?.toDto() ?? null;
+  }
+
+  getParticipantsForAuthority(authorityId: AuthorityId) {
+    return this.participants
+      .map((participant) => participant.toDto())
+      .filter((participant) => participant.authorityId === authorityId);
+  }
+
+  getStakeholder(stakeholderId: StakeholderId) {
+    return this.stakeholders.find((stakeholder) => stakeholder.id === stakeholderId)?.toDto() ?? null;
+  }
+
+  getStakeholdersForAuthority(authorityId: AuthorityId) {
+    return this.stakeholders
+      .map((stakeholder) => stakeholder.toDto())
+      .filter((stakeholder) => stakeholder.authorityId === authorityId);
+  }
+
+  getCaseTemplate(caseTemplateId: CaseTemplateId) {
+    return this.caseTemplates.find((template) => template.id === caseTemplateId)?.toDto() ?? null;
+  }
+
+  getCaseTemplatesForAuthority(authorityId: AuthorityId) {
+    return this.caseTemplates
+      .map((template) => template.toDto())
+      .filter((template) => template.authorityId === authorityId);
+  }
+
+  getCase(caseId: CaseRecordId) {
+    return this.cases.find((caseRecord) => caseRecord.id === caseId)?.toDto() ?? null;
+  }
+
+  getCasesForParticipant(participantId: ParticipantId) {
+    return this.cases
+      .map((caseRecord) => caseRecord.toDto())
+      .filter((caseRecord) => caseRecord.participantId === participantId);
+  }
+
+  getCaseTasksForCase(caseId: CaseRecordId) {
+    return this.caseTasks
+      .map((caseTask) => caseTask.toDto())
+      .filter((caseTask) => caseTask.caseId === caseId);
+  }
+
+  getStakeholderParticipantAccess(stakeholderId: StakeholderId) {
+    return this.stakeholderParticipantAccess
+      .map((access) => access.toDto())
+      .filter((access) => access.stakeholderId === stakeholderId);
+  }
+
+  getAccessibleParticipantsForStakeholder(stakeholderId: StakeholderId) {
+    const participantIds = new Set(
+      this.getStakeholderParticipantAccess(stakeholderId)
+        .filter((access) => access.status === "APPROVED")
+        .map((access) => access.participantId),
+    );
+
+    return this.participants
+      .map((participant) => participant.toDto())
+      .filter((participant) => participantIds.has(participant.id));
+  }
+
+  getUsersForParticipant(participantId: ParticipantId) {
+    return this.getMembershipUsers(this.participantUsers, participantId);
+  }
+
+  getUsersForStakeholder(stakeholderId: StakeholderId) {
+    return this.getMembershipUsers(this.stakeholderUsers, stakeholderId);
+  }
+
+  getUsersForAuthority(authorityId: AuthorityId) {
+    return this.getMembershipUsers(this.authorityUsers, authorityId);
+  }
+
+  createParticipant(command: CreateParticipantCommand) {
+    this.requireAuthority(command.authorityId);
+    const participant = new ParticipantEntity({
+      ...this.createBase(this.nextId("participant", this.participants)),
+      authorityId: command.authorityId,
+      participantType: command.participantType,
+      displayName: command.displayName,
+      status: command.status ?? "ACTIVE",
+    });
+    this.participants.push(participant);
+    return participant.toDto();
+  }
+
+  createParticipantUser(participantId: ParticipantId, command: CreateEntityUserCommand) {
+    this.requireParticipant(participantId);
+    const userAccount = this.createUserAccount(command.displayName, command.email, "PARTICIPANT");
+    const membership = new ParticipantUserEntity({
+      ...this.createBase(this.nextId("participant-user", this.participantUsers)),
+      entityId: participantId,
+      userAccountId: userAccount.id,
+      role: command.role,
+    });
+    this.participantUsers.push(membership);
+    this.assertUserKindExclusivity();
+    return { userAccount, participantUser: membership.toDto() };
+  }
+
+  createStakeholder(command: CreateStakeholderCommand) {
+    this.requireAuthority(command.authorityId);
+    const stakeholder = new StakeholderEntity({
+      ...this.createBase(this.nextId("stakeholder", this.stakeholders)),
+      authorityId: command.authorityId,
+      stakeholderType: command.stakeholderType,
+      displayName: command.displayName,
+      status: command.status ?? "ACTIVE",
+    });
+    this.stakeholders.push(stakeholder);
+    return stakeholder.toDto();
+  }
+
+  createStakeholderUser(stakeholderId: StakeholderId, command: CreateEntityUserCommand) {
+    this.requireStakeholder(stakeholderId);
+    const userAccount = this.createUserAccount(command.displayName, command.email, "STAKEHOLDER");
+    const membership = new StakeholderUserEntity({
+      ...this.createBase(this.nextId("stakeholder-user", this.stakeholderUsers)),
+      entityId: stakeholderId,
+      userAccountId: userAccount.id,
+      role: command.role,
+    });
+    this.stakeholderUsers.push(membership);
+    this.assertUserKindExclusivity();
+    return { userAccount, stakeholderUser: membership.toDto() };
+  }
+
+  grantStakeholderAccess(command: GrantStakeholderAccessCommand) {
+    const stakeholder = this.requireStakeholder(command.stakeholderId);
+    const participant = this.requireParticipant(command.participantId);
+    this.requireUserAccount(command.approvedByUserId);
+    if (stakeholder.authorityId !== participant.authorityId) {
+      throw new Error("Stakeholder and participant must belong to the same authority.");
+    }
+    const existing = this.stakeholderParticipantAccess.some((access) => {
+      const dto = access.toDto();
+      return dto.stakeholderId === command.stakeholderId && dto.participantId === command.participantId;
+    });
+    if (existing) {
+      throw new Error("Stakeholder access already exists for this participant.");
+    }
+
+    const access = new StakeholderParticipantAccessEntity({
+      ...this.createBase(this.nextId("access", this.stakeholderParticipantAccess)),
+      stakeholderId: command.stakeholderId,
+      participantId: command.participantId,
+      status: "APPROVED",
+      approvedByUserId: command.approvedByUserId,
+      approvedAt: this.timestamp(),
+    });
+    this.stakeholderParticipantAccess.push(access);
+    return access.toDto();
+  }
+
+  createCaseTemplate(command: CreateCaseTemplateCommand) {
+    this.requireAuthority(command.authorityId);
+    const template = new CaseTemplateEntity({
+      ...this.createBase(this.nextId("template", this.caseTemplates)),
+      authorityId: command.authorityId,
+      name: command.name,
+      description: command.description,
+      status: "DRAFT",
+      publishedAt: null,
+      publishedByUserId: null,
+    });
+    this.caseTemplates.push(template);
+    return template.toDto();
+  }
+
+  addTaskToTemplate(command: AddTaskToTemplateCommand) {
+    const template = this.requireCaseTemplate(command.caseTemplateId);
+    this.requireTaskType(command.taskTypeId);
+    const sortOrder =
+      Math.max(
+        0,
+        ...this.caseTemplateTasks
+          .map((task) => task.toDto())
+          .filter((task) => task.caseTemplateId === command.caseTemplateId)
+          .map((task) => task.sortOrder),
+      ) + 1;
+    const templateTask = new CaseTemplateTaskEntity({
+      ...this.createBase(this.nextId("template-task", this.caseTemplateTasks)),
+      caseTemplateId: command.caseTemplateId,
+      taskTypeId: command.taskTypeId,
+      title: command.title,
+      description: command.description,
+      parametersJson: command.parametersJson ?? {},
+      sortOrder,
+      status: "ACTIVE",
+      createdAfterPublish: template.status === "PUBLISHED",
+      withdrawnReason: null,
+      withdrawnAt: null,
+      withdrawnByUserId: null,
+    });
+    this.caseTemplateTasks.push(templateTask);
+
+    if (template.status === "PUBLISHED") {
+      this.cases
+        .map((caseRecord) => caseRecord.toDto())
+        .filter((caseRecord) => caseRecord.caseTemplateId === command.caseTemplateId)
+        .forEach((caseRecord) => {
+          this.caseTasks.push(
+            new CaseTaskEntity({
+              ...this.createBase(this.nextId("case-task", this.caseTasks)),
+              caseId: caseRecord.id,
+              caseTemplateTaskId: templateTask.id,
+              status: "NOT_STARTED",
+              responseJson: {},
+              evidenceJson: {},
+              withdrawnAt: null,
+            }),
+          );
+        });
+    }
+
+    return templateTask.toDto();
+  }
+
+  assignParticipantToTemplate(command: AssignParticipantToTemplateCommand) {
+    const template = this.requireCaseTemplate(command.caseTemplateId);
+    const participant = this.requireParticipant(command.participantId);
+    if (template.authorityId !== participant.authorityId) {
+      throw new Error("Participant must belong to the template authority.");
+    }
+    const existing = this.caseTemplateParticipants.some((assignment) => {
+      const dto = assignment.toDto();
+      return dto.caseTemplateId === command.caseTemplateId && dto.participantId === command.participantId;
+    });
+    if (existing) {
+      throw new Error("Participant is already assigned to this template.");
+    }
+
+    const caseId =
+      template.status === "PUBLISHED" && command.status === "REQUIRED"
+        ? this.createCaseForTemplateParticipant(template, command.participantId).id
+        : null;
+    const assignment = new CaseTemplateParticipantEntity({
+      ...this.createBase(this.nextId("template-participant", this.caseTemplateParticipants)),
+      caseTemplateId: command.caseTemplateId,
+      participantId: command.participantId,
+      status: command.status,
+      caseId,
+      exemptionReason: command.exemptionReason ?? null,
+      decidedByUserId: command.decidedByUserId ?? null,
+      decidedAt: command.decidedByUserId ? this.timestamp() : null,
+    });
+    this.caseTemplateParticipants.push(assignment);
+    return assignment.toDto();
+  }
+
+  publishTemplate(caseTemplateId: CaseTemplateId, publishedByUserId: UserAccountId) {
+    const template = this.requireCaseTemplate(caseTemplateId);
+    this.requireUserAccount(publishedByUserId);
+    if (template.status !== "DRAFT") {
+      throw new Error("Only draft templates can be published.");
+    }
+
+    const activeTasks = this.getActiveTemplateTasks(caseTemplateId);
+    if (activeTasks.length === 0) {
+      throw new Error("A template must have at least one active task before publication.");
+    }
+    const requiredParticipants = this.caseTemplateParticipants
+      .map((assignment) => assignment.toDto())
+      .filter((assignment) => assignment.caseTemplateId === caseTemplateId && assignment.status === "REQUIRED");
+    if (requiredParticipants.length === 0) {
+      throw new Error("A template must have at least one required participant before publication.");
+    }
+
+    const publishedTemplate: CaseTemplateDto = {
+      ...template,
+      status: "PUBLISHED",
+      publishedAt: this.timestamp(),
+      publishedByUserId,
+      updatedAt: this.timestamp(),
+    };
+    this.replaceById(this.caseTemplates, new CaseTemplateEntity(publishedTemplate));
+
+    requiredParticipants.forEach((assignment) => {
+      if (assignment.caseId) return;
+      const caseRecord = this.createCaseForTemplateParticipant(publishedTemplate, assignment.participantId);
+      this.replaceById(
+        this.caseTemplateParticipants,
+        new CaseTemplateParticipantEntity({
+          ...assignment,
+          caseId: caseRecord.id,
+          updatedAt: this.timestamp(),
+        }),
+      );
+    });
+
+    return publishedTemplate;
+  }
+
+  completeTask(command: CompleteTaskCommand) {
+    const caseTask = this.requireCaseTask(command.caseTaskId);
+    if (caseTask.status === "WITHDRAWN") {
+      throw new Error("Withdrawn tasks cannot be completed.");
+    }
+    return this.updateCaseTask({
+      ...caseTask,
+      responseJson: command.responseJson,
+      status: "IN_PROGRESS",
+      updatedAt: this.timestamp(),
+    });
+  }
+
+  uploadEvidence(command: UploadEvidenceCommand) {
+    const caseTask = this.requireCaseTask(command.caseTaskId);
+    if (caseTask.status === "WITHDRAWN") {
+      throw new Error("Withdrawn tasks cannot receive evidence.");
+    }
+    return this.updateCaseTask({
+      ...caseTask,
+      evidenceJson: command.evidenceJson,
+      status: caseTask.status === "NOT_STARTED" ? "IN_PROGRESS" : caseTask.status,
+      updatedAt: this.timestamp(),
+    });
+  }
+
+  submitTask(caseTaskId: CaseTaskId) {
+    const caseTask = this.requireCaseTask(caseTaskId);
+    if (caseTask.status === "WITHDRAWN") {
+      throw new Error("Withdrawn tasks cannot be submitted.");
+    }
+    const updated = this.updateCaseTask({
+      ...caseTask,
+      status: "SUBMITTED",
+      updatedAt: this.timestamp(),
+    });
+    this.recalculateCaseStatus(caseTask.caseId);
+    return updated;
+  }
+
+  submitCase(caseId: CaseRecordId) {
+    const caseRecord = this.requireCase(caseId);
+    const activeTasks = this.getCaseTasksForCase(caseId).filter((caseTask) => caseTask.status !== "WITHDRAWN");
+    const hasUnsubmittedTasks = activeTasks.some(
+      (caseTask) => caseTask.status === "NOT_STARTED" || caseTask.status === "IN_PROGRESS",
+    );
+    if (hasUnsubmittedTasks) {
+      throw new Error("All active case tasks must be submitted before the case can be submitted.");
+    }
+    const submittedCase = {
+      ...caseRecord,
+      status: "SUBMITTED" as const,
+      submittedAt: this.timestamp(),
+      updatedAt: this.timestamp(),
+    };
+    this.replaceById(this.cases, new CaseEntity(submittedCase));
+    return submittedCase;
+  }
+
+  reviewTask(caseTaskId: CaseTaskId, decision: "PASSED" | "FAILED") {
+    const caseTask = this.requireCaseTask(caseTaskId);
+    if (caseTask.status === "WITHDRAWN") {
+      throw new Error("Withdrawn tasks cannot be reviewed.");
+    }
+    const updated = this.updateCaseTask({
+      ...caseTask,
+      status: decision,
+      updatedAt: this.timestamp(),
+    });
+    this.recalculateCaseStatus(caseTask.caseId);
+    return updated;
+  }
+
+  withdrawTemplateTask(caseTemplateTaskId: CaseTemplateTaskId, withdrawnByUserId: UserAccountId, withdrawnReason: string) {
+    const templateTask = this.requireCaseTemplateTask(caseTemplateTaskId);
+    this.requireUserAccount(withdrawnByUserId);
+    const withdrawnAt = this.timestamp();
+    const updatedTemplateTask: CaseTemplateTaskDto = {
+      ...templateTask,
+      status: "WITHDRAWN",
+      withdrawnAt,
+      withdrawnByUserId,
+      withdrawnReason,
+      updatedAt: withdrawnAt,
+    };
+    this.replaceById(this.caseTemplateTasks, new CaseTemplateTaskEntity(updatedTemplateTask));
+
+    this.caseTasks
+      .map((caseTask) => caseTask.toDto())
+      .filter(
+        (caseTask) =>
+          caseTask.caseTemplateTaskId === caseTemplateTaskId &&
+          !["PASSED", "FAILED", "WITHDRAWN"].includes(caseTask.status),
+      )
+      .forEach((caseTask) => {
+        this.updateCaseTask({
+          ...caseTask,
+          status: "WITHDRAWN",
+          withdrawnAt,
+          updatedAt: withdrawnAt,
+        });
+        this.recalculateCaseStatus(caseTask.caseId);
+      });
+
+    return updatedTemplateTask;
+  }
+
   private user(id: UserAccountId, displayName: string, email: string, userKind: UserKind) {
     return new UserAccountEntity({
       ...base(id),
@@ -679,6 +1148,188 @@ export class InMemoryAllChecksOutDatabase {
       evidenceJson: {},
       withdrawnAt: null,
     });
+  }
+
+  private timestamp() {
+    return new Date().toISOString();
+  }
+
+  private createBase(id: string): BaseDto {
+    const timestamp = this.timestamp();
+    return { id, createdAt: timestamp, updatedAt: timestamp };
+  }
+
+  private nextId(prefix: string, existing: Array<{ id: string }>) {
+    let index = existing.length + 1;
+    let id = `${prefix}-${index}`;
+    const existingIds = new Set(existing.map((item) => item.id));
+    while (existingIds.has(id)) {
+      index += 1;
+      id = `${prefix}-${index}`;
+    }
+    return id;
+  }
+
+  private createUserAccount(displayName: string, email: string, userKind: UserKind) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (this.userAccounts.some((account) => account.toDto().email.toLowerCase() === normalizedEmail)) {
+      throw new Error("A user account with this email already exists.");
+    }
+    const userAccount = new UserAccountEntity({
+      ...this.createBase(this.nextId("user", this.userAccounts)),
+      entraObjectId: `entra-${normalizedEmail}`,
+      displayName,
+      email: normalizedEmail,
+      userKind,
+      status: "ACTIVE",
+    });
+    this.userAccounts.push(userAccount);
+    return userAccount.toDto();
+  }
+
+  private getMembershipUsers(memberships: Array<DomainEntity<MembershipDto>>, entityId: MembershipDto["entityId"]) {
+    return memberships
+      .map((membership) => membership.toDto())
+      .filter((membership) => membership.entityId === entityId)
+      .map((membership) => ({
+        membership,
+        userAccount: this.requireUserAccount(membership.userAccountId),
+      }));
+  }
+
+  private requireAuthority(authorityId: AuthorityId) {
+    const authority = this.getAuthority(authorityId);
+    if (!authority) throw new Error(`Authority ${authorityId} was not found.`);
+    return authority;
+  }
+
+  private requireParticipant(participantId: ParticipantId) {
+    const participant = this.getParticipant(participantId);
+    if (!participant) throw new Error(`Participant ${participantId} was not found.`);
+    return participant;
+  }
+
+  private requireStakeholder(stakeholderId: StakeholderId) {
+    const stakeholder = this.getStakeholder(stakeholderId);
+    if (!stakeholder) throw new Error(`Stakeholder ${stakeholderId} was not found.`);
+    return stakeholder;
+  }
+
+  private requireUserAccount(userAccountId: UserAccountId) {
+    const userAccount = this.userAccounts.find((account) => account.id === userAccountId)?.toDto();
+    if (!userAccount) throw new Error(`User account ${userAccountId} was not found.`);
+    return userAccount;
+  }
+
+  private requireTaskType(taskTypeId: TaskTypeId) {
+    const taskType = this.taskTypes.find((item) => item.id === taskTypeId)?.toDto();
+    if (!taskType) throw new Error(`Task type ${taskTypeId} was not found.`);
+    return taskType;
+  }
+
+  private requireCaseTemplate(caseTemplateId: CaseTemplateId) {
+    const template = this.getCaseTemplate(caseTemplateId);
+    if (!template) throw new Error(`Case template ${caseTemplateId} was not found.`);
+    return template;
+  }
+
+  private requireCaseTemplateTask(caseTemplateTaskId: CaseTemplateTaskId) {
+    const templateTask = this.caseTemplateTasks.find((task) => task.id === caseTemplateTaskId)?.toDto();
+    if (!templateTask) throw new Error(`Case template task ${caseTemplateTaskId} was not found.`);
+    return templateTask;
+  }
+
+  private requireCase(caseId: CaseRecordId) {
+    const caseRecord = this.getCase(caseId);
+    if (!caseRecord) throw new Error(`Case ${caseId} was not found.`);
+    return caseRecord;
+  }
+
+  private requireCaseTask(caseTaskId: CaseTaskId) {
+    const caseTask = this.caseTasks.find((task) => task.id === caseTaskId)?.toDto();
+    if (!caseTask) throw new Error(`Case task ${caseTaskId} was not found.`);
+    return caseTask;
+  }
+
+  private getActiveTemplateTasks(caseTemplateId: CaseTemplateId) {
+    return this.caseTemplateTasks
+      .map((task) => task.toDto())
+      .filter((task) => task.caseTemplateId === caseTemplateId && task.status === "ACTIVE");
+  }
+
+  private createCaseForTemplateParticipant(template: CaseTemplateDto, participantId: ParticipantId) {
+    const existingCase = this.cases
+      .map((caseRecord) => caseRecord.toDto())
+      .find((caseRecord) => caseRecord.caseTemplateId === template.id && caseRecord.participantId === participantId);
+    if (existingCase) return existingCase;
+
+    const caseRecord = new CaseEntity({
+      ...this.createBase(this.nextId("case", this.cases)),
+      authorityId: template.authorityId,
+      caseTemplateId: template.id,
+      participantId,
+      status: "NOT_STARTED",
+      submittedAt: null,
+      closedAt: null,
+    });
+    this.cases.push(caseRecord);
+
+    this.getActiveTemplateTasks(template.id).forEach((templateTask) => {
+      this.caseTasks.push(
+        new CaseTaskEntity({
+          ...this.createBase(this.nextId("case-task", this.caseTasks)),
+          caseId: caseRecord.id,
+          caseTemplateTaskId: templateTask.id,
+          status: "NOT_STARTED",
+          responseJson: {},
+          evidenceJson: {},
+          withdrawnAt: null,
+        }),
+      );
+    });
+
+    return caseRecord.toDto();
+  }
+
+  private replaceById<TDto extends BaseDto, TEntity extends DomainEntity<TDto>>(collection: TEntity[], nextEntity: TEntity) {
+    const index = collection.findIndex((item) => item.id === nextEntity.id);
+    if (index === -1) {
+      throw new Error(`Entity ${nextEntity.id} was not found.`);
+    }
+    collection[index] = nextEntity;
+  }
+
+  private updateCaseTask(caseTask: CaseTaskDto) {
+    this.replaceById(this.caseTasks, new CaseTaskEntity(caseTask));
+    return caseTask;
+  }
+
+  private recalculateCaseStatus(caseId: CaseRecordId) {
+    const caseRecord = this.requireCase(caseId);
+    const activeTasks = this.getCaseTasksForCase(caseId).filter((caseTask) => caseTask.status !== "WITHDRAWN");
+    const nextStatus: CaseStatus =
+      activeTasks.length === 0
+        ? "IN_PROGRESS"
+        : activeTasks.some((caseTask) => caseTask.status === "FAILED")
+          ? "REJECTED"
+          : activeTasks.every((caseTask) => caseTask.status === "PASSED")
+            ? "APPROVED"
+            : activeTasks.every((caseTask) => caseTask.status === "SUBMITTED" || caseTask.status === "PASSED")
+              ? "SUBMITTED"
+              : activeTasks.some((caseTask) => caseTask.status !== "NOT_STARTED")
+                ? "IN_PROGRESS"
+                : "NOT_STARTED";
+    const timestamp = this.timestamp();
+    this.replaceById(
+      this.cases,
+      new CaseEntity({
+        ...caseRecord,
+        status: nextStatus,
+        submittedAt: nextStatus === "SUBMITTED" ? caseRecord.submittedAt ?? timestamp : caseRecord.submittedAt,
+        closedAt: nextStatus === "APPROVED" ? caseRecord.closedAt ?? timestamp : caseRecord.closedAt,
+        updatedAt: timestamp,
+      }),
+    );
   }
 
   private assertUserKindExclusivity() {
