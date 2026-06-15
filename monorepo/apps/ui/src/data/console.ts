@@ -17,6 +17,9 @@ import {
 import type { AuthenticatedUser, UserRole } from "@/context/AuthContext";
 
 export type Status = "complete" | "in-progress" | "attention" | "not-started";
+export type UmbrellaOrganizationId = string;
+export type OperationalParticipantId = string;
+export type InterestedPartyId = string;
 
 export type ConsoleApp = {
   id: "administration" | "case-management" | "verification-portal";
@@ -30,13 +33,12 @@ export type ConsoleApp = {
 };
 
 export type OperationalParticipant = {
-  id: string;
-  owningOrganisationId: string;
+  id: OperationalParticipantId;
   name: string;
-  owner: string;
+  umbrellaOrganizationId: UmbrellaOrganizationId;
+  interestedPartyId: InterestedPartyId;
   type: string;
   operationalRole: string;
-  interestedParty: string;
   status: Status;
   openCases: number;
   completedTasks: number;
@@ -44,11 +46,16 @@ export type OperationalParticipant = {
   lastActivity: string;
 };
 
-export type OwningOrganisation = {
-  id: string;
+export type UmbrellaOrganization = {
+  id: UmbrellaOrganizationId;
   name: string;
   scenario: string;
   description: string;
+};
+
+export type InterestedParty = {
+  id: InterestedPartyId;
+  name: string;
 };
 
 export type Task = {
@@ -56,7 +63,6 @@ export type Task = {
   title: string;
   type: string;
   status: Status;
-  owner: string;
   due: string;
   description: string;
   Icon: typeof ImageUp;
@@ -65,7 +71,7 @@ export type Task = {
 export type CaseRecord = {
   id: string;
   title: string;
-  operationalParticipantId: string;
+  operationalParticipantId: OperationalParticipantId;
   reference: string;
   caseType: string;
   status: "open" | "closed" | "review";
@@ -90,11 +96,11 @@ export const consoleApps: ConsoleApp[] = [
     id: "administration",
     name: "Administration",
     shortName: "Admin",
-    description: "Manage organisations, case types, roles, workflows, and review queues.",
+    description: "Manage organizations, case types, roles, workflows, and review queues.",
     path: "/admin/operational-participants",
     accent: "bg-[#1d70b8]",
     Icon: Landmark,
-    audience: ["owning-organisation-admin"],
+    audience: ["umbrella-organization-admin"],
   },
   {
     id: "case-management",
@@ -104,7 +110,7 @@ export const consoleApps: ConsoleApp[] = [
     path: "/cases",
     accent: "bg-[#0078d4]",
     Icon: FolderKanban,
-    audience: ["owning-organisation-admin", "operational-participant"],
+    audience: ["umbrella-organization-admin", "operational-participant"],
   },
   {
     id: "verification-portal",
@@ -118,12 +124,12 @@ export const consoleApps: ConsoleApp[] = [
   },
 ];
 
-export const owningOrganisations: OwningOrganisation[] = [
+export const umbrellaOrganizations: UmbrellaOrganization[] = [
   {
     id: "northstar-association",
     name: "Northstar Trade Association",
     scenario: "Trade association assurance",
-    description: "A master organisation manages annual assurance cases for member IT platform providers.",
+    description: "A master organization manages annual assurance cases for member IT platform providers.",
   },
   {
     id: "cobalt-home-services",
@@ -139,15 +145,29 @@ export const owningOrganisations: OwningOrganisation[] = [
   },
 ];
 
+export const interestedParties: InterestedParty[] = [
+  {
+    id: "supplier-customers",
+    name: "Supplier customers",
+  },
+  {
+    id: "household-customers",
+    name: "Household customers",
+  },
+  {
+    id: "internal-compliance-team",
+    name: "Internal compliance team",
+  },
+];
+
 export const operationalParticipants: OperationalParticipant[] = [
   {
     id: "northstar-cloud",
-    owningOrganisationId: "northstar-association",
+    umbrellaOrganizationId: "northstar-association",
+    interestedPartyId: "supplier-customers",
     name: "Northstar Cloud Platforms",
-    owner: "Maya Patel",
     type: "IT platform provider",
     operationalRole: "Member provider administrators",
-    interestedParty: "Supplier customers",
     status: "in-progress",
     openCases: 1,
     completedTasks: 4,
@@ -156,12 +176,11 @@ export const operationalParticipants: OperationalParticipant[] = [
   },
   {
     id: "cobalt-data",
-    owningOrganisationId: "cobalt-home-services",
+    umbrellaOrganizationId: "cobalt-home-services",
+    interestedPartyId: "household-customers",
     name: "Cobalt Field Engineering Team",
-    owner: "Daniel Mensah",
     type: "Operational team",
     operationalRole: "Field engineers",
-    interestedParty: "Household customers",
     status: "attention",
     openCases: 1,
     completedTasks: 2,
@@ -170,12 +189,11 @@ export const operationalParticipants: OperationalParticipant[] = [
   },
   {
     id: "pinebridge-systems",
-    owningOrganisationId: "pinebridge-council",
+    umbrellaOrganizationId: "pinebridge-council",
+    interestedPartyId: "internal-compliance-team",
     name: "Mrs Jones",
-    owner: "Sara Hughes",
     type: "Permit applicants",
     operationalRole: "Residents and council reviewers",
-    interestedParty: "Internal compliance team",
     status: "complete",
     openCases: 0,
     completedTasks: 3,
@@ -203,7 +221,6 @@ export const cases: CaseRecord[] = [
         title: "Photo identity evidence",
         type: "Evidence upload and AI tagging",
         status: "complete",
-        owner: "Aisha Khan",
         due: "18 Jun 2026",
         description: "Upload identity images and review the generated tags before submission.",
         Icon: ImageUp,
@@ -213,7 +230,6 @@ export const cases: CaseRecord[] = [
         title: "Driving licence upload",
         type: "Secure evidence upload",
         status: "in-progress",
-        owner: "Aisha Khan",
         due: "20 Jun 2026",
         description: "Provide a current driving licence image for manual inspection.",
         Icon: KeyRound,
@@ -223,9 +239,8 @@ export const cases: CaseRecord[] = [
         title: "Operational attestation",
         type: "Video upload",
         status: "not-started",
-        owner: "Michael Reeves",
         due: "24 Jun 2026",
-        description: "Upload a short attestation video for organisation reviewers.",
+        description: "Upload a short attestation video for organization reviewers.",
         Icon: Video,
       },
       {
@@ -233,7 +248,6 @@ export const cases: CaseRecord[] = [
         title: "Controls declaration form",
         type: "Form and digital signature",
         status: "attention",
-        owner: "Priya Nair",
         due: "21 Jun 2026",
         description: "Complete controls, confirm declarations, and digitally sign the form.",
         Icon: FileSignature,
@@ -243,9 +257,8 @@ export const cases: CaseRecord[] = [
         title: "Fixed case questions",
         type: "Three fixed questions",
         status: "complete",
-        owner: "Priya Nair",
         due: "16 Jun 2026",
-        description: "Answer the owning organisation's fixed questions for this case type.",
+        description: "Answer the umbrella organization's fixed questions for this case type.",
         Icon: FileQuestion,
       },
       {
@@ -253,7 +266,6 @@ export const cases: CaseRecord[] = [
         title: "Conditional question path",
         type: "Question path",
         status: "complete",
-        owner: "Michael Reeves",
         due: "16 Jun 2026",
         description: "Respond to branching questions based on previous case answers.",
         Icon: ClipboardCheck,
@@ -263,7 +275,6 @@ export const cases: CaseRecord[] = [
         title: "Interested party preview",
         type: "Read-only assurance view",
         status: "complete",
-        owner: "Maya Patel",
         due: "26 Jun 2026",
         description: "Preview what interested parties can see about the case outcome.",
         Icon: BadgeCheck,
@@ -288,7 +299,6 @@ export const cases: CaseRecord[] = [
         title: "Arrival location snapshot",
         type: "GPS evidence",
         status: "complete",
-        owner: "Lewis Green",
         due: "15 Jun 2026",
         description: "Record visit arrival time and location for the customer service record.",
         Icon: Landmark,
@@ -298,7 +308,6 @@ export const cases: CaseRecord[] = [
         title: "Work completion photos",
         type: "Photo evidence",
         status: "attention",
-        owner: "Lewis Green",
         due: "15 Jun 2026",
         description: "Upload before and after photos so the office can approve the service visit.",
         Icon: ImageUp,
@@ -308,7 +317,6 @@ export const cases: CaseRecord[] = [
         title: "Customer sign-off",
         type: "Digital signature",
         status: "in-progress",
-        owner: "Amelia Wright",
         due: "15 Jun 2026",
         description: "Collect a signature from the customer confirming the visit outcome.",
         Icon: FileSignature,
@@ -318,7 +326,6 @@ export const cases: CaseRecord[] = [
         title: "Invoice review",
         type: "Billing task",
         status: "not-started",
-        owner: "Daniel Mensah",
         due: "17 Jun 2026",
         description: "Review labour, parts, and callout charges before issuing the invoice.",
         Icon: ReceiptText,
@@ -343,7 +350,6 @@ export const cases: CaseRecord[] = [
         title: "Vehicle documents",
         type: "Document upload",
         status: "complete",
-        owner: "Mrs Jones",
         due: "30 May 2026",
         description: "Upload valid vehicle documents for the annual renewal case.",
         Icon: Car,
@@ -353,7 +359,6 @@ export const cases: CaseRecord[] = [
         title: "Proof of residential address",
         type: "Document upload",
         status: "complete",
-        owner: "Mrs Jones",
         due: "30 May 2026",
         description: "Provide evidence of residency inside the permit area.",
         Icon: Building2,
@@ -363,7 +368,6 @@ export const cases: CaseRecord[] = [
         title: "Renewal fee payment",
         type: "Payment confirmation",
         status: "complete",
-        owner: "Mrs Jones",
         due: "31 May 2026",
         description: "Confirm payment before the council reviewer approves the renewal.",
         Icon: ReceiptText,
@@ -389,10 +393,10 @@ export const searchItems: SearchItem[] = [
   })),
   ...operationalParticipants.map((operationalParticipant) => ({
     title: operationalParticipant.name,
-    description: `${operationalParticipant.owner} - ${operationalParticipant.openCases} open case`,
+    description: `${operationalParticipant.type} - ${operationalParticipant.openCases} open case`,
     path: `/admin/operational-participants/${operationalParticipant.id}`,
     group: "Operational participants",
-    audience: ["owning-organisation-admin", "interested-party"] as UserRole[],
+    audience: ["umbrella-organization-admin", "interested-party"] as UserRole[],
   })),
   ...cases.map((caseRecord) => {
     const operationalParticipant = operationalParticipants.find((item) => item.id === caseRecord.operationalParticipantId);
@@ -401,7 +405,7 @@ export const searchItems: SearchItem[] = [
       description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} tasks complete`,
       path: `/cases/${caseRecord.id}`,
       group: "Cases",
-      audience: ["owning-organisation-admin", "operational-participant"] as UserRole[],
+      audience: ["umbrella-organization-admin", "operational-participant"] as UserRole[],
     };
   }),
   ...cases.flatMap((caseRecord) => caseRecord.tasks.map((task) => ({
@@ -409,7 +413,7 @@ export const searchItems: SearchItem[] = [
     description: task.type,
     path: `/cases/${caseRecord.id}/tasks/${task.id}`,
     group: "Tasks",
-    audience: ["owning-organisation-admin", "operational-participant"] as UserRole[],
+    audience: ["umbrella-organization-admin", "operational-participant"] as UserRole[],
   }))),
 ];
 
@@ -419,7 +423,7 @@ export function getConsoleAppsForRole(role: UserRole) {
 
 export function getDefaultConsolePath(role: UserRole) {
   if (role === "interested-party") return "/verification";
-  if (role === "owning-organisation-admin") return "/admin/operational-participants";
+  if (role === "umbrella-organization-admin") return "/admin/operational-participants";
   return "/cases";
 }
 
@@ -448,19 +452,23 @@ export function getOperationalParticipant(id: string | undefined) {
   return operationalParticipants.find((operationalParticipant) => operationalParticipant.id === id);
 }
 
-export function getOwningOrganisation(id: string | undefined) {
-  return owningOrganisations.find((organisation) => organisation.id === id);
+export function getUmbrellaOrganization(id: string | undefined) {
+  return umbrellaOrganizations.find((organization) => organization.id === id);
 }
 
-export function getOperationalParticipantsForOwningOrganisation(owningOrganisationId: string | undefined) {
-  return operationalParticipants.filter((operationalParticipant) => operationalParticipant.owningOrganisationId === owningOrganisationId);
+export function getInterestedParty(id: string | undefined) {
+  return interestedParties.find((interestedParty) => interestedParty.id === id);
+}
+
+export function getOperationalParticipantsForUmbrellaOrganization(umbrellaOrganizationId: string | undefined) {
+  return operationalParticipants.filter((operationalParticipant) => operationalParticipant.umbrellaOrganizationId === umbrellaOrganizationId);
 }
 
 export function getScopedOperationalParticipants(user: AuthenticatedUser) {
-  if (!user.owningOrganisationId) return [];
-  const organisationOperationalParticipants = getOperationalParticipantsForOwningOrganisation(user.owningOrganisationId);
-  if (user.role === "owning-organisation-admin") return organisationOperationalParticipants;
-  return organisationOperationalParticipants.filter((operationalParticipant) => operationalParticipant.id === user.operationalParticipantId);
+  if (!user.umbrellaOrganizationId) return [];
+  const organizationOperationalParticipants = getOperationalParticipantsForUmbrellaOrganization(user.umbrellaOrganizationId);
+  if (user.role === "umbrella-organization-admin") return organizationOperationalParticipants;
+  return organizationOperationalParticipants.filter((operationalParticipant) => operationalParticipant.id === user.operationalParticipantId);
 }
 
 export function getScopedCases(user: AuthenticatedUser) {

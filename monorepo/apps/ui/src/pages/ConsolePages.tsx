@@ -5,8 +5,9 @@ import {
   adminResources,
   getCase,
   getTask,
+  getInterestedParty,
   getOperationalParticipant,
-  getOwningOrganisation,
+  getUmbrellaOrganization,
   getScopedCases,
   getScopedOperationalParticipants,
   Status,
@@ -113,27 +114,30 @@ export function VerificationPortalPage() {
       />
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Visible case status</h3>
-        <ResourceTable headings={["Organisation", "Visible case", "Status", "Tasks", "Visible outcome"]}>
-          {scopedOperationalParticipants.map((operationalParticipant) => (
-            <tr key={operationalParticipant.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3">
-                <span className="font-bold text-[#1d70b8]">{operationalParticipant.name}</span>
-                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                  {operationalParticipant.interestedParty}
-                </span>
-              </td>
-              <td className="px-4 py-3">{scopedCases.find((caseRecord) => caseRecord.operationalParticipantId === operationalParticipant.id)?.caseType}</td>
-              <td className="px-4 py-3"><StatusBadge status={operationalParticipant.status} /></td>
-              <td className="px-4 py-3"><ProgressBar value={operationalParticipant.completedTasks} total={operationalParticipant.totalTasks} /></td>
-              <td className="px-4 py-3">
-                {operationalParticipant.status === "complete"
-                  ? "Approved"
-                  : operationalParticipant.status === "attention"
-                    ? "More evidence requested"
-                    : "Case in progress"}
-              </td>
-            </tr>
-          ))}
+        <ResourceTable headings={["Organization", "Visible case", "Status", "Tasks", "Visible outcome"]}>
+          {scopedOperationalParticipants.map((operationalParticipant) => {
+            const interestedParty = getInterestedParty(operationalParticipant.interestedPartyId);
+            return (
+              <tr key={operationalParticipant.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">
+                  <span className="font-bold text-[#1d70b8]">{operationalParticipant.name}</span>
+                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                    {interestedParty?.name}
+                  </span>
+                </td>
+                <td className="px-4 py-3">{scopedCases.find((caseRecord) => caseRecord.operationalParticipantId === operationalParticipant.id)?.caseType}</td>
+                <td className="px-4 py-3"><StatusBadge status={operationalParticipant.status} /></td>
+                <td className="px-4 py-3"><ProgressBar value={operationalParticipant.completedTasks} total={operationalParticipant.totalTasks} /></td>
+                <td className="px-4 py-3">
+                  {operationalParticipant.status === "complete"
+                    ? "Approved"
+                    : operationalParticipant.status === "attention"
+                      ? "More evidence requested"
+                      : "Case in progress"}
+                </td>
+              </tr>
+            );
+          })}
         </ResourceTable>
       </section>
       <p className="mt-4 text-sm text-[#505a5f] dark:text-muted-foreground">
@@ -145,7 +149,7 @@ export function VerificationPortalPage() {
 
 export function AdminHome() {
   const { user } = useAuth();
-  if (user.role !== "owning-organisation-admin") return <Navigate to="/" replace />;
+  if (user.role !== "umbrella-organization-admin") return <Navigate to="/" replace />;
 
   return (
     <ConsoleLayout
@@ -182,7 +186,7 @@ export function AdminHome() {
 
 export function OperationalParticipantsPage() {
   const { user } = useAuth();
-  if (user.role !== "owning-organisation-admin") return <Navigate to="/" replace />;
+  if (user.role !== "umbrella-organization-admin") return <Navigate to="/" replace />;
   const scopedOperationalParticipants = getScopedOperationalParticipants(user);
 
   return (
@@ -196,7 +200,7 @@ export function OperationalParticipantsPage() {
       <PageTitle
         eyebrow="Resource list"
         title="Operational participants"
-        description="Select an operational participant to review ownership, cases, participant roles, status, and audit activity."
+        description="Select an operational participant to review organization links, cases, participant roles, status, and audit activity."
         actions={
           <Button>
             <Plus />
@@ -204,7 +208,7 @@ export function OperationalParticipantsPage() {
           </Button>
         }
       />
-      <ResourceTable headings={["Operational participant", "Owner", "Type", "Status", "Open cases", "Progress", "Last activity"]}>
+      <ResourceTable headings={["Operational participant", "Type", "Status", "Open cases", "Progress", "Last activity"]}>
         {scopedOperationalParticipants.map((operationalParticipant) => (
           <tr key={operationalParticipant.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -215,7 +219,6 @@ export function OperationalParticipantsPage() {
                 Role: {operationalParticipant.operationalRole}
               </span>
             </td>
-            <td className="px-4 py-3">{operationalParticipant.owner}</td>
             <td className="px-4 py-3">{operationalParticipant.type}</td>
             <td className="px-4 py-3"><StatusBadge status={operationalParticipant.status} /></td>
             <td className="px-4 py-3">{operationalParticipant.openCases}</td>
@@ -230,7 +233,7 @@ export function OperationalParticipantsPage() {
 
 export function OperationalParticipantDetailPage() {
   const { user } = useAuth();
-  if (user.role !== "owning-organisation-admin") return <Navigate to="/" replace />;
+  if (user.role !== "umbrella-organization-admin") return <Navigate to="/" replace />;
   const { operationalParticipantId } = useParams();
   const operationalParticipant = getOperationalParticipant(operationalParticipantId);
   if (!operationalParticipant) return <Navigate to="/admin/operational-participants" replace />;
@@ -238,6 +241,7 @@ export function OperationalParticipantDetailPage() {
   if (!scopedOperationalParticipantIds.has(operationalParticipant.id)) return <Navigate to="/admin/operational-participants" replace />;
 
   const participantCases = getScopedCases(user).filter((caseRecord) => caseRecord.operationalParticipantId === operationalParticipant.id);
+  const interestedParty = getInterestedParty(operationalParticipant.interestedPartyId);
 
   return (
     <ConsoleLayout
@@ -254,7 +258,7 @@ export function OperationalParticipantDetailPage() {
       <PageTitle
         eyebrow="Operational participant"
         title={operationalParticipant.name}
-        description="Review ownership, participant roles, case progress, users, and audit activity for this operational participant."
+        description="Review organization links, participant roles, case progress, users, and audit activity for this operational participant."
       />
       <Tabs
         current="Overview"
@@ -270,7 +274,7 @@ export function OperationalParticipantDetailPage() {
           { label: "Current status", value: operationalParticipant.status.replace("-", " "), tone: operationalParticipant.status === "attention" ? "red" : "blue" },
           { label: "Open cases", value: String(operationalParticipant.openCases), tone: "blue" },
           { label: "Tasks complete", value: `${operationalParticipant.completedTasks}/${operationalParticipant.totalTasks}`, tone: "green" },
-          { label: "Owner", value: operationalParticipant.owner, tone: "yellow" },
+          { label: "Interested party", value: interestedParty?.name ?? "None", tone: "yellow" },
         ]}
       />
       <section className="mt-8">
@@ -299,7 +303,7 @@ export function OperationalParticipantDetailPage() {
 export function CaseManagementHome() {
   const { user } = useAuth();
   if (user.role === "interested-party") return <Navigate to="/verification" replace />;
-  const owningOrganisation = getOwningOrganisation(user.owningOrganisationId ?? undefined);
+  const umbrellaOrganization = getUmbrellaOrganization(user.umbrellaOrganizationId ?? undefined);
   const scopedCases = getScopedCases(user);
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
@@ -328,7 +332,7 @@ export function CaseManagementHome() {
       />
       <MetricStrip
         items={[
-          { label: "Owning organisation", value: owningOrganisation?.name ?? "None", tone: "blue" },
+          { label: "Umbrella organization", value: umbrellaOrganization?.name ?? "None", tone: "blue" },
           { label: "Cases", value: String(scopedCases.length), tone: "blue" },
           { label: "Completed tasks", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
           { label: "Blocked tasks", value: String(blockedTasks), tone: "red" },
@@ -380,13 +384,13 @@ export function CaseDetailPage() {
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
         { label: "Case Management", path: "/cases" },
-        { label: `${operationalParticipant?.name ?? "Organisation"} ${caseRecord.reference}` },
+        { label: `${operationalParticipant?.name ?? "Organization"} ${caseRecord.reference}` },
       ]}
     >
       <PageTitle
         eyebrow="Case"
         title={caseRecord.title}
-        description={`${operationalParticipant?.name ?? "Unknown organisation"} ${caseRecord.caseType.toLowerCase()} for task completion, evidence collection, review, and outcome visibility.`}
+        description={`${operationalParticipant?.name ?? "Unknown organization"} ${caseRecord.caseType.toLowerCase()} for task completion, evidence collection, review, and outcome visibility.`}
       />
       <Tabs
         current="Summary"
@@ -424,7 +428,7 @@ export function CaseDetailPage() {
                   <span className="block text-lg font-bold text-[#1d70b8]">{task.title}</span>
                   <span className="mt-1 block text-sm text-[#505a5f] dark:text-muted-foreground">{task.description}</span>
                   <span className="mt-2 block text-xs font-bold text-[#505a5f] dark:text-muted-foreground">
-                    Owner: {task.owner} | Due: {task.due}
+                    Due: {task.due}
                   </span>
                 </span>
                 <span className="self-start"><StatusBadge status={task.status} /></span>
@@ -458,7 +462,7 @@ export function TaskDetailPage() {
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
         { label: "Case Management", path: "/cases" },
-        { label: `${operationalParticipant?.name ?? "Organisation"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
+        { label: `${operationalParticipant?.name ?? "Organization"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
         { label: task.title },
       ]}
     >
@@ -516,10 +520,6 @@ export function TaskDetailPage() {
         <aside className="border border-[#b1b4b6] bg-white p-5 dark:bg-card">
           <h3 className="text-xl font-bold">Details</h3>
           <dl className="mt-4 grid gap-4 text-sm">
-            <div>
-              <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Owner</dt>
-              <dd>{task.owner}</dd>
-            </div>
             <div>
               <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Due date</dt>
               <dd>{task.due}</dd>

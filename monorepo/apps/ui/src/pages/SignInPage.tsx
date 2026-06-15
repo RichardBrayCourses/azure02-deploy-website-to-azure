@@ -1,35 +1,35 @@
 import { Button } from "@/components/ui/button";
 import { USER_ROLES, UserRole, useAuth } from "@/context/AuthContext";
 import {
-  getOperationalParticipantsForOwningOrganisation,
-  owningOrganisations,
+  getOperationalParticipantsForUmbrellaOrganization,
+  umbrellaOrganizations,
 } from "@/data/console";
 import { cn } from "@/lib/utils";
 import { Building2, CheckCircle2, UserRoundCheck, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 
 const roleIcons = {
-  "owning-organisation-admin": Building2,
+  "umbrella-organization-admin": Building2,
   "operational-participant": UsersRound,
   "interested-party": UserRoundCheck,
 };
 
 export default function SignInPage() {
   const { login } = useAuth();
-  const [owningOrganisationId, setOwningOrganisationId] = useState<string | null>(null);
+  const [umbrellaOrganizationId, setUmbrellaOrganizationId] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [operationalParticipantId, setOperationalParticipantId] = useState<string | null>(null);
 
   const operationalParticipants = useMemo(
-    () => getOperationalParticipantsForOwningOrganisation(owningOrganisationId ?? undefined),
-    [owningOrganisationId],
+    () => getOperationalParticipantsForUmbrellaOrganization(umbrellaOrganizationId ?? undefined),
+    [umbrellaOrganizationId],
   );
   const requiresOperationalParticipant = role === "operational-participant" || role === "interested-party";
-  const canSignIn = owningOrganisationId && role && (!requiresOperationalParticipant || operationalParticipantId);
-  const step = !owningOrganisationId ? 1 : !role ? 2 : requiresOperationalParticipant && !operationalParticipantId ? 3 : 4;
+  const canSignIn = umbrellaOrganizationId && role && (!requiresOperationalParticipant || operationalParticipantId);
+  const step = !umbrellaOrganizationId ? 1 : !role ? 2 : requiresOperationalParticipant && !operationalParticipantId ? 3 : 4;
 
-  function selectOwningOrganisation(id: string) {
-    setOwningOrganisationId(id);
+  function selectUmbrellaOrganization(id: string) {
+    setUmbrellaOrganizationId(id);
     setRole(null);
     setOperationalParticipantId(null);
   }
@@ -40,11 +40,11 @@ export default function SignInPage() {
   }
 
   function submit() {
-    if (!owningOrganisationId || !role) return;
+    if (!umbrellaOrganizationId || !role) return;
     login({
-      owningOrganisationId,
+      umbrellaOrganizationId,
       role,
-      operationalParticipantId: role === "owning-organisation-admin" ? null : operationalParticipantId,
+      operationalParticipantId: role === "umbrella-organization-admin" ? null : operationalParticipantId,
     });
   }
 
@@ -55,13 +55,13 @@ export default function SignInPage() {
           <p className="text-sm font-bold uppercase text-[#505a5f] dark:text-muted-foreground">Sign in</p>
           <h1 className="mt-1 text-3xl font-bold sm:text-4xl">CaseFlow Console</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[#505a5f] dark:text-muted-foreground">
-            Choose the organisation and access scope for this session.
+            Choose the organization and access scope for this session.
           </p>
         </div>
 
         <section className="border border-[#b1b4b6] bg-white p-5 dark:bg-card">
           <div className="mb-5 flex flex-wrap gap-2 text-sm font-bold">
-            {["Owning organisation", "Role", "Operational participant"].map((label, index) => {
+            {["Umbrella organization", "Role", "Operational participant"].map((label, index) => {
               const active = step === index + 1;
               const done = step > index + 1;
               return (
@@ -83,31 +83,31 @@ export default function SignInPage() {
 
           <div className="grid gap-8">
             <div>
-              <h2 className="text-xl font-bold">Which owning organisation are you interested in?</h2>
+              <h2 className="text-xl font-bold">Which umbrella organization are you interested in?</h2>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {owningOrganisations.map((organisation) => (
+                {umbrellaOrganizations.map((organization) => (
                   <button
-                    key={organisation.id}
+                    key={organization.id}
                     type="button"
-                    onClick={() => selectOwningOrganisation(organisation.id)}
+                    onClick={() => selectUmbrellaOrganization(organization.id)}
                     className={cn(
                       "border p-4 text-left hover:border-[#1d70b8]",
-                      owningOrganisationId === organisation.id
+                      umbrellaOrganizationId === organization.id
                         ? "border-[#1d70b8] bg-[#eaf4fb]"
                         : "border-[#b1b4b6] bg-[#f8f8f8] dark:bg-background",
                     )}
                   >
-                    <span className="block text-lg font-bold text-[#1d70b8]">{organisation.name}</span>
-                    <span className="mt-1 block text-sm font-bold">{organisation.scenario}</span>
+                    <span className="block text-lg font-bold text-[#1d70b8]">{organization.name}</span>
+                    <span className="mt-1 block text-sm font-bold">{organization.scenario}</span>
                     <span className="mt-2 block text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-                      {organisation.description}
+                      {organization.description}
                     </span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {owningOrganisationId && (
+            {umbrellaOrganizationId && (
               <div>
                 <h2 className="text-xl font-bold">Are you signing in as?</h2>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">

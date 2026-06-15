@@ -14,16 +14,21 @@ export type AuthenticatedUser = {
   isLoggedIn: boolean;
   email: string | null;
   role: UserRole;
-  owningOrganisationId: string | null;
+  umbrellaOrganizationId: string | null;
   operationalParticipantId: string | null;
 };
 
-export type UserRole = "owning-organisation-admin" | "operational-participant" | "interested-party";
+export type UserRole = "umbrella-organization-admin" | "operational-participant" | "interested-party";
+type StoredUserRole = UserRole | "owning-organisation-admin";
+type StoredUser = Partial<Omit<AuthenticatedUser, "role">> & {
+  role?: StoredUserRole;
+  owningOrganisationId?: string | null;
+};
 
 export const USER_ROLES: Array<{ id: UserRole; label: string; description: string }> = [
   {
-    id: "owning-organisation-admin",
-    label: "Owning organisation",
+    id: "umbrella-organization-admin",
+    label: "Umbrella organization",
     description: "Configure case types, roles, workflow, and review",
   },
   {
@@ -39,7 +44,7 @@ export const USER_ROLES: Array<{ id: UserRole; label: string; description: strin
 ];
 
 export function getUserRoleLabel(role: UserRole) {
-  return USER_ROLES.find((item) => item.id === role)?.label ?? "Owning organisation";
+  return USER_ROLES.find((item) => item.id === role)?.label ?? "Umbrella organization";
 }
 
 ////////////////////////////////////
@@ -49,16 +54,16 @@ export function getUserRoleLabel(role: UserRole) {
 const LOGGED_IN_USER = {
   isLoggedIn: true,
   email: "demo@example.com",
-  role: "owning-organisation-admin" as UserRole,
-  owningOrganisationId: null,
+  role: "umbrella-organization-admin" as UserRole,
+  umbrellaOrganizationId: null,
   operationalParticipantId: null,
 };
 
 const LOGGED_OUT_USER = {
   isLoggedIn: false,
   email: null,
-  role: "owning-organisation-admin" as UserRole,
-  owningOrganisationId: null,
+  role: "umbrella-organization-admin" as UserRole,
+  umbrellaOrganizationId: null,
   operationalParticipantId: null,
 };
 
@@ -70,7 +75,7 @@ interface AuthContextData {
   user: AuthenticatedUser;
 }
 export type SignInSelection = {
-  owningOrganisationId: string;
+  umbrellaOrganizationId: string;
   role: UserRole;
   operationalParticipantId: string | null;
 };
@@ -92,6 +97,11 @@ export function useAuth() {
   return value;
 }
 
+function normalizeRole(role: StoredUserRole | undefined): UserRole {
+  if (role === "owning-organisation-admin") return "umbrella-organization-admin";
+  return role ?? "umbrella-organization-admin";
+}
+
 ////////////////////////
 // LOAD / SAVE CONTEXT
 ////////////////////////
@@ -106,14 +116,15 @@ function loadContext(): AuthContextData {
   if (storedData === null) {
     return { user: LOGGED_OUT_USER };
   } else {
-    const storedUser = JSON.parse(storedData) as Partial<AuthenticatedUser>;
-    const isLoggedIn = Boolean(storedUser.isLoggedIn && storedUser.owningOrganisationId);
+    const storedUser = JSON.parse(storedData) as StoredUser;
+    const umbrellaOrganizationId = storedUser.umbrellaOrganizationId ?? storedUser.owningOrganisationId ?? null;
+    const isLoggedIn = Boolean(storedUser.isLoggedIn && umbrellaOrganizationId);
     return {
       user: {
         isLoggedIn,
         email: isLoggedIn ? storedUser.email ?? null : null,
-        role: storedUser.role ?? "owning-organisation-admin",
-        owningOrganisationId: isLoggedIn ? storedUser.owningOrganisationId ?? null : null,
+        role: normalizeRole(storedUser.role),
+        umbrellaOrganizationId: isLoggedIn ? umbrellaOrganizationId : null,
         operationalParticipantId: isLoggedIn ? storedUser.operationalParticipantId ?? null : null,
       },
     };
@@ -139,9 +150,9 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser({
       ...LOGGED_IN_USER,
       role: selection.role,
-      owningOrganisationId: selection.owningOrganisationId,
+      umbrellaOrganizationId: selection.umbrellaOrganizationId,
       operationalParticipantId:
-        selection.role === "owning-organisation-admin" ? null : selection.operationalParticipantId,
+        selection.role === "umbrella-organization-admin" ? null : selection.operationalParticipantId,
     });
 
   const logout = () => setUser(LOGGED_OUT_USER);

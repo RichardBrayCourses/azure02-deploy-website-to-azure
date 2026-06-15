@@ -14,7 +14,7 @@ import {
   getConsoleAppsForRole,
   getDefaultConsolePath,
   getOperationalParticipant,
-  getOwningOrganisation,
+  getUmbrellaOrganization,
   getSearchItemsForUser,
 } from "@/data/console";
 import { cn } from "@/lib/utils";
@@ -78,7 +78,7 @@ function GlobalSearch() {
       <Input
         aria-label="Search console"
         className="h-9 rounded-sm border-white/25 bg-white/10 pl-9 text-sm text-white shadow-none placeholder:text-white/65 focus-visible:border-white focus-visible:ring-white/35"
-        placeholder="Search apps, cases, organisations, tasks"
+        placeholder="Search apps, cases, organizations, tasks"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -120,7 +120,7 @@ const Header = () => {
   const { dark, setDark } = useTheme();
   const { user, logout } = useAuth();
   const availableApps = getConsoleAppsForRole(user.role);
-  const owningOrganisation = getOwningOrganisation(user.owningOrganisationId ?? undefined);
+  const umbrellaOrganization = getUmbrellaOrganization(user.umbrellaOrganizationId ?? undefined);
   const operationalParticipant = getOperationalParticipant(user.operationalParticipantId ?? undefined);
 
   return (
@@ -175,9 +175,9 @@ const Header = () => {
         <span className="hidden rounded-sm border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold sm:inline-flex">
           {getUserRoleLabel(user.role)}
         </span>
-        {owningOrganisation && (
+        {umbrellaOrganization && (
           <span className="hidden rounded-sm border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold xl:inline-flex">
-            {owningOrganisation.name}
+            {umbrellaOrganization.name}
           </span>
         )}
 
@@ -230,8 +230,8 @@ const Header = () => {
               <DropdownMenuLabel>
                 <span className="block text-xs font-bold uppercase text-muted-foreground">Current scope</span>
                 <span className="mt-1 block text-sm font-medium">{getUserRoleLabel(user.role)}</span>
-                {owningOrganisation && (
-                  <span className="block text-xs text-muted-foreground">{owningOrganisation.name}</span>
+                {umbrellaOrganization && (
+                  <span className="block text-xs text-muted-foreground">{umbrellaOrganization.name}</span>
                 )}
                 {operationalParticipant && (
                   <span className="block text-xs text-muted-foreground">{operationalParticipant.name}</span>
