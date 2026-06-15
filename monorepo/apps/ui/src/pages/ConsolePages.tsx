@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ConsoleLayout, MetricStrip, PageTitle, SidebarItem, Tabs } from "@/components/ConsoleLayout";
+import { ConsoleLayout, MetricStrip, PageTitle, Tabs } from "@/components/ConsoleLayout";
 import { getUserRoleLabel, useAuth } from "@/context/AuthContext";
 import {
   adminResources,
@@ -15,42 +15,18 @@ import {
 import { cn } from "@/lib/utils";
 import {
   Activity,
-  Archive,
   BadgeCheck,
-  Building2,
-  CalendarDays,
   CheckCircle2,
-  ClipboardCheck,
   Clock3,
   ExternalLink,
   FileText,
-  FolderKanban,
   History,
-  ListChecks,
   Plus,
   ShieldAlert,
-  ShieldCheck,
   Upload,
-  Users,
 } from "lucide-react";
 import { ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-
-const adminSidebar: SidebarItem[] = [
-  { label: "Administration home", path: "/admin", Icon: ShieldCheck },
-  { label: "Operational participants", path: "/admin/operational-participants", Icon: Building2, detail: "Scoped participants" },
-  { label: "Case types", path: "/admin/case-types", Icon: CalendarDays, detail: "Reusable process models" },
-  { label: "Task templates", path: "/admin/task-templates", Icon: ClipboardCheck, detail: "Forms, tasks, evidence" },
-  { label: "Users and roles", path: "/admin/users", Icon: Users, detail: "Participants and access" },
-];
-
-const caseSidebar: SidebarItem[] = [
-  { label: "Case Management home", path: "/cases", Icon: FolderKanban },
-  { label: "Cases", path: "/cases/list", Icon: Archive, detail: "Configured case instances" },
-  { label: "Tasks", path: "/cases/tasks", Icon: ListChecks, detail: "Task-level work" },
-  { label: "Evidence", path: "/cases/evidence", Icon: Upload, detail: "Uploads and documents" },
-  { label: "Interested party view", path: "/cases/customer-preview", Icon: BadgeCheck, detail: "External status view" },
-];
 
 function StatusBadge({ status }: { status: Status | "open" | "closed" | "review" }) {
   const classes = {
@@ -141,7 +117,7 @@ export function ConsoleHome() {
         }`}
         actions={!isInterestedParty &&
           <Button asChild>
-            <Link to={isProvider ? "/cases/list" : "/admin/operational-participants"}>
+            <Link to={isProvider ? "/cases" : "/admin/operational-participants"}>
               <Plus />
               {isProvider ? "Create case" : "Add operational participant"}
             </Link>
@@ -253,7 +229,7 @@ export function ConsoleHome() {
                     : "Northstar Trade Association has an unsigned controls declaration due on 21 Jun 2026."}
                 </p>
                 <Button asChild variant="outline" className="mt-4">
-                  <Link to={isInterestedParty ? "/verification" : primaryCase ? `/cases/${primaryCase.id}` : "/cases/list"}>
+                  <Link to={isInterestedParty ? "/verification" : primaryCase ? `/cases/${primaryCase.id}` : "/cases"}>
                     {isInterestedParty ? "Open portal" : "Open task"}
                   </Link>
                 </Button>
@@ -331,7 +307,6 @@ export function AdminHome() {
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[{ label: "Administration" }]}
-      sidebarItems={adminSidebar}
     >
       <PageTitle
         eyebrow="Administration"
@@ -368,7 +343,6 @@ export function OperationalParticipantsPage() {
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Operational participants" }]}
-      sidebarItems={adminSidebar}
     >
       <PageTitle
         eyebrow="Resource list"
@@ -425,7 +399,6 @@ export function OperationalParticipantDetailPage() {
         { label: "Operational participants", path: "/admin/operational-participants" },
         { label: operationalParticipant.name },
       ]}
-      sidebarItems={adminSidebar}
     >
       <PageTitle
         eyebrow="Operational participant"
@@ -476,10 +449,7 @@ export function CaseManagementHome() {
   const { user } = useAuth();
   if (user.role === "interested-party") return <Navigate to="/verification" replace />;
   const owningOrganisation = getOwningOrganisation(user.owningOrganisationId ?? undefined);
-  const scopedOperationalParticipants = getScopedOperationalParticipants(user);
   const scopedCases = getScopedCases(user);
-  const primaryParticipant = scopedOperationalParticipants[0];
-  const primaryCase = scopedCases[0];
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
   const blockedTasks = scopedCases.flatMap((caseRecord) => caseRecord.tasks).filter((task) => task.status === "attention").length;
@@ -489,15 +459,14 @@ export function CaseManagementHome() {
       appName="Case Management"
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[{ label: "Case Management" }]}
-      sidebarItems={caseSidebar}
     >
       <PageTitle
         eyebrow="Case Management"
-        title="Case workspace"
-        description="Open cases, complete tasks, upload evidence, and inspect the interested-party assurance view."
+        title="Cases"
+        description="Configured case instances across service, compliance, renewal, and assurance workflows."
         actions={
           <Button asChild>
-            <Link to="/cases/list">
+            <Link to="/cases">
               <Plus />
               New case
             </Link>
@@ -507,73 +476,33 @@ export function CaseManagementHome() {
       <MetricStrip
         items={[
           { label: "Owning organisation", value: owningOrganisation?.name ?? "None", tone: "blue" },
-          { label: "Active participant", value: primaryParticipant?.name ?? "None", tone: "blue" },
-          { label: "Active case", value: primaryCase?.title ?? "None", tone: "yellow" },
+          { label: "Cases", value: String(scopedCases.length), tone: "blue" },
           { label: "Completed tasks", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
           { label: "Blocked tasks", value: String(blockedTasks), tone: "red" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Active case</h3>
-        {primaryCase && (
-          <Link
-            to={`/cases/${primaryCase.id}`}
-            className="block border border-[#b1b4b6] bg-white p-5 hover:border-[#1d70b8] dark:bg-card"
-          >
-            <div className="flex flex-wrap justify-between gap-4">
-              <div>
-                <p className="text-2xl font-bold text-[#1d70b8]">{primaryCase.title}</p>
-                <p className="mt-1 text-sm text-[#505a5f] dark:text-muted-foreground">{primaryParticipant?.name}</p>
-              </div>
-              <StatusBadge status={primaryCase.status} />
-            </div>
-            <div className="mt-5 max-w-xl">
-              <ProgressBar value={primaryCase.completedTasks} total={primaryCase.totalTasks} />
-            </div>
-          </Link>
-        )}
+        <ResourceTable headings={["Case", "Operational participant", "Type", "Status", "Progress", "Risk", "Last activity"]}>
+          {scopedCases.map((caseRecord) => {
+            const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
+            return (
+              <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">
+                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
+                    {caseRecord.title}
+                  </Link>
+                </td>
+                <td className="px-4 py-3">{operationalParticipant?.name}</td>
+                <td className="px-4 py-3">{caseRecord.caseType}</td>
+                <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
+                <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
+                <td className="px-4 py-3 capitalize">{caseRecord.risk}</td>
+                <td className="px-4 py-3">{caseRecord.lastActivity}</td>
+              </tr>
+            );
+          })}
+        </ResourceTable>
       </section>
-    </ConsoleLayout>
-  );
-}
-
-export function CasesListPage() {
-  const { user } = useAuth();
-  if (user.role === "interested-party") return <Navigate to="/verification" replace />;
-  const scopedCases = getScopedCases(user);
-
-  return (
-    <ConsoleLayout
-      appName="Case Management"
-      appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
-      breadcrumbs={[{ label: "Case Management", path: "/cases" }, { label: "Cases" }]}
-      sidebarItems={caseSidebar}
-    >
-      <PageTitle
-        eyebrow="Resource list"
-        title="Cases"
-        description="Configured case instances across service, compliance, renewal, and assurance workflows."
-      />
-      <ResourceTable headings={["Case", "Organisation", "Type", "Status", "Progress", "Risk", "Last activity"]}>
-        {scopedCases.map((caseRecord) => {
-          const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
-          return (
-            <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3">
-                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
-                  {caseRecord.title}
-                </Link>
-              </td>
-              <td className="px-4 py-3">{operationalParticipant?.name}</td>
-              <td className="px-4 py-3">{caseRecord.caseType}</td>
-              <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
-              <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
-              <td className="px-4 py-3 capitalize">{caseRecord.risk}</td>
-              <td className="px-4 py-3">{caseRecord.lastActivity}</td>
-            </tr>
-          );
-        })}
-      </ResourceTable>
     </ConsoleLayout>
   );
 }
@@ -583,9 +512,9 @@ export function CaseDetailPage() {
   if (user.role === "interested-party") return <Navigate to="/verification" replace />;
   const { caseId } = useParams();
   const caseRecord = getCase(caseId);
-  if (!caseRecord) return <Navigate to="/cases/list" replace />;
+  if (!caseRecord) return <Navigate to="/cases" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
-  if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/cases/list" replace />;
+  if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/cases" replace />;
 
   const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
   const tasks = caseRecord.tasks;
@@ -596,10 +525,8 @@ export function CaseDetailPage() {
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
         { label: "Case Management", path: "/cases" },
-        { label: "Cases", path: "/cases/list" },
         { label: `${operationalParticipant?.name ?? "Organisation"} ${caseRecord.reference}` },
       ]}
-      sidebarItems={caseSidebar}
     >
       <PageTitle
         eyebrow="Case"
@@ -661,9 +588,9 @@ export function TaskDetailPage() {
   const { caseId, taskId } = useParams();
   const caseRecord = getCase(caseId);
   const task = getTask(caseId, taskId);
-  if (!caseRecord || !task) return <Navigate to="/cases/list" replace />;
+  if (!caseRecord || !task) return <Navigate to="/cases" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
-  if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/cases/list" replace />;
+  if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/cases" replace />;
 
   const operationalParticipant = getOperationalParticipant(caseRecord.operationalParticipantId);
   const Icon = task.Icon;
@@ -674,11 +601,9 @@ export function TaskDetailPage() {
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
         { label: "Case Management", path: "/cases" },
-        { label: "Cases", path: "/cases/list" },
         { label: `${operationalParticipant?.name ?? "Organisation"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
         { label: task.title },
       ]}
-      sidebarItems={caseSidebar}
     >
       <PageTitle
         eyebrow="Task"
@@ -774,7 +699,6 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
         { label: isAdmin ? "Administration" : "Case Management", path: isAdmin ? "/admin" : "/cases" },
         { label: "Resource area" },
       ]}
-      sidebarItems={isAdmin ? adminSidebar : caseSidebar}
     >
       <PageTitle
         eyebrow="Resource console"

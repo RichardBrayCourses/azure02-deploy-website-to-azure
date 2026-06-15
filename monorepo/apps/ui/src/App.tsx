@@ -10,7 +10,6 @@ import {
   OperationalParticipantsPage,
   OperationalParticipantDetailPage,
   ConsoleHome,
-  CasesListPage,
   PlaceholderResourcePage,
   VerificationPortalPage,
 } from "./pages/ConsolePages";
@@ -40,7 +39,6 @@ const AppContent = () => {
         <Route path="/admin/users" element={<PlaceholderResourcePage app="admin" />} />
 
         <Route path="/cases" element={<CaseManagementHome />} />
-        <Route path="/cases/list" element={<CasesListPage />} />
         <Route path="/cases/:caseId" element={<CaseDetailPage />} />
         <Route path="/cases/:caseId/tasks/:taskId" element={<TaskDetailPage />} />
         <Route path="/cases/tasks" element={<PlaceholderResourcePage app="cases" />} />
