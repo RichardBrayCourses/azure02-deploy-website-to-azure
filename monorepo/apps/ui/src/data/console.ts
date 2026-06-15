@@ -1381,48 +1381,54 @@ export const consoleApps: ConsoleApp[] = [
   },
 ];
 
-export const authorities: Authority[] = db.authorities.map((authority) => {
-  const dto = authority.toDto();
-  return {
-    id: dto.id,
-    name: dto.name,
-    scenario:
-      dto.id === "northstar-association"
-        ? "Trade association verification"
-        : dto.id === "cobalt-home-services"
-          ? "Plumbing and electrical service visits"
-          : "Resident permit renewals",
-    description: dto.description,
-    status: dto.status,
-  };
-});
+function buildAuthorities(): Authority[] {
+  return db.authorities.map((authority) => {
+    const dto = authority.toDto();
+    return {
+      id: dto.id,
+      name: dto.name,
+      scenario:
+        dto.id === "northstar-association"
+          ? "Trade association verification"
+          : dto.id === "cobalt-home-services"
+            ? "Plumbing and electrical service visits"
+            : "Resident permit renewals",
+      description: dto.description,
+      status: dto.status,
+    };
+  });
+}
 
-export const taskTypes: TaskType[] = db.taskTypes.map((taskType) => {
-  const dto = taskType.toDto();
-  return {
-    id: dto.id,
-    code: dto.code,
-    name: dto.name,
-    description: dto.description,
-    status: dto.status,
-  };
-});
+function buildTaskTypes(): TaskType[] {
+  return db.taskTypes.map((taskType) => {
+    const dto = taskType.toDto();
+    return {
+      id: dto.id,
+      code: dto.code,
+      name: dto.name,
+      description: dto.description,
+      status: dto.status,
+    };
+  });
+}
 
-export const caseTemplates: CaseTemplate[] = db.caseTemplates.map((template) => {
-  const dto = template.toDto();
-  const taskCount = db.caseTemplateTasks.filter((task) => task.toDto().caseTemplateId === dto.id).length;
-  const participantCount = db.caseTemplateParticipants.filter((participant) => participant.toDto().caseTemplateId === dto.id).length;
-  return {
-    id: dto.id,
-    authorityId: dto.authorityId,
-    name: dto.name,
-    description: dto.description,
-    status: dto.status,
-    taskCount,
-    participantCount,
-    publishedAt: dto.publishedAt,
-  };
-});
+function buildCaseTemplates(): CaseTemplate[] {
+  return db.caseTemplates.map((template) => {
+    const dto = template.toDto();
+    const taskCount = db.caseTemplateTasks.filter((task) => task.toDto().caseTemplateId === dto.id).length;
+    const participantCount = db.caseTemplateParticipants.filter((participant) => participant.toDto().caseTemplateId === dto.id).length;
+    return {
+      id: dto.id,
+      authorityId: dto.authorityId,
+      name: dto.name,
+      description: dto.description,
+      status: dto.status,
+      taskCount,
+      participantCount,
+      publishedAt: dto.publishedAt,
+    };
+  });
+}
 
 function buildCaseRecords(): CaseRecord[] {
   return db.cases.map((caseEntity) => {
@@ -1482,136 +1488,168 @@ function buildCaseRecords(): CaseRecord[] {
   });
 }
 
-export const cases: CaseRecord[] = buildCaseRecords();
-
-export const stakeholders: Stakeholder[] = db.stakeholders.map((stakeholder) => {
-  const dto = stakeholder.toDto();
-  return {
-    id: dto.id,
-    authorityId: dto.authorityId,
-    name: dto.displayName,
-    type: dto.stakeholderType === "ORGANISATION" ? "Organisation" : "Person",
-    status: dto.status,
-    visibleParticipants: db.stakeholderParticipantAccess.filter((access) => access.toDto().stakeholderId === dto.id).length,
-  };
-});
-
-export const participants: Participant[] = db.participants.map((participant) => {
-  const dto = participant.toDto();
-  const participantCases = cases.filter((caseRecord) => caseRecord.participantId === dto.id);
-  const access = db.stakeholderParticipantAccess.find((item) => item.toDto().participantId === dto.id)?.toDto();
-  const completedTasks = participantCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
-  const totalTasks = participantCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
-  return {
-    id: dto.id,
-    authorityId: dto.authorityId,
-    stakeholderId: access?.stakeholderId ?? "",
-    name: dto.displayName,
-    type: dto.participantType === "ORGANISATION" ? "Organisation" : "Person",
-    participantRole: dto.participantType === "ORGANISATION" ? "0..many users, Admin or Member" : "Normally one user, Admin or Member",
-    status: uiParticipantStatus(participantCases),
-    domainStatus: dto.status,
-    openCases: participantCases.filter((caseRecord) => caseRecord.status !== "closed").length,
-    completedTasks,
-    totalTasks,
-    lastActivity: participantCases[0]?.lastActivity ?? "No case activity",
-  };
-});
-
-export const authenticatableUsers: AuthenticatableUser[] = [
-  ...db.authorityUsers.map((membership) => {
-    const dto = membership.toDto();
-    const user = db.userAccounts.find((account) => account.id === dto.userAccountId)?.toDto();
+function buildStakeholders(): Stakeholder[] {
+  return db.stakeholders.map((stakeholder) => {
+    const dto = stakeholder.toDto();
     return {
-      id: dto.userAccountId,
-      name: user?.displayName ?? "Unknown user",
-      email: user?.email ?? "",
-      userKind: "AUTHORITY" as const,
-      membership: { entityType: "authority" as const, entityId: dto.entityId },
-      membershipRole: dto.role,
+      id: dto.id,
+      authorityId: dto.authorityId,
+      name: dto.displayName,
+      type: dto.stakeholderType === "ORGANISATION" ? "Organisation" : "Person",
+      status: dto.status,
+      visibleParticipants: db.stakeholderParticipantAccess.filter((access) => access.toDto().stakeholderId === dto.id).length,
     };
-  }),
-  ...db.participantUsers.map((membership) => {
-    const dto = membership.toDto();
-    const user = db.userAccounts.find((account) => account.id === dto.userAccountId)?.toDto();
-    return {
-      id: dto.userAccountId,
-      name: user?.displayName ?? "Unknown user",
-      email: user?.email ?? "",
-      userKind: "PARTICIPANT" as const,
-      membership: { entityType: "participant" as const, entityId: dto.entityId },
-      membershipRole: dto.role,
-    };
-  }),
-  ...db.stakeholderUsers.map((membership) => {
-    const dto = membership.toDto();
-    const user = db.userAccounts.find((account) => account.id === dto.userAccountId)?.toDto();
-    return {
-      id: dto.userAccountId,
-      name: user?.displayName ?? "Unknown user",
-      email: user?.email ?? "",
-      userKind: "STAKEHOLDER" as const,
-      membership: { entityType: "stakeholder" as const, entityId: dto.entityId },
-      membershipRole: dto.role,
-    };
-  }),
-];
+  });
+}
 
-export const adminResources = [
-  { name: "Participants", path: "/admin/participants", Icon: Building2, count: `${participants.length} in scope` },
-  { name: "Stakeholders", path: "/admin/stakeholders", Icon: UserRoundCheck, count: `${stakeholders.length} in scope` },
-  { name: "Case templates", path: "/admin/case-templates", Icon: ShieldCheck, count: `${caseTemplates.length} configured` },
-  { name: "Task types", path: "/admin/task-types", Icon: ClipboardCheck, count: `${taskTypes.length} global` },
-  { name: "Users", path: "/admin/users", Icon: Users, count: `${authenticatableUsers.length} users` },
-];
-
-export const searchItems: SearchItem[] = [
-  ...consoleApps.map((app) => ({
-    title: app.name,
-    description: app.description,
-    path: app.path,
-    group: "Apps",
-    audience: app.audience,
-  })),
-  ...participants.map((participant) => ({
-    title: participant.name,
-    description: `${participant.type} - ${participant.openCases} open case`,
-    path: `/admin/participants/${participant.id}`,
-    group: "Participants",
-    audience: ["authority-admin", "stakeholder"] as UserRole[],
-  })),
-  ...stakeholders.map((stakeholder) => ({
-    title: stakeholder.name,
-    description: `${stakeholder.visibleParticipants} approved participant access record`,
-    path: "/admin/stakeholders",
-    group: "Stakeholders",
-    audience: ["authority-admin"] as UserRole[],
-  })),
-  ...caseTemplates.map((template) => ({
-    title: template.name,
-    description: `${template.status.toLowerCase()} template with ${template.taskCount} tasks`,
-    path: "/admin/case-templates",
-    group: "Case templates",
-    audience: ["authority-admin"] as UserRole[],
-  })),
-  ...cases.map((caseRecord) => {
-    const participant = participants.find((item) => item.id === caseRecord.participantId);
+function buildParticipants(caseRecords: CaseRecord[]): Participant[] {
+  return db.participants.map((participant) => {
+    const dto = participant.toDto();
+    const participantCases = caseRecords.filter((caseRecord) => caseRecord.participantId === dto.id);
+    const access = db.stakeholderParticipantAccess.find((item) => item.toDto().participantId === dto.id)?.toDto();
+    const completedTasks = participantCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
+    const totalTasks = participantCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
     return {
-      title: `${caseRecord.title} - ${participant?.name ?? "Unknown participant"}`,
-      description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} tasks complete`,
-      path: `/cases/${caseRecord.id}`,
-      group: "Cases",
+      id: dto.id,
+      authorityId: dto.authorityId,
+      stakeholderId: access?.stakeholderId ?? "",
+      name: dto.displayName,
+      type: dto.participantType === "ORGANISATION" ? "Organisation" : "Person",
+      participantRole: dto.participantType === "ORGANISATION" ? "0..many users, Admin or Member" : "Normally one user, Admin or Member",
+      status: uiParticipantStatus(participantCases),
+      domainStatus: dto.status,
+      openCases: participantCases.filter((caseRecord) => caseRecord.status !== "closed").length,
+      completedTasks,
+      totalTasks,
+      lastActivity: participantCases[0]?.lastActivity ?? "No case activity",
+    };
+  });
+}
+
+function buildAuthenticatableUsers(): AuthenticatableUser[] {
+  return [
+    ...db.authorityUsers.map((membership) => {
+      const dto = membership.toDto();
+      const user = db.userAccounts.find((account) => account.id === dto.userAccountId)?.toDto();
+      return {
+        id: dto.userAccountId,
+        name: user?.displayName ?? "Unknown user",
+        email: user?.email ?? "",
+        userKind: "AUTHORITY" as const,
+        membership: { entityType: "authority" as const, entityId: dto.entityId },
+        membershipRole: dto.role,
+      };
+    }),
+    ...db.participantUsers.map((membership) => {
+      const dto = membership.toDto();
+      const user = db.userAccounts.find((account) => account.id === dto.userAccountId)?.toDto();
+      return {
+        id: dto.userAccountId,
+        name: user?.displayName ?? "Unknown user",
+        email: user?.email ?? "",
+        userKind: "PARTICIPANT" as const,
+        membership: { entityType: "participant" as const, entityId: dto.entityId },
+        membershipRole: dto.role,
+      };
+    }),
+    ...db.stakeholderUsers.map((membership) => {
+      const dto = membership.toDto();
+      const user = db.userAccounts.find((account) => account.id === dto.userAccountId)?.toDto();
+      return {
+        id: dto.userAccountId,
+        name: user?.displayName ?? "Unknown user",
+        email: user?.email ?? "",
+        userKind: "STAKEHOLDER" as const,
+        membership: { entityType: "stakeholder" as const, entityId: dto.entityId },
+        membershipRole: dto.role,
+      };
+    }),
+  ];
+}
+
+function buildAdminResources() {
+  return [
+    { name: "Participants", path: "/admin/participants", Icon: Building2, count: `${participants.length} in scope` },
+    { name: "Stakeholders", path: "/admin/stakeholders", Icon: UserRoundCheck, count: `${stakeholders.length} in scope` },
+    { name: "Case templates", path: "/admin/case-templates", Icon: ShieldCheck, count: `${caseTemplates.length} configured` },
+    { name: "Task types", path: "/admin/task-types", Icon: ClipboardCheck, count: `${taskTypes.length} global` },
+    { name: "Users", path: "/admin/users", Icon: Users, count: `${authenticatableUsers.length} users` },
+  ];
+}
+
+function buildSearchItems(): SearchItem[] {
+  return [
+    ...consoleApps.map((app) => ({
+      title: app.name,
+      description: app.description,
+      path: app.path,
+      group: "Apps",
+      audience: app.audience,
+    })),
+    ...participants.map((participant) => ({
+      title: participant.name,
+      description: `${participant.type} - ${participant.openCases} open case`,
+      path: `/admin/participants/${participant.id}`,
+      group: "Participants",
+      audience: ["authority-admin", "stakeholder"] as UserRole[],
+    })),
+    ...stakeholders.map((stakeholder) => ({
+      title: stakeholder.name,
+      description: `${stakeholder.visibleParticipants} approved participant access record`,
+      path: "/admin/stakeholders",
+      group: "Stakeholders",
+      audience: ["authority-admin"] as UserRole[],
+    })),
+    ...caseTemplates.map((template) => ({
+      title: template.name,
+      description: `${template.status.toLowerCase()} template with ${template.taskCount} tasks`,
+      path: "/admin/case-templates",
+      group: "Case templates",
+      audience: ["authority-admin"] as UserRole[],
+    })),
+    ...cases.map((caseRecord) => {
+      const participant = participants.find((item) => item.id === caseRecord.participantId);
+      return {
+        title: `${caseRecord.title} - ${participant?.name ?? "Unknown participant"}`,
+        description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} tasks complete`,
+        path: `/cases/${caseRecord.id}`,
+        group: "Cases",
+        audience: ["authority-admin", "participant"] as UserRole[],
+      };
+    }),
+    ...cases.flatMap((caseRecord) => caseRecord.tasks.map((task) => ({
+      title: task.title,
+      description: task.type,
+      path: `/cases/${caseRecord.id}/tasks/${task.id}`,
+      group: "Tasks",
       audience: ["authority-admin", "participant"] as UserRole[],
-    };
-  }),
-  ...cases.flatMap((caseRecord) => caseRecord.tasks.map((task) => ({
-    title: task.title,
-    description: task.type,
-    path: `/cases/${caseRecord.id}/tasks/${task.id}`,
-    group: "Tasks",
-    audience: ["authority-admin", "participant"] as UserRole[],
-  }))),
-];
+    }))),
+  ];
+}
+
+export let authorities: Authority[] = [];
+export let taskTypes: TaskType[] = [];
+export let caseTemplates: CaseTemplate[] = [];
+export let cases: CaseRecord[] = [];
+export let stakeholders: Stakeholder[] = [];
+export let participants: Participant[] = [];
+export let authenticatableUsers: AuthenticatableUser[] = [];
+export let adminResources: ReturnType<typeof buildAdminResources> = [];
+export let searchItems: SearchItem[] = [];
+
+export function refreshConsoleViewModels() {
+  authorities = buildAuthorities();
+  taskTypes = buildTaskTypes();
+  caseTemplates = buildCaseTemplates();
+  cases = buildCaseRecords();
+  stakeholders = buildStakeholders();
+  participants = buildParticipants(cases);
+  authenticatableUsers = buildAuthenticatableUsers();
+  adminResources = buildAdminResources();
+  searchItems = buildSearchItems();
+}
+
+refreshConsoleViewModels();
 
 export function getConsoleAppsForRole(role: UserRole) {
   return consoleApps.filter((app) => app.audience.includes(role));

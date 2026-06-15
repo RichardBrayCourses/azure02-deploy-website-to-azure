@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Header from "./components/Header";
 import AuthProvider, { useAuth } from "./context/AuthContext";
+import DomainDataProvider, { useDomainData } from "./context/DomainDataContext";
 import ThemeProvider, { useTheme } from "./context/ThemeContext";
 import { getDefaultConsolePath } from "./data/console";
 import {
@@ -19,6 +20,8 @@ import SignInPage from "./pages/SignInPage";
 const AppContent = () => {
   const { dark } = useTheme();
   const { user } = useAuth();
+  const { version } = useDomainData();
+  void version;
   document.documentElement.classList.toggle("dark", dark);
 
   if (!user.isLoggedIn) {
@@ -59,7 +62,9 @@ const App = () => {
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
-          <AppContent />
+          <DomainDataProvider>
+            <AppContent />
+          </DomainDataProvider>
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
