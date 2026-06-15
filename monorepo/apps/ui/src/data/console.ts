@@ -20,6 +20,11 @@ export type Status = "complete" | "in-progress" | "attention" | "not-started";
 export type UmbrellaOrganizationId = string;
 export type OperationalParticipantId = string;
 export type InterestedPartyId = string;
+export type AuthenticatableUserId = string;
+export type AuthenticatableUserMembership =
+  | { entityType: "umbrella-organization"; entityId: UmbrellaOrganizationId }
+  | { entityType: "operational-participant"; entityId: OperationalParticipantId }
+  | { entityType: "interested-party"; entityId: InterestedPartyId };
 
 export type ConsoleApp = {
   id: "administration" | "case-management" | "verification-portal";
@@ -56,6 +61,13 @@ export type UmbrellaOrganization = {
 export type InterestedParty = {
   id: InterestedPartyId;
   name: string;
+};
+
+export type AuthenticatableUser = {
+  id: AuthenticatableUserId;
+  name: string;
+  email: string;
+  membership: AuthenticatableUserMembership;
 };
 
 export type Task = {
@@ -157,6 +169,117 @@ export const interestedParties: InterestedParty[] = [
   {
     id: "internal-compliance-team",
     name: "Internal compliance team",
+  },
+];
+
+export const authenticatableUsers: AuthenticatableUser[] = [
+  {
+    id: "user-jonathan-price",
+    name: "Jonathan Price",
+    email: "jonathan.price@northstar.example",
+    membership: { entityType: "umbrella-organization", entityId: "northstar-association" },
+  },
+  {
+    id: "user-amara-singh",
+    name: "Amara Singh",
+    email: "amara.singh@northstar.example",
+    membership: { entityType: "umbrella-organization", entityId: "northstar-association" },
+  },
+  {
+    id: "user-hannah-cole",
+    name: "Hannah Cole",
+    email: "hannah.cole@cobalt.example",
+    membership: { entityType: "umbrella-organization", entityId: "cobalt-home-services" },
+  },
+  {
+    id: "user-marcus-hill",
+    name: "Marcus Hill",
+    email: "marcus.hill@cobalt.example",
+    membership: { entityType: "umbrella-organization", entityId: "cobalt-home-services" },
+  },
+  {
+    id: "user-eleanor-brooks",
+    name: "Eleanor Brooks",
+    email: "eleanor.brooks@pinebridge.example",
+    membership: { entityType: "umbrella-organization", entityId: "pinebridge-council" },
+  },
+  {
+    id: "user-owen-clarke",
+    name: "Owen Clarke",
+    email: "owen.clarke@pinebridge.example",
+    membership: { entityType: "umbrella-organization", entityId: "pinebridge-council" },
+  },
+  {
+    id: "user-aisha-khan",
+    name: "Aisha Khan",
+    email: "aisha.khan@northstar-cloud.example",
+    membership: { entityType: "operational-participant", entityId: "northstar-cloud" },
+  },
+  {
+    id: "user-michael-reeves",
+    name: "Michael Reeves",
+    email: "michael.reeves@northstar-cloud.example",
+    membership: { entityType: "operational-participant", entityId: "northstar-cloud" },
+  },
+  {
+    id: "user-lewis-green",
+    name: "Lewis Green",
+    email: "lewis.green@cobalt-field.example",
+    membership: { entityType: "operational-participant", entityId: "cobalt-data" },
+  },
+  {
+    id: "user-amelia-wright",
+    name: "Amelia Wright",
+    email: "amelia.wright@cobalt-field.example",
+    membership: { entityType: "operational-participant", entityId: "cobalt-data" },
+  },
+  {
+    id: "user-margaret-jones",
+    name: "Margaret Jones",
+    email: "margaret.jones@example.net",
+    membership: { entityType: "operational-participant", entityId: "pinebridge-systems" },
+  },
+  {
+    id: "user-david-jones",
+    name: "David Jones",
+    email: "david.jones@example.net",
+    membership: { entityType: "operational-participant", entityId: "pinebridge-systems" },
+  },
+  {
+    id: "user-rachel-morgan",
+    name: "Rachel Morgan",
+    email: "rachel.morgan@supplier-customer.example",
+    membership: { entityType: "interested-party", entityId: "supplier-customers" },
+  },
+  {
+    id: "user-peter-walsh",
+    name: "Peter Walsh",
+    email: "peter.walsh@supplier-customer.example",
+    membership: { entityType: "interested-party", entityId: "supplier-customers" },
+  },
+  {
+    id: "user-sophie-turner",
+    name: "Sophie Turner",
+    email: "sophie.turner@household.example",
+    membership: { entityType: "interested-party", entityId: "household-customers" },
+  },
+  {
+    id: "user-benjamin-foster",
+    name: "Benjamin Foster",
+    email: "benjamin.foster@household.example",
+    membership: { entityType: "interested-party", entityId: "household-customers" },
+  },
+  {
+    id: "user-priya-shah",
+    name: "Priya Shah",
+    email: "priya.shah@pinebridge-compliance.example",
+    membership: { entityType: "interested-party", entityId: "internal-compliance-team" },
+  },
+  {
+    id: "user-george-evans",
+    name: "George Evans",
+    email: "george.evans@pinebridge-compliance.example",
+    membership: { entityType: "interested-party", entityId: "internal-compliance-team" },
   },
 ];
 
@@ -458,6 +581,15 @@ export function getUmbrellaOrganization(id: string | undefined) {
 
 export function getInterestedParty(id: string | undefined) {
   return interestedParties.find((interestedParty) => interestedParty.id === id);
+}
+
+export function getAuthenticatableUsersForEntity(membership: AuthenticatableUserMembership | null) {
+  if (!membership) return [];
+  return authenticatableUsers.filter(
+    (user) =>
+      user.membership.entityType === membership.entityType &&
+      user.membership.entityId === membership.entityId,
+  );
 }
 
 export function getOperationalParticipantsForUmbrellaOrganization(umbrellaOrganizationId: string | undefined) {

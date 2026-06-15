@@ -12,6 +12,8 @@ import {
 
 export type AuthenticatedUser = {
   isLoggedIn: boolean;
+  authenticatableUserId: string | null;
+  name: string | null;
   email: string | null;
   role: UserRole;
   umbrellaOrganizationId: string | null;
@@ -53,7 +55,9 @@ export function getUserRoleLabel(role: UserRole) {
 
 const LOGGED_IN_USER = {
   isLoggedIn: true,
-  email: "demo@example.com",
+  authenticatableUserId: null,
+  name: null,
+  email: null,
   role: "umbrella-organization-admin" as UserRole,
   umbrellaOrganizationId: null,
   operationalParticipantId: null,
@@ -61,6 +65,8 @@ const LOGGED_IN_USER = {
 
 const LOGGED_OUT_USER = {
   isLoggedIn: false,
+  authenticatableUserId: null,
+  name: null,
   email: null,
   role: "umbrella-organization-admin" as UserRole,
   umbrellaOrganizationId: null,
@@ -75,6 +81,9 @@ interface AuthContextData {
   user: AuthenticatedUser;
 }
 export type SignInSelection = {
+  authenticatableUserId: string;
+  name: string;
+  email: string;
   umbrellaOrganizationId: string;
   role: UserRole;
   operationalParticipantId: string | null;
@@ -118,10 +127,12 @@ function loadContext(): AuthContextData {
   } else {
     const storedUser = JSON.parse(storedData) as StoredUser;
     const umbrellaOrganizationId = storedUser.umbrellaOrganizationId ?? storedUser.owningOrganisationId ?? null;
-    const isLoggedIn = Boolean(storedUser.isLoggedIn && umbrellaOrganizationId);
+    const isLoggedIn = Boolean(storedUser.isLoggedIn && umbrellaOrganizationId && storedUser.authenticatableUserId);
     return {
       user: {
         isLoggedIn,
+        authenticatableUserId: isLoggedIn ? storedUser.authenticatableUserId ?? null : null,
+        name: isLoggedIn ? storedUser.name ?? null : null,
         email: isLoggedIn ? storedUser.email ?? null : null,
         role: normalizeRole(storedUser.role),
         umbrellaOrganizationId: isLoggedIn ? umbrellaOrganizationId : null,
@@ -149,6 +160,9 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = (selection: SignInSelection) =>
     setUser({
       ...LOGGED_IN_USER,
+      authenticatableUserId: selection.authenticatableUserId,
+      name: selection.name,
+      email: selection.email,
       role: selection.role,
       umbrellaOrganizationId: selection.umbrellaOrganizationId,
       operationalParticipantId:

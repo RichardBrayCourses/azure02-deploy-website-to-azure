@@ -222,6 +222,9 @@ const Header = () => {
             <DropdownMenuContent align="end" className="w-64 rounded-sm">
               <DropdownMenuLabel>
                 <span className="block">Account</span>
+                {user.name && (
+                  <span className="block text-sm font-medium">{user.name}</span>
+                )}
                 <span className="block text-xs font-normal text-muted-foreground">
                   {user.email ?? "Not signed in"}
                 </span>
