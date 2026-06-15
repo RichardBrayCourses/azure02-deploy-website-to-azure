@@ -4,7 +4,7 @@
 
 In this lesson, you build and deploy a real React application to Azure using a small production-style monorepo.
 
-The application is a photo gallery built with React, TypeScript, Vite, Tailwind CSS, and shadcn-style UI components. It has client-side routing, a searchable gallery, a full-screen image preview, local theme persistence, and a simple demo authentication state stored in the browser. That gives us a useful frontend without adding a backend before the course needs one.
+The application is a CaseFlow console built with React, TypeScript, Vite, Tailwind CSS, and shadcn-style UI components. It has client-side routing, a role-scoped demo sign-in flow, app navigation, global search, dark-mode persistence, and typed fixture data for umbrella organizations, operational participants, interested parties, cases, and tasks. That gives us a useful frontend without adding a backend before the course needs one.
 
 The infrastructure is written in Bicep. Bicep creates an Azure Storage account, and the deployment scripts enable Azure Blob static website hosting for the built frontend files. The Vite build output is uploaded into the special `$web` container, and Azure serves the app from the storage account's static website endpoint.
 
@@ -79,10 +79,10 @@ flowchart LR
 
 - **The project now has a clean Azure monorepo.** The `monorepo` folder contains the frontend application, Bicep infrastructure, deployment scripts, workspace configuration, and lockfile needed for this lesson.
 - **The frontend is a Vite React app.** The UI uses React, TypeScript, React Router, Tailwind CSS, lucide icons, and shadcn-style primitives for buttons, inputs, and dropdown menus.
-- **The app includes real client-side behavior.** Students can search the gallery, open a full-screen preview, switch between light and dark themes, and use a simple local login/logout demo.
+- **The app includes real client-side behavior.** Students can sign into a scoped demo account, search apps/cases/organizations/tasks, browse case-management and administration screens, submit demo page actions, use breadcrumb navigation, and switch between light and dark themes.
 - **Infrastructure is written in Bicep.** `infra/main.bicep` creates an Azure Storage account using `StorageV2`, `Standard_LRS`, HTTPS-only traffic, TLS 1.2, and a deterministic globally valid account name.
 - **Static website hosting is enabled by script.** The deployment script uses Azure CLI to enable static website hosting with `index.html` as both the index document and the not-found document.
-- **Single-page app routing is supported for this lesson.** Because the not-found document is also `index.html`, direct visits to routes such as `/profile` return the React app instead of a storage error page.
+- **Single-page app routing is supported for this lesson.** Because the not-found document is also `index.html`, direct visits to routes such as `/cases` or `/admin/operational-participants` return the React app instead of a storage error page.
 - **The upload script publishes the Vite build.** `scripts/upload-ui.sh` uploads `apps/ui/dist` into the `$web` container with overwrite enabled.
 - **Root scripts hide command complexity.** Students can run `pnpm run deploy-everything` for the full path, or run `infra:deploy`, `ui:build`, `ui:upload`, and `ui:url` one step at a time.
 - **Configuration is environment-driven.** `scripts/config.sh` provides sensible defaults while still allowing `AZURE_LOCATION`, `AZURE_RESOURCE_GROUP`, `AZURE_DEPLOYMENT_NAME`, `AZURE_APP_NAME`, and `UI_DIST_DIR` to be overridden.
@@ -105,7 +105,7 @@ pnpm install
 pnpm run ui:dev
 ```
 
-Vite starts a local development server. Open the local URL shown in the terminal and confirm that the gallery loads, the search input filters photos, the theme button toggles dark mode, and the profile route works.
+Vite starts a local development server. Open the local URL shown in the terminal and confirm that the sign-in flow loads, the role-scoped console routes work, global search returns console results, and the theme button toggles dark mode.
 
 **Run local checks**
 
@@ -230,25 +230,36 @@ The important files are:
 
 ```text
 apps/ui/src/App.tsx
-apps/ui/src/pages/Home.tsx
-apps/ui/src/pages/Profile.tsx
+apps/ui/src/pages/ConsolePages.tsx
+apps/ui/src/pages/SignInPage.tsx
 apps/ui/src/pages/NotFound.tsx
+apps/ui/src/components/ConsoleLayout.tsx
 apps/ui/src/components/Header.tsx
-apps/ui/src/components/Preview.tsx
 apps/ui/src/context/AuthContext.tsx
 apps/ui/src/context/ThemeContext.tsx
-apps/ui/src/data/photos.ts
+apps/ui/src/data/console.ts
 ```
 
-`App.tsx` sets up the browser router, layout, auth provider, and theme provider. It defines three route outcomes: the home gallery, the profile page, and a not-found page.
+`App.tsx` sets up the browser router, auth provider, and theme provider. Signed-out users see the demo sign-in page. Signed-in users are routed into their default workspace: umbrella-organization admins land on operational participants, operational participants land on cases, and interested parties land on the assurance portal.
 
-`Home.tsx` renders the image gallery. The gallery is intentionally data-driven. `photos.ts` holds the photo metadata, and the home page filters that data based on the search input. Clicking a photo sets local state and opens the preview component.
+`ConsolePages.tsx` renders the administration, case-management, task-detail, and assurance-portal screens. The pages share layout, tables, metrics, breadcrumbs, tabs, and demo action buttons.
 
-`Preview.tsx` displays the selected image in a full-screen overlay. This gives the app an interaction that is easy to verify after deployment.
+`ConsoleLayout.tsx` provides the common console shell for page content. Breadcrumb navigation warns about pending demo changes until the user presses the page's affirmative action button, such as `Save case` or `Submit task update`.
 
-`AuthContext.tsx` is a temporary demo auth layer. It stores a simple logged-in or logged-out state in `localStorage`. Later lessons can replace this with Microsoft Entra External ID without changing the overall monorepo shape.
+`Header.tsx` provides the app launcher, global search, current scope, account menu, and theme toggle.
+
+`AuthContext.tsx` is a temporary demo auth layer. It stores the signed-in role and selected scope in `localStorage`. Later lessons can replace this with Microsoft Entra External ID without changing the overall monorepo shape.
 
 `ThemeContext.tsx` stores the light or dark preference in `localStorage`. `App.tsx` applies the `dark` class to the document element so Tailwind can switch the theme variables.
+
+`console.ts` contains typed fixture data for the demo. The model separates the main party types and links them by dataless IDs:
+
+- `UmbrellaOrganization` has an `id`, `name`, and descriptive metadata.
+- `OperationalParticipant` has an `id`, `name`, `umbrellaOrganizationId`, and `interestedPartyId`.
+- `InterestedParty` has an `id` and `name`.
+- `CaseRecord` references an operational participant by `operationalParticipantId`.
+
+The model intentionally avoids a generic `owner` field because ownership is ambiguous in this domain. Screens resolve IDs to display names through helper functions such as `getUmbrellaOrganization`, `getOperationalParticipant`, and `getInterestedParty`.
 
 ## Infrastructure
 
@@ -295,7 +306,7 @@ az storage blob service-properties update \
   --auth-mode login
 ```
 
-The key detail is the not-found document. This React app uses browser routing. If a user visits `/profile` directly, Azure Blob static website hosting does not know that route exists as a physical file. Returning `index.html` lets React Router take over in the browser.
+The key detail is the not-found document. This React app uses browser routing. If a user visits `/cases` or `/admin/operational-participants` directly, Azure Blob static website hosting does not know that route exists as a physical file. Returning `index.html` lets React Router take over in the browser.
 
 ## Deployment Scripts
 
@@ -314,7 +325,7 @@ UI_DIST_DIR="${UI_DIST_DIR:-apps/ui/dist}"
 You can override these values for a one-off deployment:
 
 ```bash
-AZURE_LOCATION=westeurope AZURE_RESOURCE_GROUP=my-gallery-rg pnpm run deploy-everything
+AZURE_LOCATION=westeurope AZURE_RESOURCE_GROUP=my-caseflow-rg pnpm run deploy-everything
 ```
 
 `deploy-infra.sh` creates the resource group, deploys Bicep, reads the storage account name from the deployment output, and enables static website hosting.
@@ -419,13 +430,16 @@ The app entry point is `apps/ui/src/main.tsx`. It finds the root DOM element, cr
 
 ```tsx
 <Routes>
-  <Route path="/" element={<Home />} />
-  <Route path="/profile" element={<Profile />} />
+  <Route path="/" element={<Navigate to={getDefaultConsolePath(user.role)} replace />} />
+  <Route path="/admin/operational-participants" element={<OperationalParticipantsPage />} />
+  <Route path="/cases" element={<CaseManagementHome />} />
+  <Route path="/cases/:caseId" element={<CaseDetailPage />} />
+  <Route path="/verification" element={<VerificationPortalPage />} />
   <Route path="*" element={<NotFound />} />
 </Routes>
 ```
 
-This is enough to prove that static hosting can serve a modern client-side app, not just a single flat HTML page.
+This is enough to prove that static hosting can serve a modern client-side app with nested business routes, not just a single flat HTML page.
 
 ### 4. Add App State
 
@@ -436,19 +450,21 @@ Add two browser-backed contexts:
 
 Both contexts use `localStorage`, which means students can refresh the deployed app and see that the browser remembers their choice.
 
-### 5. Add Gallery Data
+### 5. Add Console Data
 
-Create `apps/ui/src/data/photos.ts` with a small typed photo array. Each item contains:
+Create `apps/ui/src/data/console.ts` with small typed arrays for the console demo. The important entity types are:
 
 ```ts
-id
-title
-description
-small
-large
+UmbrellaOrganization
+OperationalParticipant
+InterestedParty
+CaseRecord
+Task
 ```
 
-The home page imports this array, filters it by the search query, and renders the result as a responsive image gallery.
+Use dataless relationship keys between entities. For example, `OperationalParticipant` should store `umbrellaOrganizationId` and `interestedPartyId`, and `CaseRecord` should store `operationalParticipantId`. Avoid a generic `owner` field; it is too ambiguous for this domain.
+
+The console pages import this data, scope it to the signed-in demo user, and render role-appropriate administration, case-management, and assurance views.
 
 ### 6. Add Bicep
 
@@ -509,13 +525,15 @@ pnpm run deploy-everything
 
 Open the printed URL. Test:
 
-- the home page loads
-- images render
-- search filters the gallery
-- clicking an image opens the preview
+- the sign-in page loads
+- selecting an umbrella organization and role signs into the console
+- `/cases` shows the case list for a case-management user
+- `/admin/operational-participants` shows the operational participant list for an umbrella-organization admin
+- `/verification` shows the assurance portal for an interested party
+- global search finds apps, cases, organizations, and tasks
+- page action buttons clear the breadcrumb warning for demo navigation
 - the theme toggle works
-- `/profile` works from navigation
-- refreshing `/profile` still returns the React app
+- refreshing `/cases` still returns the React app
 
 ## Troubleshooting
 
