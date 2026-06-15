@@ -11,7 +11,9 @@ import {
   ParticipantsPage,
   ParticipantDetailPage,
   PlaceholderResourcePage,
+  StakeholderDetailPage,
   StakeholderCaseDetailPage,
+  StakeholdersPage,
   StakeholderPortalPage,
 } from "./pages/ConsolePages";
 import NotFound from "./pages/NotFound";
@@ -37,7 +39,8 @@ const AppContent = () => {
         <Route path="/admin" element={<Navigate to="/admin/participants" replace />} />
         <Route path="/admin/participants" element={<ParticipantsPage />} />
         <Route path="/admin/participants/:participantId" element={<ParticipantDetailPage />} />
-        <Route path="/admin/stakeholders" element={<PlaceholderResourcePage app="admin" />} />
+        <Route path="/admin/stakeholders" element={<StakeholdersPage />} />
+        <Route path="/admin/stakeholders/:stakeholderId" element={<StakeholderDetailPage />} />
         <Route path="/admin/case-templates" element={<PlaceholderResourcePage app="admin" />} />
         <Route path="/admin/task-types" element={<PlaceholderResourcePage app="admin" />} />
         <Route path="/admin/users" element={<PlaceholderResourcePage app="admin" />} />

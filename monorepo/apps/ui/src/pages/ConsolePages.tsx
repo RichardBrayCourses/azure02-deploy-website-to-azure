@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ConsoleLayout, MetricStrip, PageTitle, Tabs } from "@/components/ConsoleLayout";
 import { useAuth } from "@/context/AuthContext";
+import { useDomainData } from "@/context/DomainDataContext";
 import {
   adminResources,
   authenticatableUsers,
@@ -13,6 +15,8 @@ import {
   getScopedCases,
   getScopedParticipants,
   getStakeholdersForAuthority,
+  MembershipRole,
+  PartyType,
   Status,
   taskTypes,
 } from "@/data/console";
@@ -25,6 +29,7 @@ import {
   History,
   Plus,
   Upload,
+  UserPlus,
 } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
@@ -146,6 +151,46 @@ function ResourceTable({
       </div>
     </div>
   );
+}
+
+function FormField({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="font-bold text-[#0b0c0c] dark:text-white">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function SelectField({
+  children,
+  value,
+  onChange,
+}: {
+  children: ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      className="h-9 w-full border border-input bg-white px-3 text-sm shadow-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50 dark:bg-input/30"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {children}
+    </select>
+  );
+}
+
+function FormError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return <p className="text-sm font-bold text-[#d4351c]">{message}</p>;
 }
 
 export function StakeholderPortalPage() {
@@ -286,6 +331,304 @@ export function StakeholderCaseDetailPage() {
   );
 }
 
+export function StakeholdersPage() {
+  const { user } = useAuth();
+  const { db, refresh } = useDomainData();
+  const [showCreate, setShowCreate] = useState(false);
+  const [stakeholderType, setStakeholderType] = useState<PartyType>("ORGANISATION");
+  const [displayName, setDisplayName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const scopedStakeholders = getStakeholdersForAuthority(user.authorityId ?? undefined);
+
+  function createStakeholder() {
+    setError(null);
+    if (!user.authorityId) {
+      setError("No authority is selected for this session.");
+      return;
+    }
+    if (!displayName.trim()) {
+      setError("Enter a stakeholder name.");
+      return;
+    }
+    try {
+      db.createStakeholder({
+        authorityId: user.authorityId,
+        stakeholderType,
+        displayName: displayName.trim(),
+        status: "ACTIVE",
+      });
+      refresh();
+      setDisplayName("");
+      setStakeholderType("ORGANISATION");
+      setShowCreate(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Stakeholder could not be created.");
+    }
+  }
+
+  return (
+    <ConsoleLayout
+      affirmativeActionCompleteLabel="Updated"
+      affirmativeActionLabel="Update"
+      appName="Administration"
+      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
+      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Stakeholders" }]}
+    >
+      <PageTitle
+        eyebrow="Resource list"
+        title="Stakeholders"
+        description="Create stakeholders, manage their users, and grant participant monitoring access."
+        actions={
+          <Button onClick={() => setShowCreate((current) => !current)}>
+            <Plus />
+            Create stakeholder
+          </Button>
+        }
+      />
+      {showCreate && (
+        <section className="mb-6 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
+          <h3 className="text-lg font-bold">Create stakeholder</h3>
+          <div className="mt-4 grid gap-4 md:grid-cols-[14rem_1fr_auto] md:items-end">
+            <FormField label="Type">
+              <SelectField value={stakeholderType} onChange={(value) => setStakeholderType(value as PartyType)}>
+                <option value="ORGANISATION">Organisation</option>
+                <option value="PERSON">Person</option>
+              </SelectField>
+            </FormField>
+            <FormField label="Display name">
+              <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+            </FormField>
+            <Button type="button" onClick={createStakeholder}>
+              <CheckCircle2 />
+              Save
+            </Button>
+          </div>
+          <div className="mt-3"><FormError message={error} /></div>
+        </section>
+      )}
+      <ResourceTable headings={["Stakeholder", "Type", "Status", "Participant access"]}>
+        {scopedStakeholders.map((stakeholder) => (
+          <tr key={stakeholder.id} className="border-b border-[#b1b4b6] last:border-b-0">
+            <td className="px-4 py-3">
+              <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/stakeholders/${stakeholder.id}`}>
+                {stakeholder.name}
+              </Link>
+            </td>
+            <td className="px-4 py-3">{stakeholder.type}</td>
+            <td className="px-4 py-3">{stakeholder.status}</td>
+            <td className="px-4 py-3">{stakeholder.visibleParticipants} approved</td>
+          </tr>
+        ))}
+      </ResourceTable>
+    </ConsoleLayout>
+  );
+}
+
+export function StakeholderDetailPage() {
+  const { user } = useAuth();
+  const { db, refresh } = useDomainData();
+  const { stakeholderId } = useParams();
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [showGrantAccess, setShowGrantAccess] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserRole, setNewUserRole] = useState<MembershipRole>("MEMBER");
+  const [selectedParticipantId, setSelectedParticipantId] = useState("");
+  const [userError, setUserError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const stakeholder = getStakeholder(stakeholderId);
+  if (!stakeholder) return <Navigate to="/admin/stakeholders" replace />;
+  const scopedStakeholders = getStakeholdersForAuthority(user.authorityId ?? undefined);
+  if (!scopedStakeholders.some((item) => item.id === stakeholder.id)) return <Navigate to="/admin/stakeholders" replace />;
+  const stakeholderRecord = stakeholder;
+
+  const stakeholderUsers = authenticatableUsers.filter(
+    (account) =>
+      account.membership.entityType === "stakeholder" &&
+      account.membership.entityId === stakeholderRecord.id,
+  );
+  const accessibleParticipantIds = new Set(
+    db.getAccessibleParticipantsForStakeholder(stakeholderRecord.id).map((participant) => participant.id),
+  );
+  const accessibleParticipants = getScopedParticipants(user).filter((participant) => accessibleParticipantIds.has(participant.id));
+  const grantableParticipants = getScopedParticipants(user).filter((participant) => !accessibleParticipantIds.has(participant.id));
+
+  function createStakeholderUser() {
+    setUserError(null);
+    if (!newUserName.trim()) {
+      setUserError("Enter a user name.");
+      return;
+    }
+    if (!newUserEmail.trim()) {
+      setUserError("Enter an email address.");
+      return;
+    }
+    try {
+      db.createStakeholderUser(stakeholderRecord.id, {
+        displayName: newUserName.trim(),
+        email: newUserEmail.trim(),
+        role: newUserRole,
+      });
+      refresh();
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserRole("MEMBER");
+      setShowCreateUser(false);
+    } catch (caught) {
+      setUserError(caught instanceof Error ? caught.message : "Stakeholder user could not be created.");
+    }
+  }
+
+  function grantAccess() {
+    setAccessError(null);
+    if (!user.authenticatableUserId) {
+      setAccessError("No authority user is selected for this session.");
+      return;
+    }
+    if (!selectedParticipantId) {
+      setAccessError("Select a participant.");
+      return;
+    }
+    try {
+      db.grantStakeholderAccess({
+        stakeholderId: stakeholderRecord.id,
+        participantId: selectedParticipantId,
+        approvedByUserId: user.authenticatableUserId,
+      });
+      refresh();
+      setSelectedParticipantId("");
+      setShowGrantAccess(false);
+    } catch (caught) {
+      setAccessError(caught instanceof Error ? caught.message : "Access could not be granted.");
+    }
+  }
+
+  return (
+    <ConsoleLayout
+      affirmativeActionCompleteLabel="Saved"
+      affirmativeActionLabel="Save"
+      appName="Administration"
+      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
+      breadcrumbs={[
+        { label: "Administration", path: "/admin" },
+        { label: "Stakeholders", path: "/admin/stakeholders" },
+        { label: stakeholder.name },
+      ]}
+    >
+      <PageTitle
+        eyebrow="Stakeholder"
+        title={stakeholder.name}
+        description="Manage stakeholder users and approved participant monitoring access."
+      />
+      <Tabs
+        current="Overview"
+        tabs={[
+          { label: "Overview", path: `/admin/stakeholders/${stakeholder.id}` },
+          { label: "Users", path: `/admin/stakeholders/${stakeholder.id}` },
+          { label: "Access", path: `/admin/stakeholders/${stakeholder.id}` },
+          { label: "Audit", path: `/admin/stakeholders/${stakeholder.id}` },
+        ]}
+      />
+      <MetricStrip
+        items={[
+          { label: "Current status", value: stakeholder.status.toLowerCase(), tone: "blue" },
+          { label: "Type", value: stakeholder.type, tone: "blue" },
+          { label: "Users", value: String(stakeholderUsers.length), tone: "green" },
+          { label: "Participant access", value: String(accessibleParticipants.length), tone: "yellow" },
+        ]}
+      />
+      <section className="mt-8">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-bold">Users</h3>
+          <Button type="button" onClick={() => setShowCreateUser((current) => !current)}>
+            <UserPlus />
+            Create user
+          </Button>
+        </div>
+        {showCreateUser && (
+          <div className="mb-4 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
+            <h4 className="text-base font-bold">Create stakeholder user</h4>
+            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_10rem_auto] md:items-end">
+              <FormField label="Display name">
+                <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
+              </FormField>
+              <FormField label="Email">
+                <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
+              </FormField>
+              <FormField label="Role">
+                <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
+                  <option value="MEMBER">Member</option>
+                  <option value="ADMIN">Admin</option>
+                </SelectField>
+              </FormField>
+              <Button type="button" onClick={createStakeholderUser}>
+                <CheckCircle2 />
+                Save
+              </Button>
+            </div>
+            <div className="mt-3"><FormError message={userError} /></div>
+          </div>
+        )}
+        <ResourceTable headings={["User", "Email", "Kind", "Role"]}>
+          {stakeholderUsers.map((account) => (
+            <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
+              <td className="px-4 py-3">{account.email}</td>
+              <td className="px-4 py-3">{account.userKind}</td>
+              <td className="px-4 py-3">{account.membershipRole}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+      <section className="mt-8">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-bold">Participant access</h3>
+          <Button type="button" onClick={() => setShowGrantAccess((current) => !current)} disabled={grantableParticipants.length === 0}>
+            <Plus />
+            Grant access
+          </Button>
+        </div>
+        {showGrantAccess && (
+          <div className="mb-4 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
+            <h4 className="text-base font-bold">Grant participant access</h4>
+            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+              <FormField label="Participant">
+                <SelectField value={selectedParticipantId} onChange={setSelectedParticipantId}>
+                  <option value="">Select participant</option>
+                  {grantableParticipants.map((participant) => (
+                    <option key={participant.id} value={participant.id}>{participant.name}</option>
+                  ))}
+                </SelectField>
+              </FormField>
+              <Button type="button" onClick={grantAccess}>
+                <CheckCircle2 />
+                Grant
+              </Button>
+            </div>
+            <div className="mt-3"><FormError message={accessError} /></div>
+          </div>
+        )}
+        <ResourceTable headings={["Participant", "Type", "Status", "Progress"]}>
+          {accessibleParticipants.map((participant) => (
+            <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/participants/${participant.id}`}>
+                  {participant.name}
+                </Link>
+              </td>
+              <td className="px-4 py-3">{participant.type}</td>
+              <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
+              <td className="px-4 py-3"><ProgressBar value={participant.completedTasks} total={participant.totalTasks} /></td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+    </ConsoleLayout>
+  );
+}
+
 export function AdminHome() {
   const { user } = useAuth();
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
@@ -325,8 +668,39 @@ export function AdminHome() {
 
 export function ParticipantsPage() {
   const { user } = useAuth();
+  const { db, refresh } = useDomainData();
+  const [showCreate, setShowCreate] = useState(false);
+  const [participantType, setParticipantType] = useState<PartyType>("ORGANISATION");
+  const [displayName, setDisplayName] = useState("");
+  const [error, setError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const scopedParticipants = getScopedParticipants(user);
+
+  function createParticipant() {
+    setError(null);
+    if (!user.authorityId) {
+      setError("No authority is selected for this session.");
+      return;
+    }
+    if (!displayName.trim()) {
+      setError("Enter a participant name.");
+      return;
+    }
+    try {
+      db.createParticipant({
+        authorityId: user.authorityId,
+        participantType,
+        displayName: displayName.trim(),
+        status: "ACTIVE",
+      });
+      refresh();
+      setDisplayName("");
+      setParticipantType("ORGANISATION");
+      setShowCreate(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Participant could not be created.");
+    }
+  }
 
   return (
     <ConsoleLayout
@@ -341,12 +715,33 @@ export function ParticipantsPage() {
         title="Participants"
         description="Select a participant to review membership, stakeholder access, generated cases, task status, and activity."
         actions={
-          <Button>
+          <Button onClick={() => setShowCreate((current) => !current)}>
             <Plus />
-            Add
+            Create participant
           </Button>
         }
       />
+      {showCreate && (
+        <section className="mb-6 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
+          <h3 className="text-lg font-bold">Create participant</h3>
+          <div className="mt-4 grid gap-4 md:grid-cols-[14rem_1fr_auto] md:items-end">
+            <FormField label="Type">
+              <SelectField value={participantType} onChange={(value) => setParticipantType(value as PartyType)}>
+                <option value="ORGANISATION">Organisation</option>
+                <option value="PERSON">Person</option>
+              </SelectField>
+            </FormField>
+            <FormField label="Display name">
+              <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+            </FormField>
+            <Button type="button" onClick={createParticipant}>
+              <CheckCircle2 />
+              Save
+            </Button>
+          </div>
+          <div className="mt-3"><FormError message={error} /></div>
+        </section>
+      )}
       <ResourceTable headings={["Participant", "Type", "Status", "Open cases", "Progress", "Last activity"]}>
         {scopedParticipants.map((participant) => (
           <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -372,15 +767,53 @@ export function ParticipantsPage() {
 
 export function ParticipantDetailPage() {
   const { user } = useAuth();
-  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const { db, refresh } = useDomainData();
   const { participantId } = useParams();
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserRole, setNewUserRole] = useState<MembershipRole>("MEMBER");
+  const [userError, setUserError] = useState<string | null>(null);
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const participant = getParticipant(participantId);
   if (!participant) return <Navigate to="/admin/participants" replace />;
   const scopedParticipantIds = new Set(getScopedParticipants(user).map((item) => item.id));
   if (!scopedParticipantIds.has(participant.id)) return <Navigate to="/admin/participants" replace />;
+  const participantRecord = participant;
 
-  const participantCases = getScopedCases(user).filter((caseRecord) => caseRecord.participantId === participant.id);
-  const stakeholder = getStakeholder(participant.stakeholderId);
+  const participantCases = getScopedCases(user).filter((caseRecord) => caseRecord.participantId === participantRecord.id);
+  const stakeholder = getStakeholder(participantRecord.stakeholderId);
+  const participantUsers = authenticatableUsers.filter(
+    (account) =>
+      account.membership.entityType === "participant" &&
+      account.membership.entityId === participantRecord.id,
+  );
+
+  function createParticipantUser() {
+    setUserError(null);
+    if (!newUserName.trim()) {
+      setUserError("Enter a user name.");
+      return;
+    }
+    if (!newUserEmail.trim()) {
+      setUserError("Enter an email address.");
+      return;
+    }
+    try {
+      db.createParticipantUser(participantRecord.id, {
+        displayName: newUserName.trim(),
+        email: newUserEmail.trim(),
+        role: newUserRole,
+      });
+      refresh();
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserRole("MEMBER");
+      setShowCreateUser(false);
+    } catch (caught) {
+      setUserError(caught instanceof Error ? caught.message : "Participant user could not be created.");
+    }
+  }
 
   return (
     <ConsoleLayout
@@ -416,6 +849,49 @@ export function ParticipantDetailPage() {
           { label: "Stakeholder", value: stakeholder?.name ?? "None", tone: "yellow" },
         ]}
       />
+      <section className="mt-8">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-bold">Users</h3>
+          <Button type="button" onClick={() => setShowCreateUser((current) => !current)}>
+            <UserPlus />
+            Create user
+          </Button>
+        </div>
+        {showCreateUser && (
+          <div className="mb-4 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
+            <h4 className="text-base font-bold">Create participant user</h4>
+            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_10rem_auto] md:items-end">
+              <FormField label="Display name">
+                <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
+              </FormField>
+              <FormField label="Email">
+                <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
+              </FormField>
+              <FormField label="Role">
+                <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
+                  <option value="MEMBER">Member</option>
+                  <option value="ADMIN">Admin</option>
+                </SelectField>
+              </FormField>
+              <Button type="button" onClick={createParticipantUser}>
+                <CheckCircle2 />
+                Save
+              </Button>
+            </div>
+            <div className="mt-3"><FormError message={userError} /></div>
+          </div>
+        )}
+        <ResourceTable headings={["User", "Email", "Kind", "Role"]}>
+          {participantUsers.map((account) => (
+            <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
+              <td className="px-4 py-3">{account.email}</td>
+              <td className="px-4 py-3">{account.userKind}</td>
+              <td className="px-4 py-3">{account.membershipRole}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Cases</h3>
         <ResourceTable headings={["Case", "Type", "Status", "Progress", "Risk", "Outcome"]}>

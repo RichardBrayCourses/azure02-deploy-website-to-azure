@@ -23,7 +23,7 @@ Use this file to understand:
 
 # Current Status Summary
 
-Phase 1 is complete.
+Phase 1 and Phase 2 are complete.
 
 The app now has:
 
@@ -35,8 +35,9 @@ The app now has:
 - App-level `DomainDataProvider`
 - Existing screens subscribed to domain data refreshes
 - Authority/Participant/Stakeholder case experience partially separated by role
+- Authority setup CRUD flows for participants, participant users, stakeholders, stakeholder users and stakeholder access
 
-The UI is still mostly read-oriented. The next implementation work should start Phase 2: Authority setup CRUD.
+The next implementation work should start Phase 3: Case Template Workflow.
 
 ---
 
@@ -107,7 +108,7 @@ Notes:
 Status:
 
 ```text
-Not started
+Complete
 ```
 
 Stories covered:
@@ -134,33 +135,33 @@ db.createStakeholderUser(...)
 db.grantStakeholderAccess(...)
 ```
 
-UI work remaining:
+Implemented:
 
-- Add Create Participant flow on Participants page
-- Add participant users list/flow on Participant detail
-- Replace Stakeholders placeholder with real Stakeholders page
-- Add Stakeholder detail page
-- Add Stakeholder users flow
-- Add Grant Participant Access flow
+- Added Create Participant flow on Participants page
+- Added participant users list and Create User flow on Participant detail
+- Replaced Stakeholders placeholder with real Stakeholders page
+- Added Stakeholder detail page
+- Added Stakeholder users list and Create User flow
+- Added Grant Participant Access flow
+- All mutations use `useDomainData()`, domain commands and `refresh()`
 
-Recommended next task:
+Important files:
 
 ```text
-Implement Create Participant on /admin/participants.
+monorepo/apps/ui/src/pages/ConsolePages.tsx
+monorepo/apps/ui/src/App.tsx
 ```
 
-Suggested first small slice:
-
-- Add a form/dialog for participant type and display name
-- Call `db.createParticipant(...)`
-- Call `refresh()`
-- Verify the new participant appears in the table
-
-Acceptance for first slice:
+Acceptance covered:
 
 - Authority admin can create an Organisation participant
 - Authority admin can create a Person participant
 - New participant is scoped to the current authority
+- Authority admin can create Participant users with Admin or Member role
+- Authority admin can create Stakeholders
+- Authority admin can create Stakeholder users with Admin or Member role
+- Authority admin can grant Stakeholder access to Participants
+- Duplicate access is blocked by the domain command
 - Login screen is unchanged
 - `npm run type-check` passes
 - `npm run build` passes
@@ -472,13 +473,13 @@ Do not implement this before the main user-story flows unless activity accuracy 
 Recommended immediate next step:
 
 ```text
-Start Phase 2 with Create Participant.
+Start Phase 3 with Case Template list/detail pages.
 ```
 
 Suggested agent prompt:
 
 ```text
-Please implement Phase 2, first slice only: Create Participant.
+Please implement Phase 3, first slice only: Case Template list/detail pages.
 
 Read:
 - fullhandover.md
@@ -488,9 +489,10 @@ Read:
 
 Requirements:
 - Preserve the login screen
-- Add a Create Participant flow to /admin/participants
+- Replace the Case Templates placeholder with a real list page
+- Add /admin/case-templates/:templateId
 - Use useDomainData()
-- Call db.createParticipant(...)
+- Start with read-only template detail before adding create/publish actions
 - Call refresh()
 - Keep the existing UI style
 - Run npm run type-check and npm run build
@@ -502,11 +504,11 @@ Requirements:
 
 ## Authority
 
-- [ ] Create Participant
-- [ ] Create Participant User
-- [ ] Create Stakeholder
-- [ ] Create Stakeholder User
-- [ ] Grant Stakeholder Access
+- [x] Create Participant
+- [x] Create Participant User
+- [x] Create Stakeholder
+- [x] Create Stakeholder User
+- [x] Grant Stakeholder Access
 - [ ] Create Case Template
 - [ ] Add Tasks to Case Template
 - [ ] Assign Participants to Template
@@ -541,4 +543,3 @@ Requirements:
 - [x] Refreshable view models
 - [x] Domain data React provider
 - [ ] Domain command tests
-
