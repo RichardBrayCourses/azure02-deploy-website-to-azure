@@ -31,17 +31,17 @@ export type AccessGrantPermissionLevel =
   | "REVIEW_AND_COMMENT"
   | "CREATE_AND_EDIT"
   | "ADMINISTER_GRANTS";
-export type AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "VENDOR_RELATIONSHIP";
+export type AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "PARTICIPANT_SUPPLIER";
 export type TaskTypeStatus = "ACTIVE" | "DEPRECATED";
 export type CaseTemplateStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type TemplateParticipantStatus = "REQUIRED" | "EXEMPT";
 export type CaseStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CLOSED";
 export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
-export type SubscriberReviewStatus = "NOT_REVIEWED" | "IN_REVIEW" | "APPROVED" | "MORE_INFO_REQUESTED";
+export type StakeholderReviewStatus = "NOT_REVIEWED" | "IN_REVIEW" | "APPROVED" | "MORE_INFO_REQUESTED";
 export type RequestForInformationStatus = "OPEN" | "IN_PROGRESS" | "ANSWERED" | "ACCEPTED" | "WITHDRAWN";
 export type RequestForInformationScopeType = "PARTICIPANT" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA";
-export type VendorRelationshipCriticality = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-export type VendorRelationshipStatus = "ACTIVE" | "UNDER_REVIEW" | "SUSPENDED" | "EXITING";
+export type ParticipantSupplierCriticality = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type ParticipantSupplierStatus = "ACTIVE" | "UNDER_REVIEW" | "SUSPENDED" | "EXITING";
 export type UserAccountStatus = "ACTIVE" | "DISABLED";
 export type Status = "complete" | "in-progress" | "attention" | "not-started" | "withdrawn";
 
@@ -58,9 +58,9 @@ export type CaseRecordId = string;
 export type CaseTaskId = string;
 export type StakeholderParticipantAccessId = string;
 export type AccessGrantId = string;
-export type SubscriberReviewId = string;
+export type StakeholderReviewId = string;
 export type RequestForInformationId = string;
-export type VendorRelationshipId = string;
+export type ParticipantSupplierId = string;
 
 type JsonObject = Record<string, unknown>;
 
@@ -80,6 +80,25 @@ export type AuthorityDto = BaseDto & {
   name: string;
   description: string;
   status: EntityStatus;
+};
+
+export type TerminologyKey =
+  | "authority"
+  | "participant"
+  | "stakeholder"
+  | "case"
+  | "caseTemplate"
+  | "caseTask"
+  | "participantSupplier"
+  | "evidence"
+  | "accessGrant"
+  | "requestForInformation";
+
+export type TerminologyLabels = Record<TerminologyKey, { singular: string; plural: string }>;
+
+export type AuthorityTerminologyDto = BaseDto & {
+  authorityId: AuthorityId;
+  labels: TerminologyLabels;
 };
 
 export type ParticipantDto = BaseDto & {
@@ -177,7 +196,7 @@ export type CaseDto = BaseDto & {
   authorityId: AuthorityId;
   caseTemplateId: CaseTemplateId;
   participantId: ParticipantId;
-  vendorRelationshipId: VendorRelationshipId | null;
+  participantSupplierId: ParticipantSupplierId | null;
   status: CaseStatus;
   submittedAt: string | null;
   closedAt: string | null;
@@ -192,10 +211,10 @@ export type CaseTaskDto = BaseDto & {
   withdrawnAt: string | null;
 };
 
-export type SubscriberReviewDto = BaseDto & {
+export type StakeholderReviewDto = BaseDto & {
   stakeholderId: StakeholderId;
   caseId: CaseRecordId;
-  status: SubscriberReviewStatus;
+  status: StakeholderReviewStatus;
   note: string;
   reviewedByUserId: UserAccountId;
   reviewedAt: string;
@@ -219,15 +238,15 @@ export type RequestForInformationDto = BaseDto & {
   statusHistory: Array<{ status: RequestForInformationStatus; at: string; byUserId: UserAccountId; note: string }>;
 };
 
-export type VendorRelationshipDto = BaseDto & {
+export type ParticipantSupplierDto = BaseDto & {
   authorityId: AuthorityId;
   participantId: ParticipantId;
-  vendorName: string;
+  supplierName: string;
   relationshipType: string;
-  criticality: VendorRelationshipCriticality;
+  criticality: ParticipantSupplierCriticality;
   servicesProvided: string;
   dataExposure: string;
-  status: VendorRelationshipStatus;
+  status: ParticipantSupplierStatus;
 };
 
 export type CreateParticipantCommand = {
@@ -242,6 +261,11 @@ export type CreateStakeholderCommand = {
   stakeholderType: PartyType;
   displayName: string;
   status?: InviteStatus;
+};
+
+export type UpdateAuthorityTerminologyCommand = {
+  authorityId: AuthorityId;
+  labels: TerminologyLabels;
 };
 
 export type CreateEntityUserCommand = {
@@ -302,10 +326,10 @@ export type UploadEvidenceCommand = {
   evidenceJson: JsonObject;
 };
 
-export type UpsertSubscriberReviewCommand = {
+export type UpsertStakeholderReviewCommand = {
   stakeholderId: StakeholderId;
   caseId: CaseRecordId;
-  status: SubscriberReviewStatus;
+  status: StakeholderReviewStatus;
   note: string;
   reviewedByUserId: UserAccountId;
 };
@@ -332,12 +356,12 @@ export type UpdateRequestForInformationStatusCommand = {
   note?: string;
 };
 
-export type CreateVendorRelationshipCommand = {
+export type CreateParticipantSupplierCommand = {
   authorityId: AuthorityId;
   participantId: ParticipantId;
-  vendorName: string;
+  supplierName: string;
   relationshipType: string;
-  criticality: VendorRelationshipCriticality;
+  criticality: ParticipantSupplierCriticality;
   servicesProvided: string;
   dataExposure: string;
 };
@@ -356,6 +380,7 @@ class DomainEntity<TDto extends BaseDto> {
 
 export class SystemOwnerEntity extends DomainEntity<SystemOwnerDto> {}
 export class AuthorityEntity extends DomainEntity<AuthorityDto> {}
+export class AuthorityTerminologyEntity extends DomainEntity<AuthorityTerminologyDto> {}
 export class ParticipantEntity extends DomainEntity<ParticipantDto> {}
 export class StakeholderEntity extends DomainEntity<StakeholderDto> {}
 export class UserAccountEntity extends DomainEntity<UserAccountDto> {}
@@ -371,9 +396,9 @@ export class CaseTemplateTaskEntity extends DomainEntity<CaseTemplateTaskDto> {}
 export class CaseTemplateParticipantEntity extends DomainEntity<CaseTemplateParticipantDto> {}
 export class CaseEntity extends DomainEntity<CaseDto> {}
 export class CaseTaskEntity extends DomainEntity<CaseTaskDto> {}
-export class SubscriberReviewEntity extends DomainEntity<SubscriberReviewDto> {}
+export class StakeholderReviewEntity extends DomainEntity<StakeholderReviewDto> {}
 export class RequestForInformationEntity extends DomainEntity<RequestForInformationDto> {}
-export class VendorRelationshipEntity extends DomainEntity<VendorRelationshipDto> {}
+export class ParticipantSupplierEntity extends DomainEntity<ParticipantSupplierDto> {}
 
 export type AuthenticatableUserMembership =
   | { entityType: "authority"; entityId: AuthorityId }
@@ -397,6 +422,11 @@ export type Authority = {
   scenario: string;
   description: string;
   status: EntityStatus;
+};
+
+export type AuthorityTerminology = {
+  authorityId: AuthorityId;
+  labels: TerminologyLabels;
 };
 
 export type Participant = {
@@ -443,17 +473,17 @@ export type AccessGrant = {
   expiresAt: string | null;
 };
 
-export type VendorRelationship = {
-  id: VendorRelationshipId;
+export type ParticipantSupplier = {
+  id: ParticipantSupplierId;
   authorityId: AuthorityId;
   participantId: ParticipantId;
   participantName: string;
-  vendorName: string;
+  supplierName: string;
   relationshipType: string;
-  criticality: VendorRelationshipCriticality;
+  criticality: ParticipantSupplierCriticality;
   servicesProvided: string;
   dataExposure: string;
-  status: VendorRelationshipStatus;
+  status: ParticipantSupplierStatus;
   linkedCases: CaseRecord[];
 };
 
@@ -461,7 +491,7 @@ export type HelperClientWorkspace = {
   participant: Participant;
   grant: AccessGrant;
   cases: CaseRecord[];
-  vendorRelationships: VendorRelationship[];
+  participantSuppliers: ParticipantSupplier[];
   openRequests: number;
   canEdit: boolean;
   canAdministerGrants: boolean;
@@ -520,8 +550,8 @@ export type CaseRecord = {
   participantId: ParticipantId;
   authorityId: AuthorityId;
   caseTemplateId: CaseTemplateId;
-  vendorRelationshipId: VendorRelationshipId | null;
-  vendorRelationshipName: string | null;
+  participantSupplierId: ParticipantSupplierId | null;
+  participantSupplierName: string | null;
   reference: string;
   caseType: string;
   status: "open" | "closed" | "review";
@@ -534,11 +564,11 @@ export type CaseRecord = {
   tasks: Task[];
 };
 
-export type SubscriberReview = {
-  id: SubscriberReviewId;
+export type StakeholderReview = {
+  id: StakeholderReviewId;
   stakeholderId: StakeholderId;
   caseId: CaseRecordId;
-  status: SubscriberReviewStatus;
+  status: StakeholderReviewStatus;
   statusLabel: string;
   note: string;
   reviewedByName: string;
@@ -626,8 +656,36 @@ export type SearchItem = {
 const now = "2026-06-15T09:00:00.000Z";
 const created = "2026-01-03T09:00:00.000Z";
 
+export const defaultTerminologyLabels: TerminologyLabels = {
+  authority: { singular: "authority", plural: "authorities" },
+  participant: { singular: "participant", plural: "participants" },
+  stakeholder: { singular: "stakeholder", plural: "stakeholders" },
+  case: { singular: "case", plural: "cases" },
+  caseTemplate: { singular: "case template", plural: "case templates" },
+  caseTask: { singular: "case task", plural: "case tasks" },
+  participantSupplier: { singular: "participant supplier", plural: "participant suppliers" },
+  evidence: { singular: "evidence", plural: "evidence" },
+  accessGrant: { singular: "access grant", plural: "access grants" },
+  requestForInformation: { singular: "request for information", plural: "requests for information" },
+};
+
 function base(id: string): BaseDto {
   return { id, createdAt: created, updatedAt: now };
+}
+
+function mergeTerminologyLabels(labels: Partial<TerminologyLabels>): TerminologyLabels {
+  return Object.fromEntries(
+    Object.entries(defaultTerminologyLabels).map(([key, value]) => {
+      const candidate = labels[key as TerminologyKey];
+      return [
+        key,
+        {
+          singular: candidate?.singular?.trim() || value.singular,
+          plural: candidate?.plural?.trim() || value.plural,
+        },
+      ];
+    }),
+  ) as TerminologyLabels;
 }
 
 const iconByTaskCode: Record<string, typeof ImageUp> = {
@@ -637,7 +695,7 @@ const iconByTaskCode: Record<string, typeof ImageUp> = {
   POLICY_DOCUMENT: FileSignature,
   CONTROL_ATTESTATION: BadgeCheck,
   SUPPLIER_REGISTER: Users,
-  VENDOR_OF_VENDOR_DDQ: Building2,
+  PARTICIPANT_SUPPLIER_CASE: Building2,
   RISK_REGISTER: ClipboardCheck,
   DIGITAL_SIGNATURE: FileSignature,
   AI_USAGE_DISCLOSURE: Video,
@@ -683,8 +741,16 @@ export class InMemoryAllChecksOutDatabase {
       ...base("northstar-association"),
       systemOwnerId: "all-checks-out",
       name: "Digital Platform Assurance Association",
-      description: "A trade association defining DDQ expectations for member IT platform vendors.",
+      description: "An authority defining case expectations for member participants.",
       status: "ACTIVE",
+    }),
+  ];
+
+  readonly authorityTerminology = [
+    new AuthorityTerminologyEntity({
+      ...base("terminology-northstar-association"),
+      authorityId: "northstar-association",
+      labels: defaultTerminologyLabels,
     }),
   ];
 
@@ -800,14 +866,14 @@ export class InMemoryAllChecksOutDatabase {
     this.accessGrant("grant-harrington-cobalt", "cobalt-workflow", "STAKEHOLDER", "harrington-financial", "REVIEW_AND_COMMENT", "ACTIVE", "user-lewis-green"),
     this.accessGrant("grant-mercury-cobalt", "cobalt-workflow", "STAKEHOLDER", "mercury-retail", "REQUEST_INFORMATION", "ACTIVE", "user-lewis-green"),
     this.accessGrant("grant-mercury-pinebridge", "pinebridge-data", "STAKEHOLDER", "mercury-retail", "REVIEW_AND_COMMENT", "ACTIVE", "user-maya-patel"),
-    this.accessGrant("grant-mercury-northstar-stratuspay", "northstar-cloud", "STAKEHOLDER", "mercury-retail", "REQUEST_INFORMATION", "ACTIVE", "user-aisha-khan", "VENDOR_RELATIONSHIP", "vendor-rel-northstar-stratuspay"),
+    this.accessGrant("grant-mercury-northstar-stratuspay", "northstar-cloud", "STAKEHOLDER", "mercury-retail", "REQUEST_INFORMATION", "ACTIVE", "user-aisha-khan", "PARTICIPANT_SUPPLIER", "participant-supplier-northstar-stratuspay"),
     this.accessGrant("grant-sentinel-northstar", "northstar-cloud", "HELPER", "sentinel-grc", "CREATE_AND_EDIT", "ACTIVE", "user-aisha-khan"),
     this.accessGrant("grant-sentinel-asteria", "asteria-identity", "HELPER", "sentinel-grc", "REVIEW_AND_COMMENT", "ACTIVE", "user-owen-clarke"),
   ];
 
-  readonly vendorRelationships = [
-    this.vendorRelationship(
-      "vendor-rel-northstar-stratuspay",
+  readonly participantSuppliers = [
+    this.participantSupplier(
+      "participant-supplier-northstar-stratuspay",
       "northstar-cloud",
       "StratusPay Processing",
       "Payment processing subprocessor",
@@ -816,8 +882,8 @@ export class InMemoryAllChecksOutDatabase {
       "Processes production customer identifiers and payment tokens in UK and EU regions.",
       "UNDER_REVIEW",
     ),
-    this.vendorRelationship(
-      "vendor-rel-northstar-observiq",
+    this.participantSupplier(
+      "participant-supplier-northstar-observiq",
       "northstar-cloud",
       "ObservIQ Telemetry",
       "Monitoring and observability provider",
@@ -826,8 +892,8 @@ export class InMemoryAllChecksOutDatabase {
       "Receives service telemetry and limited diagnostic logs with customer tenant references.",
       "ACTIVE",
     ),
-    this.vendorRelationship(
-      "vendor-rel-cobalt-docuhold",
+    this.participantSupplier(
+      "participant-supplier-cobalt-docuhold",
       "cobalt-workflow",
       "DocuHold Archive Services",
       "Document retention provider",
@@ -836,8 +902,8 @@ export class InMemoryAllChecksOutDatabase {
       "Stores encrypted customer documents and retention metadata.",
       "ACTIVE",
     ),
-    this.vendorRelationship(
-      "vendor-rel-pinebridge-eu-host",
+    this.participantSupplier(
+      "participant-supplier-pinebridge-eu-host",
       "pinebridge-data",
       "Azure EU Hosting Operations",
       "Cloud hosting provider",
@@ -851,10 +917,10 @@ export class InMemoryAllChecksOutDatabase {
   readonly taskTypes = [
     this.taskType("task-type-policy-document", "POLICY_DOCUMENT", "Policy document upload", "Upload a controlled policy, plan, or governance document."),
     this.taskType("task-type-certification", "CERTIFICATION_EVIDENCE", "Certification evidence", "Upload ISO 27001, SOC 2, Cyber Essentials, or equivalent assurance evidence."),
-    this.taskType("task-type-questionnaire", "QUESTIONNAIRE", "Questionnaire", "Answer structured due diligence questions."),
+    this.taskType("task-type-questionnaire", "QUESTIONNAIRE", "Questionnaire", "Answer structured case questions."),
     this.taskType("task-type-control-attestation", "CONTROL_ATTESTATION", "Control attestation", "Confirm that a required control exists and is operating."),
     this.taskType("task-type-supplier-register", "SUPPLIER_REGISTER", "Supplier register", "List subprocessors, hosting providers, support tools, and critical suppliers."),
-    this.taskType("task-type-vendor-ddq", "VENDOR_OF_VENDOR_DDQ", "Vendor-of-vendor DDQ", "Record due diligence on a critical supplier or vendor of the vendor."),
+    this.taskType("task-type-participant-ddq", "PARTICIPANT_SUPPLIER_CASE", "Participant supplier case", "Record case on a critical supplier or participant supplier."),
     this.taskType("task-type-risk-register", "RISK_REGISTER", "Risk and remediation register", "Record issues, owners, mitigation dates, and residual risk."),
     this.taskType("task-type-upload-document", "UPLOAD_DOCUMENT", "Evidence metadata upload", "Record uploaded evidence metadata in this frontend phase."),
     this.taskType("task-type-signature", "DIGITAL_SIGNATURE", "Digital signature", "Capture a senior officer attestation."),
@@ -864,8 +930,8 @@ export class InMemoryAllChecksOutDatabase {
   ];
 
   readonly caseTemplates = [
-    this.caseTemplate("template-annual-platform-ddq", "northstar-association", "Annual Platform Vendor DDQ 2026", "Due diligence pack", "PUBLISHED", "user-jonathan-price"),
-    this.caseTemplate("template-critical-supplier-ddq", "northstar-association", "Critical Supplier DDQ", "Vendor-of-vendor due diligence", "PUBLISHED", "user-jonathan-price"),
+    this.caseTemplate("template-annual-platform-ddq", "northstar-association", "Annual Platform Participant Case 2026", "Case", "PUBLISHED", "user-jonathan-price"),
+    this.caseTemplate("template-critical-supplier-ddq", "northstar-association", "Critical Supplier Case", "Participant supplier case", "PUBLISHED", "user-jonathan-price"),
   ];
 
   readonly caseTemplateTasks = [
@@ -885,7 +951,7 @@ export class InMemoryAllChecksOutDatabase {
     this.templateTask("template-task-cyber-insurance", "template-annual-platform-ddq", "task-type-certification", "Cyber insurance evidence", "Upload cyber insurance certificate and coverage summary.", 14, { due: "26 Jun 2026" }),
     this.templateTask("template-task-secure-development", "template-annual-platform-ddq", "task-type-questionnaire", "Secure development lifecycle questionnaire", "Describe secure coding, code review, dependency scanning, release controls, and segregation of duties.", 15, { due: "27 Jun 2026" }),
     this.templateTask("template-task-ai-disclosure", "template-annual-platform-ddq", "task-type-ai-disclosure", "AI usage and customer-data disclosure", "Declare whether AI services process customer data, which providers are used, and what controls apply.", 16, { due: "27 Jun 2026" }),
-    this.templateTask("template-task-critical-supplier", "template-annual-platform-ddq", "task-type-vendor-ddq", "Critical supplier and vendor-of-vendor DDQ", "Identify critical suppliers and complete due diligence for material third-party dependencies.", 17, { due: "28 Jun 2026" }),
+    this.templateTask("template-task-critical-supplier", "template-annual-platform-ddq", "task-type-participant-ddq", "Critical supplier and participant supplier Case", "Identify critical suppliers and complete case for material third-party dependencies.", 17, { due: "28 Jun 2026" }),
     this.templateTask("template-task-senior-attestation", "template-annual-platform-ddq", "task-type-signature", "Senior officer attestation and signature", "A senior officer confirms the submitted information is accurate and complete.", 18, { due: "30 Jun 2026" }),
     this.templateTask("template-task-supplier-profile", "template-critical-supplier-ddq", "task-type-questionnaire", "Supplier profile", "Record the supplier relationship, criticality, services provided, and customer-data exposure.", 1, { due: "No due date" }),
     this.templateTask("template-task-supplier-controls", "template-critical-supplier-ddq", "task-type-control-attestation", "Supplier control attestation", "Confirm key security and resilience controls for the critical supplier.", 2, { due: "No due date" }),
@@ -897,7 +963,7 @@ export class InMemoryAllChecksOutDatabase {
     this.caseRecord("case-2026-cobalt", "northstar-association", "template-annual-platform-ddq", "cobalt-workflow", null, "IN_PROGRESS", null, null),
     this.caseRecord("case-2026-pinebridge", "northstar-association", "template-annual-platform-ddq", "pinebridge-data", null, "REJECTED", "2026-06-10T12:00:00.000Z", null),
     this.caseRecord("case-2026-asteria", "northstar-association", "template-annual-platform-ddq", "asteria-identity", null, "APPROVED", "2026-06-05T11:15:00.000Z", "2026-06-14T09:30:00.000Z"),
-    this.caseRecord("case-supplier-northstar-stratuspay", "northstar-association", "template-critical-supplier-ddq", "northstar-cloud", "vendor-rel-northstar-stratuspay", "IN_PROGRESS", null, null),
+    this.caseRecord("case-supplier-northstar-stratuspay", "northstar-association", "template-critical-supplier-ddq", "northstar-cloud", "participant-supplier-northstar-stratuspay", "IN_PROGRESS", null, null),
   ];
 
   readonly caseTemplateParticipants = [
@@ -986,11 +1052,11 @@ export class InMemoryAllChecksOutDatabase {
     this.caseTask("case-task-stratuspay-risk", "case-supplier-northstar-stratuspay", "template-task-supplier-risk", "NOT_STARTED"),
   ];
 
-  readonly subscriberReviews = [
-    this.subscriberReview("review-harrington-northstar", "harrington-financial", "case-2026-northstar", "IN_REVIEW", "Security and subprocessor evidence is under procurement review.", "user-rachel-morgan"),
-    this.subscriberReview("review-harrington-cobalt", "harrington-financial", "case-2026-cobalt", "NOT_REVIEWED", "Waiting for Cobalt to submit the full DDQ pack.", "user-rachel-morgan"),
-    this.subscriberReview("review-mercury-cobalt", "mercury-retail", "case-2026-cobalt", "IN_REVIEW", "Review started after access grant was accepted.", "user-sophie-turner"),
-    this.subscriberReview("review-mercury-pinebridge", "mercury-retail", "case-2026-pinebridge", "MORE_INFO_REQUESTED", "Restore-test evidence and certification evidence need clarification.", "user-sophie-turner"),
+  readonly stakeholderReviews = [
+    this.stakeholderReview("review-harrington-northstar", "harrington-financial", "case-2026-northstar", "IN_REVIEW", "Security and subprocessor evidence is under procurement review.", "user-rachel-morgan"),
+    this.stakeholderReview("review-harrington-cobalt", "harrington-financial", "case-2026-cobalt", "NOT_REVIEWED", "Waiting for Cobalt to submit the full Case.", "user-rachel-morgan"),
+    this.stakeholderReview("review-mercury-cobalt", "mercury-retail", "case-2026-cobalt", "IN_REVIEW", "Review started after access grant was accepted.", "user-sophie-turner"),
+    this.stakeholderReview("review-mercury-pinebridge", "mercury-retail", "case-2026-pinebridge", "MORE_INFO_REQUESTED", "Restore-test evidence and certification evidence need clarification.", "user-sophie-turner"),
   ];
 
   readonly requestsForInformation = [
@@ -1019,7 +1085,7 @@ export class InMemoryAllChecksOutDatabase {
       "mercury-retail",
       "case-2026-cobalt",
       null,
-      "When do you expect to submit the remaining certification and incident response evidence for subscriber review?",
+      "When do you expect to submit the remaining certification and incident response evidence for stakeholder review?",
       "user-sophie-turner",
       "IN_PROGRESS",
       "Certification evidence is being validated by the audit team. We expect to submit the remaining items by 21 June.",
@@ -1035,6 +1101,28 @@ export class InMemoryAllChecksOutDatabase {
 
   getAuthority(authorityId: AuthorityId) {
     return this.authorities.find((authority) => authority.id === authorityId)?.toDto() ?? null;
+  }
+
+  getAuthorityTerminology(authorityId: AuthorityId) {
+    return this.authorityTerminology.find((terminology) => terminology.toDto().authorityId === authorityId)?.toDto() ?? null;
+  }
+
+  updateAuthorityTerminology(command: UpdateAuthorityTerminologyCommand) {
+    this.requireAuthority(command.authorityId);
+    const timestamp = this.timestamp();
+    const existing = this.getAuthorityTerminology(command.authorityId);
+    const terminology: AuthorityTerminologyDto = {
+      ...(existing ?? this.createBase(this.nextId("terminology", this.authorityTerminology))),
+      authorityId: command.authorityId,
+      labels: mergeTerminologyLabels(command.labels),
+      updatedAt: timestamp,
+    };
+    if (existing) {
+      this.replaceById(this.authorityTerminology, new AuthorityTerminologyEntity(terminology));
+    } else {
+      this.authorityTerminology.push(new AuthorityTerminologyEntity(terminology));
+    }
+    return terminology;
   }
 
   getParticipant(participantId: ParticipantId) {
@@ -1077,8 +1165,8 @@ export class InMemoryAllChecksOutDatabase {
       .filter((caseRecord) => caseRecord.participantId === participantId);
   }
 
-  getVendorRelationshipsForParticipant(participantId: ParticipantId) {
-    return this.vendorRelationships
+  getParticipantSuppliersForParticipant(participantId: ParticipantId) {
+    return this.participantSuppliers
       .map((relationship) => relationship.toDto())
       .filter((relationship) => relationship.participantId === participantId);
   }
@@ -1237,7 +1325,7 @@ export class InMemoryAllChecksOutDatabase {
     }
     if (command.granteeType === "STAKEHOLDER" || command.granteeType === "HELPER") {
       if (!command.granteeStakeholderId) {
-        throw new Error("Select a subscriber or service provider for this access grant.");
+        throw new Error("Select a stakeholder or service provider for this access grant.");
       }
       const stakeholder = this.requireStakeholder(command.granteeStakeholderId);
       if (stakeholder.authorityId !== authority.id) {
@@ -1247,13 +1335,13 @@ export class InMemoryAllChecksOutDatabase {
     if (command.granteeType === "USER" && !command.granteeUserId) {
       throw new Error("Select a user for this access grant.");
     }
-    if (command.dataScopeType === "VENDOR_RELATIONSHIP") {
+    if (command.dataScopeType === "PARTICIPANT_SUPPLIER") {
       if (!command.dataScopeId) {
-        throw new Error("Select a vendor-of-vendor record for this scoped grant.");
+        throw new Error("Select a participant supplier record for this scoped grant.");
       }
-      const relationship = this.requireVendorRelationship(command.dataScopeId);
+      const relationship = this.requireParticipantSupplier(command.dataScopeId);
       if (relationship.participantId !== participant.id || relationship.authorityId !== authority.id) {
-        throw new Error("Vendor-of-vendor grant scope must belong to the granting vendor.");
+        throw new Error("Participant supplier grant scope must belong to the granting participant.");
       }
     }
 
@@ -1299,36 +1387,36 @@ export class InMemoryAllChecksOutDatabase {
     return updated;
   }
 
-  createVendorRelationship(command: CreateVendorRelationshipCommand) {
+  createParticipantSupplier(command: CreateParticipantSupplierCommand) {
     const authority = this.requireAuthority(command.authorityId);
     const participant = this.requireParticipant(command.participantId);
     if (participant.authorityId !== authority.id) {
-      throw new Error("Vendor-of-vendor record must belong to the selected authority.");
+      throw new Error("Participant supplier record must belong to the selected authority.");
     }
-    const vendorName = command.vendorName.trim();
-    if (!vendorName) throw new Error("Enter a vendor-of-vendor name.");
-    const relationship = new VendorRelationshipEntity({
-      ...this.createBase(this.nextId("vendor-rel", this.vendorRelationships)),
+    const supplierName = command.supplierName.trim();
+    if (!supplierName) throw new Error("Enter a participant supplier name.");
+    const relationship = new ParticipantSupplierEntity({
+      ...this.createBase(this.nextId("participant-supplier", this.participantSuppliers)),
       authorityId: command.authorityId,
       participantId: command.participantId,
-      vendorName,
+      supplierName,
       relationshipType: command.relationshipType.trim() || "Supplier",
       criticality: command.criticality,
       servicesProvided: command.servicesProvided.trim(),
       dataExposure: command.dataExposure.trim(),
       status: "UNDER_REVIEW",
     });
-    this.vendorRelationships.push(relationship);
+    this.participantSuppliers.push(relationship);
     return relationship.toDto();
   }
 
-  getSubscriberReview(stakeholderId: StakeholderId, caseId: CaseRecordId) {
-    return this.subscriberReviews
+  getStakeholderReview(stakeholderId: StakeholderId, caseId: CaseRecordId) {
+    return this.stakeholderReviews
       .map((review) => review.toDto())
       .find((review) => review.stakeholderId === stakeholderId && review.caseId === caseId) ?? null;
   }
 
-  upsertSubscriberReview(command: UpsertSubscriberReviewCommand) {
+  upsertStakeholderReview(command: UpsertStakeholderReviewCommand) {
     const stakeholder = this.requireStakeholder(command.stakeholderId);
     const caseRecord = this.requireCase(command.caseId);
     this.requireUserAccount(command.reviewedByUserId);
@@ -1339,13 +1427,13 @@ export class InMemoryAllChecksOutDatabase {
         this.accessGrantAllowsCase(grant, caseRecord),
     );
     if (!activeGrant) {
-      throw new Error("Subscriber review requires an active vendor access grant.");
+      throw new Error("Stakeholder review requires an active participant access grant.");
     }
 
     const reviewedAt = this.timestamp();
-    const existing = this.getSubscriberReview(command.stakeholderId, command.caseId);
-    const review: SubscriberReviewDto = {
-      ...(existing ?? this.createBase(this.nextId("subscriber-review", this.subscriberReviews))),
+    const existing = this.getStakeholderReview(command.stakeholderId, command.caseId);
+    const review: StakeholderReviewDto = {
+      ...(existing ?? this.createBase(this.nextId("stakeholder-review", this.stakeholderReviews))),
       stakeholderId: command.stakeholderId,
       caseId: command.caseId,
       status: command.status,
@@ -1356,9 +1444,9 @@ export class InMemoryAllChecksOutDatabase {
     };
 
     if (existing) {
-      this.replaceById(this.subscriberReviews, new SubscriberReviewEntity(review));
+      this.replaceById(this.stakeholderReviews, new StakeholderReviewEntity(review));
     } else {
-      this.subscriberReviews.push(new SubscriberReviewEntity(review));
+      this.stakeholderReviews.push(new StakeholderReviewEntity(review));
     }
 
     return review;
@@ -1384,7 +1472,7 @@ export class InMemoryAllChecksOutDatabase {
     if (command.caseTaskId) {
       caseTask = this.requireCaseTask(command.caseTaskId);
       if (caseTask.caseId !== caseRecord.id) {
-        throw new Error("The selected due diligence item does not belong to this DDQ pack.");
+        throw new Error("The selected case task does not belong to this Case.");
       }
     }
     const grant = this.getActiveAccessGrantsForStakeholder(stakeholder.id).find(
@@ -1394,7 +1482,7 @@ export class InMemoryAllChecksOutDatabase {
         this.accessGrantAllowsCase(candidate, caseRecord),
     );
     if (!grant || grant.permissionLevel === "READ_ONLY") {
-      throw new Error("Requesting information requires an active vendor access grant with request permission.");
+      throw new Error("Requesting information requires an active participant access grant with request permission.");
     }
     const requestText = command.requestText.trim();
     if (!requestText) {
@@ -1426,7 +1514,7 @@ export class InMemoryAllChecksOutDatabase {
   respondToRequestForInformation(command: RespondToRequestForInformationCommand) {
     const request = this.requireRequestForInformation(command.requestId);
     const respondent = this.requireUserAccount(command.respondedByUserId);
-    const isVendorUser = this.participantUsers.some((membership) => {
+    const isParticipantUser = this.participantUsers.some((membership) => {
       const dto = membership.toDto();
       return dto.entityId === request.participantId && dto.userAccountId === respondent.id;
     });
@@ -1442,8 +1530,8 @@ export class InMemoryAllChecksOutDatabase {
           (!request.caseId || this.accessGrantAllowsCase(grant, this.requireCase(request.caseId))),
       ),
     );
-    if (!isVendorUser && !hasHelperEditGrant) {
-      throw new Error("Only the owning vendor or an authorised service provider can respond to this request.");
+    if (!isParticipantUser && !hasHelperEditGrant) {
+      throw new Error("Only the owning participant or an authorised service provider can respond to this request.");
     }
     const responseText = command.responseText.trim();
     if (!responseText) {
@@ -1461,7 +1549,7 @@ export class InMemoryAllChecksOutDatabase {
       updatedAt: respondedAt,
       statusHistory: [
         ...request.statusHistory,
-        { status, at: respondedAt, byUserId: respondent.id, note: status === "ANSWERED" ? "Vendor answered request" : "Vendor response in progress" },
+        { status, at: respondedAt, byUserId: respondent.id, note: status === "ANSWERED" ? "Participant answered request" : "Participant response in progress" },
       ],
     };
     this.replaceById(this.requestsForInformation, new RequestForInformationEntity(updated));
@@ -1797,22 +1885,22 @@ export class InMemoryAllChecksOutDatabase {
     });
   }
 
-  private vendorRelationship(
-    id: VendorRelationshipId,
+  private participantSupplier(
+    id: ParticipantSupplierId,
     participantId: ParticipantId,
-    vendorName: string,
+    supplierName: string,
     relationshipType: string,
-    criticality: VendorRelationshipCriticality,
+    criticality: ParticipantSupplierCriticality,
     servicesProvided: string,
     dataExposure: string,
-    status: VendorRelationshipStatus,
+    status: ParticipantSupplierStatus,
   ) {
     const participant = this.participants.find((item) => item.id === participantId)?.toDto();
-    return new VendorRelationshipEntity({
+    return new ParticipantSupplierEntity({
       ...base(id),
       authorityId: participant?.authorityId ?? "northstar-association",
       participantId,
-      vendorName,
+      supplierName,
       relationshipType,
       criticality,
       servicesProvided,
@@ -1899,12 +1987,12 @@ export class InMemoryAllChecksOutDatabase {
     authorityId: AuthorityId,
     caseTemplateId: CaseTemplateId,
     participantId: ParticipantId,
-    vendorRelationshipId: VendorRelationshipId | null,
+    participantSupplierId: ParticipantSupplierId | null,
     status: CaseStatus,
     submittedAt: string | null,
     closedAt: string | null,
   ) {
-    return new CaseEntity({ ...base(id), authorityId, caseTemplateId, participantId, vendorRelationshipId, status, submittedAt, closedAt });
+    return new CaseEntity({ ...base(id), authorityId, caseTemplateId, participantId, participantSupplierId, status, submittedAt, closedAt });
   }
 
   private caseTask(id: CaseTaskId, caseId: CaseRecordId, caseTemplateTaskId: CaseTemplateTaskId, status: CaseTaskStatus) {
@@ -1919,15 +2007,15 @@ export class InMemoryAllChecksOutDatabase {
     });
   }
 
-  private subscriberReview(
-    id: SubscriberReviewId,
+  private stakeholderReview(
+    id: StakeholderReviewId,
     stakeholderId: StakeholderId,
     caseId: CaseRecordId,
-    status: SubscriberReviewStatus,
+    status: StakeholderReviewStatus,
     note: string,
     reviewedByUserId: UserAccountId,
   ) {
-    return new SubscriberReviewEntity({
+    return new StakeholderReviewEntity({
       ...base(id),
       stakeholderId,
       caseId,
@@ -1971,7 +2059,7 @@ export class InMemoryAllChecksOutDatabase {
       statusHistory: [
         { status: "OPEN", at: requestedAt, byUserId: requestedByUserId, note: "Request created" },
         ...(respondedByUserId
-          ? [{ status, at: respondedAt ?? requestedAt, byUserId: respondedByUserId, note: "Vendor response updated" }]
+          ? [{ status, at: respondedAt ?? requestedAt, byUserId: respondedByUserId, note: "Participant response updated" }]
           : []),
       ],
     });
@@ -2092,14 +2180,14 @@ export class InMemoryAllChecksOutDatabase {
     if (grant.dataScopeType === "CASE_TASK") {
       return this.getCaseTasksForCase(caseRecord.id).some((task) => task.id === grant.dataScopeId);
     }
-    if (grant.dataScopeType === "VENDOR_RELATIONSHIP") return caseRecord.vendorRelationshipId === grant.dataScopeId;
+    if (grant.dataScopeType === "PARTICIPANT_SUPPLIER") return caseRecord.participantSupplierId === grant.dataScopeId;
     if (grant.dataScopeType === "EVIDENCE_METADATA") return true;
     return false;
   }
 
-  private requireVendorRelationship(vendorRelationshipId: VendorRelationshipId) {
-    const relationship = this.vendorRelationships.find((item) => item.id === vendorRelationshipId)?.toDto();
-    if (!relationship) throw new Error(`Vendor-of-vendor record ${vendorRelationshipId} was not found.`);
+  private requireParticipantSupplier(participantSupplierId: ParticipantSupplierId) {
+    const relationship = this.participantSuppliers.find((item) => item.id === participantSupplierId)?.toDto();
+    if (!relationship) throw new Error(`Participant supplier record ${participantSupplierId} was not found.`);
     return relationship;
   }
 
@@ -2120,7 +2208,7 @@ export class InMemoryAllChecksOutDatabase {
       authorityId: template.authorityId,
       caseTemplateId: template.id,
       participantId,
-      vendorRelationshipId: null,
+      participantSupplierId: null,
       status: "NOT_STARTED",
       submittedAt: null,
       closedAt: null,
@@ -2192,9 +2280,9 @@ export const db = new InMemoryAllChecksOutDatabase();
 export const consoleApps: ConsoleApp[] = [
   {
     id: "administration",
-    name: "Scheme Administration",
+    name: "Authority Administration",
     shortName: "Admin",
-    description: "Manage association settings, vendors, subscribers, DDQ templates, task types, and users.",
+    description: "Manage authority settings, participants, stakeholders, case templates, task types, and users.",
     path: "/admin",
     accent: "bg-[#1d70b8]",
     Icon: Landmark,
@@ -2202,9 +2290,9 @@ export const consoleApps: ConsoleApp[] = [
   },
   {
     id: "case-management",
-    name: "Due Diligence Packs",
-    shortName: "DDQ",
-    description: "Open vendor due diligence packs, complete items, upload evidence metadata, and track progress.",
+    name: "Cases",
+    shortName: "Cases",
+    description: "Open participant cases, complete case tasks, upload evidence metadata, and track progress.",
     path: "/cases",
     accent: "bg-[#0078d4]",
     Icon: FolderKanban,
@@ -2212,9 +2300,9 @@ export const consoleApps: ConsoleApp[] = [
   },
   {
     id: "stakeholder-portal",
-    name: "Subscriber Portal",
-    shortName: "Subscribers",
-    description: "Review granted vendor due diligence status, submitted items, evidence metadata, and outcomes.",
+    name: "Stakeholder Portal",
+    shortName: "Stakeholders",
+    description: "Review granted participant cases, submitted case tasks, evidence metadata, and outcomes.",
     path: "/stakeholder",
     accent: "bg-[#00703c]",
     Icon: BadgeCheck,
@@ -2224,7 +2312,7 @@ export const consoleApps: ConsoleApp[] = [
     id: "helper-workspace",
     name: "Service Provider Workspace",
     shortName: "Service",
-    description: "Assist vendor workspaces where delegated service-provider access is active.",
+    description: "Assist participant workspaces where delegated helper access is active.",
     path: "/helper",
     accent: "bg-[#4c2c92]",
     Icon: Handshake,
@@ -2238,11 +2326,34 @@ function buildAuthorities(): Authority[] {
     return {
       id: dto.id,
       name: dto.name,
-      scenario: "Association vendor due diligence",
+      scenario: "Association participant case",
       description: dto.description,
       status: dto.status,
     };
   });
+}
+
+function buildAuthorityTerminology(): AuthorityTerminology[] {
+  return db.authorityTerminology.map((terminology) => {
+    const dto = terminology.toDto();
+    return {
+      authorityId: dto.authorityId,
+      labels: mergeTerminologyLabels(dto.labels),
+    };
+  });
+}
+
+function titleCase(value: string) {
+  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export function terminologyLabel(terminology: AuthorityTerminology | undefined, key: TerminologyKey, plural = false) {
+  const labels = terminology?.labels ?? defaultTerminologyLabels;
+  return plural ? labels[key].plural : labels[key].singular;
+}
+
+export function terminologyTitle(terminology: AuthorityTerminology | undefined, key: TerminologyKey, plural = false) {
+  return titleCase(terminologyLabel(terminology, key, plural));
 }
 
 function buildTaskTypes(): TaskType[] {
@@ -2282,8 +2393,8 @@ function buildCaseRecords(): CaseRecord[] {
   return db.cases.map((caseEntity) => {
     const caseDto = caseEntity.toDto();
     const template = db.caseTemplates.find((item) => item.id === caseDto.caseTemplateId)?.toDto();
-    const vendorRelationship = caseDto.vendorRelationshipId
-      ? db.vendorRelationships.find((item) => item.id === caseDto.vendorRelationshipId)?.toDto()
+    const participantSupplier = caseDto.participantSupplierId
+      ? db.participantSuppliers.find((item) => item.id === caseDto.participantSupplierId)?.toDto()
       : null;
     const caseTasks = db.caseTasks
       .filter((caseTask) => caseTask.toDto().caseId === caseDto.id)
@@ -2325,17 +2436,17 @@ function buildCaseRecords(): CaseRecord[] {
       participantId: caseDto.participantId,
       authorityId: caseDto.authorityId,
       caseTemplateId: caseDto.caseTemplateId,
-      vendorRelationshipId: caseDto.vendorRelationshipId,
-      vendorRelationshipName: vendorRelationship?.vendorName ?? null,
+      participantSupplierId: caseDto.participantSupplierId,
+      participantSupplierName: participantSupplier?.supplierName ?? null,
       reference:
         caseDto.id === "case-2026-northstar"
-          ? "DDQ-2026-NSCP"
+          ? "Case-2026-NSCP"
           : caseDto.id === "case-2026-cobalt"
-            ? "DDQ-2026-CWS"
+            ? "Case-2026-CWS"
             : caseDto.id === "case-2026-pinebridge"
-              ? "DDQ-2026-PDE"
+              ? "Case-2026-PDE"
               : caseDto.id === "case-2026-asteria"
-                ? "DDQ-2026-AIS"
+                ? "Case-2026-AIS"
                 : "VOV-2026-SPP",
       caseType: template?.description ?? "Case",
       status: uiCaseStatus(caseDto.status),
@@ -2345,19 +2456,19 @@ function buildCaseRecords(): CaseRecord[] {
       risk: failedTasks > 0 ? "high" : completedTasks === caseTasks.length ? "low" : "medium",
       outcome:
         caseDto.status === "APPROVED" || caseDto.status === "CLOSED"
-          ? "Subscriber-ready due diligence pack"
+          ? "Stakeholder-ready case"
           : failedTasks > 0
             ? "Requests for additional information are outstanding"
             : caseDto.status === "SUBMITTED"
-              ? "Submitted for subscriber review"
-              : "Vendor due diligence pack is in progress",
+              ? "Submitted for stakeholder review"
+              : "Participant case is in progress",
       lastActivity:
         caseDto.id === "case-2026-northstar"
-          ? "Critical supplier DDQ updated"
+          ? "Critical supplier Case updated"
           : caseDto.id === "case-2026-cobalt"
             ? "SOC 2 evidence upload started"
             : caseDto.id === "case-2026-pinebridge"
-              ? "Subscriber requested restore-test evidence"
+              ? "Stakeholder requested restore-test evidence"
               : caseDto.id === "case-2026-asteria"
                 ? "Senior officer attestation accepted"
                 : "Supplier control attestation updated",
@@ -2366,17 +2477,17 @@ function buildCaseRecords(): CaseRecord[] {
   });
 }
 
-function buildVendorRelationships(): VendorRelationship[] {
-  return db.vendorRelationships.map((relationship) => {
+function buildParticipantSuppliers(): ParticipantSupplier[] {
+  return db.participantSuppliers.map((relationship) => {
     const dto = relationship.toDto();
     const participant = getParticipant(dto.participantId);
-    const linkedCases = cases.filter((caseRecord) => caseRecord.vendorRelationshipId === dto.id);
+    const linkedCases = cases.filter((caseRecord) => caseRecord.participantSupplierId === dto.id);
     return {
       id: dto.id,
       authorityId: dto.authorityId,
       participantId: dto.participantId,
-      participantName: participant?.name ?? "Unknown vendor",
-      vendorName: dto.vendorName,
+      participantName: participant?.name ?? "Unknown participant",
+      supplierName: dto.supplierName,
       relationshipType: dto.relationshipType,
       criticality: dto.criticality,
       servicesProvided: dto.servicesProvided,
@@ -2413,13 +2524,13 @@ function accessGrantPermissionLabel(permissionLevel: AccessGrantPermissionLevel)
 }
 
 function accessGrantScopeLabel(dataScopeType: AccessGrantDataScopeType, dataScopeId: string | null) {
-  if (dataScopeType === "PARTICIPANT_WORKSPACE") return "Entire vendor workspace";
+  if (dataScopeType === "PARTICIPANT_WORKSPACE") return "Entire participant workspace";
   if (dataScopeType === "EVIDENCE_METADATA") return "Evidence metadata";
-  if (dataScopeType === "VENDOR_RELATIONSHIP") return vendorRelationships.find((relationship) => relationship.id === dataScopeId)?.vendorName ?? "Specific vendor-of-vendor record";
-  if (dataScopeType === "CASE") return cases.find((caseRecord) => caseRecord.id === dataScopeId)?.title ?? "Specific due diligence pack";
+  if (dataScopeType === "PARTICIPANT_SUPPLIER") return participantSuppliers.find((relationship) => relationship.id === dataScopeId)?.supplierName ?? "Specific participant supplier record";
+  if (dataScopeType === "CASE") return cases.find((caseRecord) => caseRecord.id === dataScopeId)?.title ?? "Specific case";
   if (dataScopeType === "CASE_TASK") {
     const task = cases.flatMap((caseRecord) => caseRecord.tasks).find((candidate) => candidate.id === dataScopeId);
-    return task?.title ?? "Specific due diligence item";
+    return task?.title ?? "Specific case task";
   }
   return "Configured scope";
 }
@@ -2435,7 +2546,7 @@ function buildAccessGrants(): AccessGrant[] {
       id: dto.id,
       authorityId: dto.authorityId,
       participantId: dto.participantId,
-      participantName: participant?.name ?? "Unknown vendor",
+      participantName: participant?.name ?? "Unknown participant",
       granteeType: dto.granteeType,
       granteeName: stakeholder?.name ?? user?.displayName ?? "Unknown grantee",
       granteeStakeholderId: dto.granteeStakeholderId,
@@ -2453,8 +2564,8 @@ function buildAccessGrants(): AccessGrant[] {
   });
 }
 
-function subscriberReviewStatusLabel(status: SubscriberReviewStatus) {
-  const labels: Record<SubscriberReviewStatus, string> = {
+function stakeholderReviewStatusLabel(status: StakeholderReviewStatus) {
+  const labels: Record<StakeholderReviewStatus, string> = {
     NOT_REVIEWED: "Not reviewed",
     IN_REVIEW: "In review",
     APPROVED: "Approved",
@@ -2463,8 +2574,8 @@ function subscriberReviewStatusLabel(status: SubscriberReviewStatus) {
   return labels[status];
 }
 
-function buildSubscriberReviews(): SubscriberReview[] {
-  return db.subscriberReviews.map((review) => {
+function buildStakeholderReviews(): StakeholderReview[] {
+  return db.stakeholderReviews.map((review) => {
     const dto = review.toDto();
     const reviewedBy = db.userAccounts.find((account) => account.id === dto.reviewedByUserId)?.toDto();
     return {
@@ -2472,7 +2583,7 @@ function buildSubscriberReviews(): SubscriberReview[] {
       stakeholderId: dto.stakeholderId,
       caseId: dto.caseId,
       status: dto.status,
-      statusLabel: subscriberReviewStatusLabel(dto.status),
+      statusLabel: stakeholderReviewStatusLabel(dto.status),
       note: dto.note,
       reviewedByName: reviewedBy?.displayName ?? "Unknown user",
       reviewedAt: dto.reviewedAt,
@@ -2505,15 +2616,15 @@ function buildRequestsForInformation(): RequestForInformation[] {
       id: dto.id,
       authorityId: dto.authorityId,
       participantId: dto.participantId,
-      participantName: participant?.name ?? "Unknown vendor",
+      participantName: participant?.name ?? "Unknown participant",
       stakeholderId: dto.stakeholderId,
-      stakeholderName: stakeholder?.name ?? "Unknown subscriber",
+      stakeholderName: stakeholder?.name ?? "Unknown stakeholder",
       caseId: dto.caseId,
-      caseTitle: caseRecord?.title ?? "Due diligence pack",
+      caseTitle: caseRecord?.title ?? "Case",
       caseTaskId: dto.caseTaskId,
       taskTitle: task?.title ?? null,
       scopeType: dto.scopeType,
-      scopeLabel: task?.title ?? caseRecord?.title ?? "Vendor workspace",
+      scopeLabel: task?.title ?? caseRecord?.title ?? "Participant workspace",
       requestText: dto.requestText,
       responseText: dto.responseText,
       status: dto.status,
@@ -2540,7 +2651,7 @@ function buildParticipants(caseRecords: CaseRecord[]): Participant[] {
       stakeholderId: access?.stakeholderId ?? "",
       name: dto.displayName,
       type: dto.participantType === "ORGANISATION" ? "Organisation" : "Person",
-      participantRole: "Member vendor completing association DDQ requirements",
+      participantRole: "Member participant completing association Case requirements",
       status: uiParticipantStatus(participantCases),
       domainStatus: dto.status,
       openCases: participantCases.filter((caseRecord) => caseRecord.status !== "closed").length,
@@ -2630,7 +2741,7 @@ function buildAccountContexts(): AccountContext[] {
         membershipRole: membership.membershipRole,
         participantId: null,
         stakeholderId: null,
-        description: "Configure scheme settings, DDQ templates, vendors, subscribers, and users.",
+        description: "Configure scheme settings, Case templates, participants, stakeholders, and users.",
       }];
     }
 
@@ -2652,14 +2763,14 @@ function buildAccountContexts(): AccountContext[] {
         membershipRole: membership.membershipRole,
         participantId: participant.id,
         stakeholderId: null,
-        description: "Complete due diligence packs, manage evidence, and control subscriber access.",
+        description: "Complete cases, manage evidence, and control stakeholder access.",
       }];
     }
 
     const stakeholder = getStakeholder(membership.membership.entityId);
     const authority = getAuthority(stakeholder?.authorityId);
     if (!stakeholder || !authority) return [];
-    const subscriberContext: AccountContext = {
+    const stakeholderContext: AccountContext = {
       id: `${membership.id}:stakeholder:${stakeholder.id}`,
       authenticatableUserId: membership.id,
       name: membership.name,
@@ -2673,30 +2784,32 @@ function buildAccountContexts(): AccountContext[] {
       membershipRole: membership.membershipRole,
       participantId: null,
       stakeholderId: stakeholder.id,
-      description: "Review vendor due diligence that has been granted to this subscriber account.",
+      description: "Review participant case that has been granted to this stakeholder account.",
     };
     const helperGrantCount = db.getActiveHelperAccessGrants(stakeholder.id).length;
-    if (helperGrantCount === 0) return [subscriberContext];
+    if (helperGrantCount === 0) return [stakeholderContext];
     return [
-      subscriberContext,
+      stakeholderContext,
       {
-        ...subscriberContext,
+        ...stakeholderContext,
         id: `${membership.id}:helper:${stakeholder.id}`,
         role: "helper",
         entityType: "helper",
-        description: `Assist ${helperGrantCount} vendor workspace${helperGrantCount === 1 ? "" : "s"} through active service-provider grants.`,
+        description: `Assist ${helperGrantCount} participant workspace${helperGrantCount === 1 ? "" : "s"} through active service-provider grants.`,
       },
     ];
   });
 }
 
 function buildAdminResources() {
+  const terminology = authorityTerminology[0];
   return [
-    { name: "Vendors", path: "/admin/participants", Icon: Building2, count: `${participants.length} in scope` },
-    { name: "Subscribers", path: "/admin/stakeholders", Icon: UserRoundCheck, count: `${stakeholders.length} in scope` },
-    { name: "DDQ templates", path: "/admin/case-templates", Icon: ShieldCheck, count: `${caseTemplates.length} configured` },
+    { name: terminologyTitle(terminology, "participant", true), path: "/admin/participants", Icon: Building2, count: `${participants.length} in scope` },
+    { name: terminologyTitle(terminology, "stakeholder", true), path: "/admin/stakeholders", Icon: UserRoundCheck, count: `${stakeholders.length} in scope` },
+    { name: terminologyTitle(terminology, "caseTemplate", true), path: "/admin/case-templates", Icon: ShieldCheck, count: `${caseTemplates.length} configured` },
     { name: "Task types", path: "/admin/task-types", Icon: ClipboardCheck, count: `${taskTypes.length} available` },
     { name: "Users", path: "/admin/users", Icon: Users, count: `${authenticatableUsers.length} users` },
+    { name: "Parameters", path: "/admin/parameters", Icon: KeyRound, count: "Terminology" },
   ];
 }
 
@@ -2711,39 +2824,39 @@ function buildSearchItems(): SearchItem[] {
     })),
     ...participants.map((participant) => ({
       title: participant.name,
-      description: `${participant.type} - ${participant.openCases} open due diligence pack`,
+      description: `${participant.type} - ${participant.openCases} open case`,
       path: `/admin/participants/${participant.id}`,
-      group: "Vendors",
+      group: "Participants",
       audience: ["authority-admin", "stakeholder"] as UserRole[],
     })),
     ...participants.map((participant) => ({
       title: participant.name,
       description: `${participant.type} service-provider client workspace`,
       path: `/helper/participants/${participant.id}`,
-      group: "Vendors",
+      group: "Participants",
       audience: ["helper"] as UserRole[],
     })),
     ...stakeholders.map((stakeholder) => ({
       title: stakeholder.name,
-      description: `${stakeholder.visibleParticipants} active vendor access record`,
+      description: `${stakeholder.visibleParticipants} active participant access record`,
       path: "/admin/stakeholders",
-      group: "Subscribers",
+      group: "Stakeholders",
       audience: ["authority-admin"] as UserRole[],
     })),
     ...caseTemplates.map((template) => ({
       title: template.name,
-      description: `${template.status.toLowerCase()} DDQ template with ${template.taskCount} items`,
+      description: `${template.status.toLowerCase()} Case template with ${template.taskCount} items`,
       path: "/admin/case-templates",
-      group: "DDQ templates",
+      group: "Case templates",
       audience: ["authority-admin"] as UserRole[],
     })),
     ...cases.map((caseRecord) => {
       const participant = participants.find((item) => item.id === caseRecord.participantId);
       return {
         title: `${caseRecord.title} - ${participant?.name ?? "Unknown participant"}`,
-        description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} due diligence items complete`,
+        description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} case tasks complete`,
         path: `/cases/${caseRecord.id}`,
-        group: "Due diligence packs",
+        group: "Cases",
         audience: ["participant", "helper"] as UserRole[],
       };
     }),
@@ -2751,22 +2864,23 @@ function buildSearchItems(): SearchItem[] {
       title: task.title,
       description: task.type,
       path: `/cases/${caseRecord.id}/tasks/${task.id}`,
-      group: "Due diligence items",
+      group: "Case tasks",
       audience: ["participant", "helper"] as UserRole[],
     }))),
   ];
 }
 
 export let authorities: Authority[] = [];
+export let authorityTerminology: AuthorityTerminology[] = [];
 export let taskTypes: TaskType[] = [];
 export let caseTemplates: CaseTemplate[] = [];
 export let cases: CaseRecord[] = [];
 export let stakeholders: Stakeholder[] = [];
 export let participants: Participant[] = [];
 export let accessGrants: AccessGrant[] = [];
-export let subscriberReviews: SubscriberReview[] = [];
+export let stakeholderReviews: StakeholderReview[] = [];
 export let requestsForInformation: RequestForInformation[] = [];
-export let vendorRelationships: VendorRelationship[] = [];
+export let participantSuppliers: ParticipantSupplier[] = [];
 export let authenticatableUsers: AuthenticatableUser[] = [];
 export let userIdentities: UserIdentity[] = [];
 export let accountContexts: AccountContext[] = [];
@@ -2775,14 +2889,15 @@ export let searchItems: SearchItem[] = [];
 
 export function refreshConsoleViewModels() {
   authorities = buildAuthorities();
+  authorityTerminology = buildAuthorityTerminology();
   taskTypes = buildTaskTypes();
   caseTemplates = buildCaseTemplates();
   cases = buildCaseRecords();
-  vendorRelationships = buildVendorRelationships();
+  participantSuppliers = buildParticipantSuppliers();
   stakeholders = buildStakeholders();
   participants = buildParticipants(cases);
   accessGrants = buildAccessGrants();
-  subscriberReviews = buildSubscriberReviews();
+  stakeholderReviews = buildStakeholderReviews();
   requestsForInformation = buildRequestsForInformation();
   authenticatableUsers = buildAuthenticatableUsers();
   userIdentities = buildUserIdentities();
@@ -2831,23 +2946,23 @@ export function getSearchItemsForUser(user: AuthenticatedUser) {
 
   return searchItems.filter((item) => {
     if (!item.audience.includes(user.role)) return false;
-    if (item.group === "Vendors") {
+    if (item.group === "Participants") {
       return scopedParticipants.some((participant) => item.path.endsWith(participant.id));
     }
-    if (item.group === "Subscribers") {
+    if (item.group === "Stakeholders") {
       return scopedStakeholders.some((stakeholder) => item.title === stakeholder.name);
     }
-    if (item.group === "DDQ templates") {
+    if (item.group === "Case templates") {
       return scopedTemplates.some((template) => item.title === template.name);
     }
-    if (item.group === "Due diligence packs") {
+    if (item.group === "Cases") {
       return scopedCases.some((caseRecord) => item.path.endsWith(caseRecord.id));
     }
-    if (item.group === "Due diligence items") {
+    if (item.group === "Case tasks") {
       return scopedCaseIds.has(item.path.split("/")[2] ?? "");
     }
     return true;
-  }).filter((item) => item.group !== "Vendors" || scopedParticipantIds.size > 0);
+  }).filter((item) => item.group !== "Participants" || scopedParticipantIds.size > 0);
 }
 
 export function getParticipant(id: string | undefined) {
@@ -2856,6 +2971,17 @@ export function getParticipant(id: string | undefined) {
 
 export function getAuthority(id: string | undefined) {
   return authorities.find((authority) => authority.id === id);
+}
+
+export function getAuthorityTerminology(id: string | undefined) {
+  return authorityTerminology.find((terminology) => terminology.authorityId === id) ?? {
+    authorityId: id ?? "default",
+    labels: defaultTerminologyLabels,
+  };
+}
+
+export function getTerminologyForUser(user: AuthenticatedUser) {
+  return getAuthorityTerminology(user.authorityId ?? undefined);
 }
 
 export function getStakeholder(id: string | undefined) {
@@ -2884,9 +3010,9 @@ export function getAccessGrantsForParticipant(participantId: string | undefined)
   return accessGrants.filter((grant) => grant.participantId === participantId);
 }
 
-export function getVendorRelationshipsForParticipant(participantId: string | undefined) {
+export function getParticipantSuppliersForParticipant(participantId: string | undefined) {
   if (!participantId) return [];
-  return vendorRelationships.filter((relationship) => relationship.participantId === participantId);
+  return participantSuppliers.filter((relationship) => relationship.participantId === participantId);
 }
 
 export function getGrantableStakeholdersForParticipant(participantId: string | undefined) {
@@ -2923,16 +3049,16 @@ function grantAllowsCaseVisibility(grant: AccessGrant, caseRecord: CaseRecord) {
   if (grant.dataScopeType === "PARTICIPANT_WORKSPACE") return true;
   if (grant.dataScopeType === "CASE") return grant.dataScopeId === caseRecord.id;
   if (grant.dataScopeType === "CASE_TASK") return caseRecord.tasks.some((task) => task.id === grant.dataScopeId);
-  if (grant.dataScopeType === "VENDOR_RELATIONSHIP") return caseRecord.vendorRelationshipId === grant.dataScopeId;
+  if (grant.dataScopeType === "PARTICIPANT_SUPPLIER") return caseRecord.participantSupplierId === grant.dataScopeId;
   if (grant.dataScopeType === "EVIDENCE_METADATA") return true;
   return false;
 }
 
-function grantAllowsRelationshipVisibility(grant: AccessGrant, relationship: VendorRelationship) {
+function grantAllowsParticipantSupplierVisibility(grant: AccessGrant, relationship: ParticipantSupplier) {
   if (grant.status !== "ACTIVE") return false;
   if (grant.participantId !== relationship.participantId) return false;
   if (grant.dataScopeType === "PARTICIPANT_WORKSPACE") return true;
-  if (grant.dataScopeType === "VENDOR_RELATIONSHIP") return grant.dataScopeId === relationship.id;
+  if (grant.dataScopeType === "PARTICIPANT_SUPPLIER") return grant.dataScopeId === relationship.id;
   return relationship.linkedCases.some((caseRecord) => grantAllowsCaseVisibility(grant, caseRecord));
 }
 
@@ -2949,7 +3075,7 @@ export function getHelperClientWorkspaces(user: AuthenticatedUser): HelperClient
       if (!participant) return null;
       const participantCases = cases.filter((caseRecord) => grantAllowsCaseVisibility(grant, caseRecord));
       const participantCaseIds = new Set(participantCases.map((caseRecord) => caseRecord.id));
-      const participantVendorRelationships = vendorRelationships.filter((relationship) => grantAllowsRelationshipVisibility(grant, relationship));
+      const participantSuppliersForParticipant = participantSuppliers.filter((relationship) => grantAllowsParticipantSupplierVisibility(grant, relationship));
       const openRequests = requestsForInformation.filter(
         (request) =>
           request.participantId === participant.id &&
@@ -2960,7 +3086,7 @@ export function getHelperClientWorkspaces(user: AuthenticatedUser): HelperClient
         participant,
         grant,
         cases: participantCases,
-        vendorRelationships: participantVendorRelationships,
+        participantSuppliers: participantSuppliersForParticipant,
         openRequests,
         canEdit: grantAllowsHelperEdit(grant),
         canAdministerGrants: grantAllowsGrantAdministration(grant),
@@ -2969,14 +3095,14 @@ export function getHelperClientWorkspaces(user: AuthenticatedUser): HelperClient
     .filter((workspace): workspace is HelperClientWorkspace => Boolean(workspace));
 }
 
-export function getSubscriberReviewForCase(user: AuthenticatedUser, caseId: string | undefined) {
+export function getStakeholderReviewForCase(user: AuthenticatedUser, caseId: string | undefined) {
   if (!caseId || user.role !== "stakeholder") return undefined;
   const stakeholderId =
     user.stakeholderId ??
     (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
     undefined;
   if (!stakeholderId) return undefined;
-  return subscriberReviews.find((review) => review.stakeholderId === stakeholderId && review.caseId === caseId);
+  return stakeholderReviews.find((review) => review.stakeholderId === stakeholderId && review.caseId === caseId);
 }
 
 export function getRequestsForCase(caseId: string | undefined, user?: AuthenticatedUser) {
@@ -3147,14 +3273,14 @@ export function getScopedCases(user: AuthenticatedUser) {
   return cases.filter((caseRecord) => grants.some((grant) => grantAllowsCaseVisibility(grant, caseRecord)));
 }
 
-export function getScopedVendorRelationships(user: AuthenticatedUser) {
+export function getScopedParticipantSuppliers(user: AuthenticatedUser) {
   if (user.role === "authority-admin") return [];
   if (user.role === "participant") {
-    return getVendorRelationshipsForParticipant(user.participantId ?? undefined);
+    return getParticipantSuppliersForParticipant(user.participantId ?? undefined);
   }
   if (user.role === "helper") {
     const grants = getActiveHelperGrantsForUser(user);
-    return vendorRelationships.filter((relationship) => grants.some((grant) => grantAllowsRelationshipVisibility(grant, relationship)));
+    return participantSuppliers.filter((relationship) => grants.some((grant) => grantAllowsParticipantSupplierVisibility(grant, relationship)));
   }
   const stakeholderId =
     user.stakeholderId ??
@@ -3165,7 +3291,7 @@ export function getScopedVendorRelationships(user: AuthenticatedUser) {
     .filter((grant) => grant.granteeType === "STAKEHOLDER")
     .map((grant) => accessGrants.find((viewGrant) => viewGrant.id === grant.id))
     .filter((grant): grant is AccessGrant => Boolean(grant));
-  return vendorRelationships.filter((relationship) => grants.some((grant) => grantAllowsRelationshipVisibility(grant, relationship)));
+  return participantSuppliers.filter((relationship) => grants.some((grant) => grantAllowsParticipantSupplierVisibility(grant, relationship)));
 }
 
 export function getCase(id: string | undefined) {

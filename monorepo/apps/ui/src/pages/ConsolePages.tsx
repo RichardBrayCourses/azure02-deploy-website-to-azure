@@ -17,18 +17,20 @@ import {
   getCaseTemplateTasks,
   getCaseTemplatesForAuthority,
   getAccessGrantsForParticipant,
+  getAuthorityTerminology,
   getGrantableStakeholdersForParticipant,
   getHelperClientWorkspaces,
   getHelperGrantForParticipant,
   getRequestsForCase,
   getRequestsForParticipant,
   getRequestsForTask,
-  getSubscriberReviewForCase,
+  getStakeholderReviewForCase,
   getScopedCases,
   getScopedParticipants,
-  getScopedVendorRelationships,
+  getScopedParticipantSuppliers,
   getStakeholdersForAuthority,
-  getVendorRelationshipsForParticipant,
+  getTerminologyForUser,
+  getParticipantSuppliersForParticipant,
   grantAllowsHelperEdit,
   AccessGrantPermissionLevel,
   AccessGrantStatus,
@@ -37,11 +39,15 @@ import {
   MembershipRole,
   PartyType,
   RequestForInformationStatus,
-  SubscriberReviewStatus,
+  StakeholderReviewStatus,
   Status,
-  VendorRelationshipCriticality,
+  ParticipantSupplierCriticality,
+  terminologyLabel,
+  terminologyTitle,
+  TerminologyKey,
   taskTypes,
 } from "@/data/console";
+import { defaultTerminologyLabels } from "@/data/console";
 import type { Task } from "@/data/console";
 import { cn } from "@/lib/utils";
 import {
@@ -197,6 +203,10 @@ function FormError({ message }: { message: string | null }) {
   return <p className="text-sm font-bold text-[#d4351c]">{message}</p>;
 }
 
+function titleCaseForPage(value: string) {
+  return value.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
+}
+
 function stakeholderCanSeeEvidence(task: Task) {
   return task.domainStatus === "SUBMITTED" || task.domainStatus === "PASSED" || task.domainStatus === "FAILED";
 }
@@ -256,34 +266,35 @@ function AdministrationResourceNav() {
 export function HelperWorkspacePage() {
   const { user } = useAuth();
   if (user.role !== "helper") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const workspaces = getHelperClientWorkspaces(user);
   const scopedCases = getScopedCases(user);
-  const scopedVendorRelationships = getScopedVendorRelationships(user);
+  const scopedParticipantSuppliers = getScopedParticipantSuppliers(user);
   const editableWorkspaces = workspaces.filter((workspace) => workspace.canEdit).length;
 
   return (
     <ConsoleLayout
       appName="Service Provider Workspace"
-      appDescription="Delegated workspace for assisting vendors with due diligence packs and subscriber requests."
+      appDescription={`Delegated workspace for assisting ${terminologyLabel(terminology, "participant", true)} with ${terminologyLabel(terminology, "case", true)} and ${terminologyLabel(terminology, "stakeholder")} requests.`}
       breadcrumbs={[{ label: "Service provider workspace" }]}
       readOnly
     >
       <PageTitle
         eyebrow="Service provider"
         title="Client workspaces"
-        description="Assist vendor due diligence only where an active service-provider grant permits it."
+        description={`Assist ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case")} work only where an active helper grant permits it.`}
       />
       <MetricStrip
         items={[
-          { label: "Client vendors", value: String(workspaces.length), tone: "blue" },
-          { label: "Assigned DDQ packs", value: String(scopedCases.length), tone: "blue" },
-          { label: "Vendor-of-vendor records", value: String(scopedVendorRelationships.length), tone: "yellow" },
+          { label: `Client ${terminologyLabel(terminology, "participant", true)}`, value: String(workspaces.length), tone: "blue" },
+          { label: `Assigned ${terminologyLabel(terminology, "case", true)}`, value: String(scopedCases.length), tone: "blue" },
+          { label: terminologyTitle(terminology, "participantSupplier", true), value: String(scopedParticipantSuppliers.length), tone: "yellow" },
           { label: "Editable workspaces", value: String(editableWorkspaces), tone: "green" },
         ]}
       />
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Granted client workspaces</h3>
-        <ResourceTable headings={["Vendor", "Permission", "Scope", "DDQ packs", "Open requests", "Actions"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Permission", "Scope", terminologyTitle(terminology, "case", true), "Open requests", "Actions"]}>
           {workspaces.map((workspace) => (
             <tr key={workspace.grant.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
@@ -291,7 +302,7 @@ export function HelperWorkspacePage() {
                   {workspace.participant.name}
                 </Link>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                  Access granted by vendor workspace
+                  Access granted by participant workspace
                 </span>
               </td>
               <td className="px-4 py-3">{workspace.grant.permissionLabel}</td>
@@ -308,14 +319,14 @@ export function HelperWorkspacePage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Vendor-of-vendor records</h3>
-        <ResourceTable headings={["Client vendor", "Vendor of vendor", "Criticality", "Status", "Linked DDQ packs"]}>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participantSupplier", true)}</h3>
+        <ResourceTable headings={[`Client ${terminologyLabel(terminology, "participant")}`, terminologyTitle(terminology, "participantSupplier"), "Criticality", "Status", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
           {workspaces.flatMap((workspace) =>
-            workspace.vendorRelationships.map((relationship) => (
+            workspace.participantSuppliers.map((relationship) => (
               <tr key={`${workspace.grant.id}-${relationship.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">{workspace.participant.name}</td>
                 <td className="px-4 py-3">
-                  <span className="block font-bold text-[#1d70b8]">{relationship.vendorName}</span>
+                  <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
                   <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
                     {relationship.relationshipType}
                   </span>
@@ -329,7 +340,7 @@ export function HelperWorkspacePage() {
                           {caseRecord.title}
                         </Link>
                       ))
-                    : "No DDQ pack linked"}
+                    : `No ${terminologyLabel(terminology, "case")} linked`}
                 </td>
               </tr>
             )),
@@ -337,8 +348,8 @@ export function HelperWorkspacePage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Assigned due diligence packs</h3>
-        <ResourceTable headings={["Vendor", "DDQ pack", "Status", "Progress", "Permission"]}>
+        <h3 className="mb-3 text-xl font-bold">Assigned {terminologyLabel(terminology, "case", true)}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), terminologyTitle(terminology, "case"), "Status", "Progress", "Permission"]}>
           {workspaces.flatMap((workspace) =>
             workspace.cases.map((caseRecord) => (
               <tr key={`${workspace.grant.id}-${caseRecord.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -367,6 +378,7 @@ export function HelperParticipantPage() {
   const { user } = useAuth();
   const { participantId } = useParams();
   if (user.role !== "helper") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const workspace = getHelperClientWorkspaces(user).find((item) => item.participant.id === participantId);
   if (!workspace) return <Navigate to="/helper" replace />;
   const requests = getRequestsForParticipant(workspace.participant.id, user);
@@ -375,7 +387,7 @@ export function HelperParticipantPage() {
   return (
     <ConsoleLayout
       appName="Service Provider Workspace"
-      appDescription="Delegated workspace for assisting vendors with due diligence packs and subscriber requests."
+      appDescription={`Delegated workspace for assisting ${terminologyLabel(terminology, "participant", true)} with ${terminologyLabel(terminology, "case", true)} and ${terminologyLabel(terminology, "stakeholder")} requests.`}
       breadcrumbs={[
         { label: "Service provider workspace", path: "/helper" },
         { label: workspace.participant.name },
@@ -385,20 +397,20 @@ export function HelperParticipantPage() {
       <PageTitle
         eyebrow="Client workspace"
         title={workspace.participant.name}
-        description={`Service-provider grant: ${workspace.grant.permissionLabel}. ${workspace.canEdit ? "You can assist with permitted DDQ updates and RFI responses." : "This grant is review-only for this workspace."}`}
+        description={`Service-provider grant: ${workspace.grant.permissionLabel}. ${workspace.canEdit ? `You can assist with permitted ${terminologyLabel(terminology, "case")} updates and ${terminologyLabel(terminology, "requestForInformation", true)}.` : "This grant is review-only for this workspace."}`}
       />
       <MetricStrip
         items={[
           { label: "Permission", value: workspace.grant.permissionLabel, tone: workspace.canEdit ? "green" : "yellow" },
           { label: "Scope", value: workspace.grant.scopeLabel, tone: "blue" },
-          { label: "DDQ packs", value: String(workspace.cases.length), tone: "blue" },
-          { label: "Vendor-of-vendor records", value: String(workspace.vendorRelationships.length), tone: "yellow" },
+          { label: terminologyTitle(terminology, "case", true), value: String(workspace.cases.length), tone: "blue" },
+          { label: terminologyTitle(terminology, "participantSupplier", true), value: String(workspace.participantSuppliers.length), tone: "yellow" },
           { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Assigned due diligence packs</h3>
-        <ResourceTable headings={["DDQ pack", "Status", "Progress", "Risk", "Last activity"]}>
+        <h3 className="mb-3 text-xl font-bold">Assigned {terminologyLabel(terminology, "case", true)}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "case"), "Status", "Progress", "Risk", "Last activity"]}>
           {workspace.cases.map((caseRecord) => (
             <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
@@ -418,12 +430,12 @@ export function HelperParticipantPage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Vendor-of-vendor records</h3>
-        <ResourceTable headings={["Vendor of vendor", "Relationship", "Criticality", "Data exposure", "Linked DDQ packs"]}>
-          {workspace.vendorRelationships.map((relationship) => (
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participantSupplier", true)}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Criticality", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
+          {workspace.participantSuppliers.map((relationship) => (
             <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
-                <span className="block font-bold text-[#1d70b8]">{relationship.vendorName}</span>
+                <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
                   {relationship.status.replace("_", " ").toLowerCase()}
                 </span>
@@ -438,7 +450,7 @@ export function HelperParticipantPage() {
                         {caseRecord.title}
                       </Link>
                     ))
-                  : "No DDQ pack linked"}
+                  : `No ${terminologyLabel(terminology, "case")} linked`}
               </td>
             </tr>
           ))}
@@ -446,7 +458,7 @@ export function HelperParticipantPage() {
       </section>
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Requests you can assist with</h3>
-        <ResourceTable headings={["Subscriber", "Scope", "Status", "Request", "Response"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "stakeholder"), "Scope", "Status", "Request", "Response"]}>
           {requests.map((request) => (
             <tr key={request.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">{request.stakeholderName}</td>
@@ -473,37 +485,38 @@ export function HelperParticipantPage() {
 export function StakeholderPortalPage() {
   const { user } = useAuth();
   if (user.role !== "stakeholder") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const scopedParticipants = getScopedParticipants(user);
   const scopedCases = getScopedCases(user);
-  const scopedVendorRelationships = getScopedVendorRelationships(user);
-  const reviewSummaries = scopedCases.map((caseRecord) => getSubscriberReviewForCase(user, caseRecord.id));
+  const scopedParticipantSuppliers = getScopedParticipantSuppliers(user);
+  const reviewSummaries = scopedCases.map((caseRecord) => getStakeholderReviewForCase(user, caseRecord.id));
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
 
   return (
     <ConsoleLayout
-      breadcrumbs={[{ label: "Subscriber Portal" }]}
+      breadcrumbs={[{ label: `${terminologyTitle(terminology, "stakeholder")} Portal` }]}
       readOnly
     >
       <PageTitle
-        eyebrow="Subscriber"
-        title="Granted vendor DDQ packs"
-        description="Read submitted vendor due diligence, evidence metadata, and your subscriber-owned review status."
+        eyebrow={terminologyTitle(terminology, "stakeholder")}
+        title={`Granted ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)}`}
+        description={`Read submitted ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and your stakeholder-owned review status.`}
       />
       <MetricStrip
         items={[
-          { label: "Granted vendors", value: String(scopedParticipants.length), tone: "blue" },
-          { label: "Visible DDQ packs", value: String(scopedCases.length), tone: "blue" },
-          { label: "Vendor-of-vendor records", value: String(scopedVendorRelationships.length), tone: "yellow" },
-          { label: "Approved by subscriber", value: String(reviewSummaries.filter((review) => review?.status === "APPROVED").length), tone: "green" },
+          { label: `Granted ${terminologyLabel(terminology, "participant", true)}`, value: String(scopedParticipants.length), tone: "blue" },
+          { label: `Visible ${terminologyLabel(terminology, "case", true)}`, value: String(scopedCases.length), tone: "blue" },
+          { label: terminologyTitle(terminology, "participantSupplier", true), value: String(scopedParticipantSuppliers.length), tone: "yellow" },
+          { label: "Approved by stakeholder", value: String(reviewSummaries.filter((review) => review?.status === "APPROVED").length), tone: "green" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Visible DDQ pack status</h3>
-        <ResourceTable headings={["Vendor", "Visible DDQ pack", "Vendor status", "Progress", "Subscriber review"]}>
+        <h3 className="mb-3 text-xl font-bold">Visible {terminologyLabel(terminology, "case")} status</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), `Visible ${terminologyLabel(terminology, "case")}`, `${terminologyTitle(terminology, "participant")} status`, "Progress", `${terminologyTitle(terminology, "stakeholder")} review`]}>
           {scopedParticipants.map((participant) => {
             const visibleCase = scopedCases.find((caseRecord) => caseRecord.participantId === participant.id);
-            const review = getSubscriberReviewForCase(user, visibleCase?.id);
+            const review = getStakeholderReviewForCase(user, visibleCase?.id);
             const visibleCasesForParticipant = scopedCases.filter((caseRecord) => caseRecord.participantId === participant.id);
             const visibleCompletedTasks = visibleCasesForParticipant.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
             const visibleTotalTasks = visibleCasesForParticipant.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
@@ -514,7 +527,7 @@ export function StakeholderPortalPage() {
                     {participant.name}
                   </Link>
                   <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                    Vendor workspace granted to this subscriber
+                    {terminologyTitle(terminology, "participant")} workspace granted to this {terminologyLabel(terminology, "stakeholder")}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -540,7 +553,7 @@ export function StakeholderPortalPage() {
         </ResourceTable>
       </section>
       <p className="mt-4 text-sm text-[#505a5f] dark:text-muted-foreground">
-        Visible due diligence item progress across granted vendors: {completedTasks} of {totalTasks}.
+        Visible {terminologyLabel(terminology, "caseTask")} progress across granted {terminologyLabel(terminology, "participant", true)}: {completedTasks} of {totalTasks}.
       </p>
     </ConsoleLayout>
   );
@@ -549,12 +562,13 @@ export function StakeholderPortalPage() {
 export function StakeholderParticipantDetailPage() {
   const { user } = useAuth();
   if (user.role !== "stakeholder") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const { participantId } = useParams();
   const participant = getScopedParticipants(user).find((item) => item.id === participantId);
   if (!participant) return <Navigate to="/stakeholder" replace />;
 
   const participantCases = getScopedCases(user).filter((caseRecord) => caseRecord.participantId === participant.id);
-  const visibleVendorRelationships = getScopedVendorRelationships(user).filter((relationship) => relationship.participantId === participant.id);
+  const visibleParticipantSuppliers = getScopedParticipantSuppliers(user).filter((relationship) => relationship.participantId === participant.id);
   const openCases = participantCases.filter((caseRecord) => caseRecord.status !== "closed").length;
   const completedVisibleTasks = participantCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
   const totalVisibleTasks = participantCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
@@ -562,31 +576,31 @@ export function StakeholderParticipantDetailPage() {
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: "Subscriber Portal", path: "/stakeholder" },
+        { label: `${terminologyTitle(terminology, "stakeholder")} Portal`, path: "/stakeholder" },
         { label: participant.name },
       ]}
       readOnly
     >
       <PageTitle
-        eyebrow="Read-only vendor"
+        eyebrow={`Read-only ${terminologyLabel(terminology, "participant")}`}
         title={participant.name}
-        description="Granted DDQ packs, due diligence item outcomes, and submitted evidence metadata for subscriber review."
+        description={`Granted ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "caseTask")} outcomes, and submitted ${terminologyLabel(terminology, "evidence")} metadata for ${terminologyLabel(terminology, "stakeholder")} review.`}
       />
       <MetricStrip
         items={[
-          { label: "Visible DDQ packs", value: String(participantCases.length), tone: "blue" },
-          { label: "Open DDQ packs", value: String(openCases), tone: "yellow" },
-          { label: "Vendor-of-vendor records", value: String(visibleVendorRelationships.length), tone: "yellow" },
+          { label: `Visible ${terminologyLabel(terminology, "case", true)}`, value: String(participantCases.length), tone: "blue" },
+          { label: `Open ${terminologyLabel(terminology, "case", true)}`, value: String(openCases), tone: "yellow" },
+          { label: terminologyTitle(terminology, "participantSupplier", true), value: String(visibleParticipantSuppliers.length), tone: "yellow" },
           { label: "Items complete", value: `${completedVisibleTasks}/${totalVisibleTasks}`, tone: "green" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Visible vendor-of-vendor records</h3>
-        <ResourceTable headings={["Vendor of vendor", "Relationship", "Criticality", "Data exposure", "Linked DDQ packs"]}>
-          {visibleVendorRelationships.map((relationship) => (
+        <h3 className="mb-3 text-xl font-bold">Visible {terminologyLabel(terminology, "participantSupplier", true)}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Criticality", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
+          {visibleParticipantSuppliers.map((relationship) => (
             <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
-                <span className="block font-bold text-[#1d70b8]">{relationship.vendorName}</span>
+                <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
                   {relationship.status.replace("_", " ").toLowerCase()}
                 </span>
@@ -601,17 +615,17 @@ export function StakeholderParticipantDetailPage() {
                         {caseRecord.title}
                       </Link>
                     ))
-                  : "No DDQ pack linked"}
+                  : `No ${terminologyLabel(terminology, "case")} linked`}
               </td>
             </tr>
           ))}
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Visible DDQ packs</h3>
-        <ResourceTable headings={["DDQ pack", "Vendor status", "Progress", "Subscriber review", "Last activity"]}>
+        <h3 className="mb-3 text-xl font-bold">Visible {terminologyLabel(terminology, "case", true)}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "case"), `${terminologyTitle(terminology, "participant")} status`, "Progress", `${terminologyTitle(terminology, "stakeholder")} review`, "Last activity"]}>
           {participantCases.map((caseRecord) => {
-            const review = getSubscriberReviewForCase(user, caseRecord.id);
+            const review = getStakeholderReviewForCase(user, caseRecord.id);
             return (
               <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
@@ -632,8 +646,8 @@ export function StakeholderParticipantDetailPage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Due diligence item outcomes and evidence</h3>
-        <ResourceTable headings={["DDQ pack", "Due diligence item", "Outcome", "Evidence metadata"]}>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "caseTask")} outcomes and {terminologyLabel(terminology, "evidence")}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "case"), terminologyTitle(terminology, "caseTask"), "Outcome", `${terminologyTitle(terminology, "evidence")} metadata`]}>
           {participantCases.flatMap((caseRecord) =>
             caseRecord.tasks.map((task) => (
               <tr key={`${caseRecord.id}-${task.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -666,22 +680,23 @@ export function StakeholderCaseDetailPage() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
   const { caseId } = useParams();
-  const [reviewStatus, setReviewStatus] = useState<SubscriberReviewStatus>("IN_REVIEW");
+  const [reviewStatus, setReviewStatus] = useState<StakeholderReviewStatus>("IN_REVIEW");
   const [reviewNote, setReviewNote] = useState("");
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [requestTaskId, setRequestTaskId] = useState("");
   const [requestText, setRequestText] = useState("");
   const [requestError, setRequestError] = useState<string | null>(null);
   const caseRecord = getCase(caseId);
-  const subscriberReview = getSubscriberReviewForCase(user, caseRecord?.id);
+  const stakeholderReview = getStakeholderReviewForCase(user, caseRecord?.id);
 
   useEffect(() => {
-    setReviewStatus(subscriberReview?.status ?? "IN_REVIEW");
-    setReviewNote(subscriberReview?.note ?? "");
+    setReviewStatus(stakeholderReview?.status ?? "IN_REVIEW");
+    setReviewNote(stakeholderReview?.note ?? "");
     setReviewError(null);
-  }, [subscriberReview?.id, subscriberReview?.note, subscriberReview?.status]);
+  }, [stakeholderReview?.id, stakeholderReview?.note, stakeholderReview?.status]);
 
   if (user.role !== "stakeholder") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   if (!caseRecord) return <Navigate to="/stakeholder" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
   if (!scopedCaseIds.has(caseRecord.id)) return <Navigate to="/stakeholder" replace />;
@@ -690,14 +705,14 @@ export function StakeholderCaseDetailPage() {
   const requests = getRequestsForCase(caseRecord.id, user);
   const openRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS").length;
 
-  function saveSubscriberReview() {
+  function saveStakeholderReview() {
     setReviewError(null);
     if (!user.stakeholderId || !user.authenticatableUserId) {
-      setReviewError("No subscriber context is selected for this session.");
+      setReviewError("No stakeholder context is selected for this session.");
       return;
     }
     try {
-      db.upsertSubscriberReview({
+      db.upsertStakeholderReview({
         stakeholderId: user.stakeholderId,
         caseId: caseRecord?.id ?? "",
         status: reviewStatus,
@@ -706,14 +721,14 @@ export function StakeholderCaseDetailPage() {
       });
       refresh();
     } catch (caught) {
-      setReviewError(caught instanceof Error ? caught.message : "Subscriber review could not be saved.");
+      setReviewError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "stakeholder")} review could not be saved.`);
     }
   }
 
   function createRequestForInformation() {
     setRequestError(null);
     if (!user.stakeholderId || !user.authenticatableUserId) {
-      setRequestError("No subscriber context is selected for this session.");
+      setRequestError("No stakeholder context is selected for this session.");
       return;
     }
     if (!requestText.trim()) {
@@ -739,7 +754,7 @@ export function StakeholderCaseDetailPage() {
   function updateRequestStatus(requestId: string, status: Extract<RequestForInformationStatus, "ACCEPTED" | "WITHDRAWN">) {
     setRequestError(null);
     if (!user.authenticatableUserId) {
-      setRequestError("No subscriber user is selected for this session.");
+      setRequestError("No stakeholder user is selected for this session.");
       return;
     }
     try {
@@ -747,7 +762,7 @@ export function StakeholderCaseDetailPage() {
         requestId,
         status,
         updatedByUserId: user.authenticatableUserId,
-        note: status === "ACCEPTED" ? "Subscriber accepted vendor response" : "Subscriber withdrew request",
+        note: status === "ACCEPTED" ? `${terminologyTitle(terminology, "stakeholder")} accepted ${terminologyLabel(terminology, "participant")} response` : `${terminologyTitle(terminology, "stakeholder")} withdrew request`,
       });
       refresh();
     } catch (caught) {
@@ -758,34 +773,34 @@ export function StakeholderCaseDetailPage() {
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: "Subscriber Portal", path: "/stakeholder" },
+        { label: `${terminologyTitle(terminology, "stakeholder")} Portal`, path: "/stakeholder" },
         { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}` },
       ]}
     >
       <PageTitle
-        eyebrow="Subscriber review"
+        eyebrow={`${terminologyTitle(terminology, "stakeholder")} review`}
         title={caseRecord.title}
-        description={`${participant?.name ?? "Unknown vendor"} ${caseRecord.caseType.toLowerCase()} status, due diligence item completion, and subscriber-owned review outcome.`}
+        description={`${participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`} ${caseRecord.caseType.toLowerCase()} status, ${terminologyLabel(terminology, "caseTask")} completion, and ${terminologyLabel(terminology, "stakeholder")}-owned review outcome.`}
       />
       <MetricStrip
         items={[
-          { label: "Vendor pack status", value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
-          { label: "Items complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
-          { label: "Linked vendor", value: caseRecord.vendorRelationshipName ?? "Vendor workspace", tone: caseRecord.vendorRelationshipName ? "yellow" : "blue" },
+          { label: `${terminologyTitle(terminology, "case")} status`, value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
+          { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
+          { label: `Linked ${terminologyLabel(terminology, "participantSupplier")}`, value: caseRecord.participantSupplierName ?? `${terminologyTitle(terminology, "participant")} workspace`, tone: caseRecord.participantSupplierName ? "yellow" : "blue" },
           { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
         ]}
       />
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
-        <h3 className="text-xl font-bold">Vendor pack outcome</h3>
+        <h3 className="text-xl font-bold">{terminologyTitle(terminology, "case")} outcome</h3>
         <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">{caseRecord.outcome}</p>
       </section>
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
-        <h3 className="text-xl font-bold">Requests for information</h3>
+        <h3 className="text-xl font-bold">{terminologyTitle(terminology, "requestForInformation", true)}</h3>
         <FormError message={requestError} />
         <div className="mt-4 grid gap-4 lg:grid-cols-[18rem_1fr_auto] lg:items-end">
           <FormField label="Related scope">
             <SelectField value={requestTaskId} onChange={setRequestTaskId}>
-              <option value="">Whole DDQ pack</option>
+              <option value="">Whole {terminologyLabel(terminology, "case")}</option>
               {caseRecord.tasks.map((task) => (
                 <option key={task.id} value={task.id}>{task.title}</option>
               ))}
@@ -800,7 +815,7 @@ export function StakeholderCaseDetailPage() {
           </Button>
         </div>
         <div className="mt-5">
-          <ResourceTable headings={["Scope", "Status", "Request", "Vendor response", "Actions"]}>
+          <ResourceTable headings={["Scope", "Status", "Request", `${terminologyTitle(terminology, "participant")} response`, "Actions"]}>
             {requests.map((request) => (
               <tr key={request.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
@@ -812,7 +827,7 @@ export function StakeholderCaseDetailPage() {
                 <td className="px-4 py-3"><RequestStatusBadge status={request.status} /></td>
                 <td className="px-4 py-3">{request.requestText}</td>
                 <td className="px-4 py-3">
-                  {request.responseText || "No vendor response yet"}
+                  {request.responseText || `No ${terminologyLabel(terminology, "participant")} response yet`}
                   {request.respondedByName && (
                     <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
                       By {request.respondedByName}
@@ -841,33 +856,33 @@ export function StakeholderCaseDetailPage() {
         </div>
       </section>
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
-        <h3 className="text-xl font-bold">Subscriber review</h3>
+        <h3 className="text-xl font-bold">{terminologyTitle(terminology, "stakeholder")} review</h3>
         <FormError message={reviewError} />
         <div className="mt-4 grid gap-4 lg:grid-cols-[16rem_1fr_auto] lg:items-end">
           <FormField label="Review status">
-            <SelectField value={reviewStatus} onChange={(value) => setReviewStatus(value as SubscriberReviewStatus)}>
+            <SelectField value={reviewStatus} onChange={(value) => setReviewStatus(value as StakeholderReviewStatus)}>
               <option value="NOT_REVIEWED">Not reviewed</option>
               <option value="IN_REVIEW">In review</option>
               <option value="APPROVED">Approved</option>
               <option value="MORE_INFO_REQUESTED">More information requested</option>
             </SelectField>
           </FormField>
-          <FormField label="Subscriber note">
+          <FormField label={`${terminologyTitle(terminology, "stakeholder")} note`}>
             <Input value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} />
           </FormField>
-          <Button type="button" onClick={saveSubscriberReview}>
+          <Button type="button" onClick={saveStakeholderReview}>
             <Save />
             Save review
           </Button>
         </div>
-        {subscriberReview && (
+        {stakeholderReview && (
           <p className="mt-3 text-sm text-[#505a5f] dark:text-muted-foreground">
-            Last saved by {subscriberReview.reviewedByName} on {new Date(subscriberReview.reviewedAt).toLocaleString("en-GB")}.
+            Last saved by {stakeholderReview.reviewedByName} on {new Date(stakeholderReview.reviewedAt).toLocaleString("en-GB")}.
           </p>
         )}
       </section>
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
-        <h3 className="text-xl font-bold">Vendor performance</h3>
+        <h3 className="text-xl font-bold">{terminologyTitle(terminology, "participant")} performance</h3>
         <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
           <div>
             <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Progress</dt>
@@ -881,17 +896,17 @@ export function StakeholderCaseDetailPage() {
             <dt className="font-bold text-[#505a5f] dark:text-muted-foreground">Visible status</dt>
             <dd className="mt-2">
               {caseRecord.status === "closed"
-                ? "Completed vendor pack"
+                ? `Completed ${terminologyLabel(terminology, "case")}`
                 : caseRecord.risk === "high"
-                  ? "Vendor pack needs attention"
+                  ? `${terminologyTitle(terminology, "case")} needs attention`
                   : "Work in progress"}
             </dd>
           </div>
         </dl>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Due diligence item outcomes and evidence</h3>
-        <ResourceTable headings={["Due diligence item", "Status", "Response", "Evidence metadata"]}>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "caseTask")} outcomes and {terminologyLabel(terminology, "evidence")}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "caseTask"), "Status", "Response", `${terminologyTitle(terminology, "evidence")} metadata`]}>
           {caseRecord.tasks.map((task) => (
             <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
@@ -922,6 +937,7 @@ export function StakeholdersPage() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const scopedStakeholders = getStakeholdersForAuthority(user.authorityId ?? undefined);
 
   function createStakeholder() {
@@ -946,32 +962,32 @@ export function StakeholdersPage() {
       setStakeholderType("ORGANISATION");
       setShowCreate(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Stakeholder could not be created.");
+      setError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "stakeholder")} could not be created.`);
     }
   }
 
   return (
     <ConsoleLayout
       appName="Administration"
-      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
-      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Stakeholders" }]}
+      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
+      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: terminologyTitle(terminology, "stakeholder", true) }]}
     >
       <PageTitle
         eyebrow="Resource list"
-        title="Stakeholders"
-        description="Create stakeholders, manage their users, and grant participant monitoring access."
+        title={terminologyTitle(terminology, "stakeholder", true)}
+        description={`Create ${terminologyLabel(terminology, "stakeholder", true)}, manage their users, and review ${terminologyLabel(terminology, "participant")} access.`}
         actions={
           <Button onClick={() => setShowCreate((current) => !current)}>
             <Plus />
-            Create stakeholder
+            Create {terminologyLabel(terminology, "stakeholder")}
           </Button>
         }
       />
       <AdministrationResourceNav />
       <ResourceActionPanel
         open={showCreate}
-        title="Create stakeholder"
-        description="Create a stakeholder inside the current authority."
+        title={`Create ${terminologyLabel(terminology, "stakeholder")}`}
+        description={`Create a ${terminologyLabel(terminology, "stakeholder")} inside the current ${terminologyLabel(terminology, "authority")}.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createStakeholder}>
@@ -993,7 +1009,7 @@ export function StakeholdersPage() {
         </div>
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
-      <ResourceTable headings={["Stakeholder", "Type", "Status", "Participant access"]}>
+      <ResourceTable headings={[terminologyTitle(terminology, "stakeholder"), "Type", "Status", `${terminologyTitle(terminology, "participant")} access`]}>
         {scopedStakeholders.map((stakeholder) => (
           <tr key={stakeholder.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -1021,6 +1037,7 @@ export function StakeholderDetailPage() {
   const [newUserRole, setNewUserRole] = useState<MembershipRole>("MEMBER");
   const [userError, setUserError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const stakeholder = getStakeholder(stakeholderId);
   if (!stakeholder) return <Navigate to="/admin/stakeholders" replace />;
   const scopedStakeholders = getStakeholdersForAuthority(user.authorityId ?? undefined);
@@ -1059,24 +1076,24 @@ export function StakeholderDetailPage() {
       setNewUserRole("MEMBER");
       setShowCreateUser(false);
     } catch (caught) {
-      setUserError(caught instanceof Error ? caught.message : "Stakeholder user could not be created.");
+      setUserError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "stakeholder")} user could not be created.`);
     }
   }
 
   return (
     <ConsoleLayout
-      appName="Administration"
-      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
+      appName={`${terminologyTitle(terminology, "authority")} Administration`}
+      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
       breadcrumbs={[
         { label: "Administration", path: "/admin" },
-        { label: "Stakeholders", path: "/admin/stakeholders" },
+        { label: terminologyTitle(terminology, "stakeholder", true), path: "/admin/stakeholders" },
         { label: stakeholder.name },
       ]}
     >
       <PageTitle
-        eyebrow="Stakeholder"
+        eyebrow={terminologyTitle(terminology, "stakeholder")}
         title={stakeholder.name}
-        description="Manage stakeholder users and approved participant monitoring access."
+        description={`Manage ${terminologyLabel(terminology, "stakeholder")} users and approved ${terminologyLabel(terminology, "participant")} monitoring access.`}
       />
       <AdministrationResourceNav />
       <Tabs
@@ -1093,7 +1110,7 @@ export function StakeholderDetailPage() {
           { label: "Current status", value: stakeholder.status.toLowerCase(), tone: "blue" },
           { label: "Type", value: stakeholder.type, tone: "blue" },
           { label: "Users", value: String(stakeholderUsers.length), tone: "green" },
-          { label: "Participant access", value: String(accessibleParticipants.length), tone: "yellow" },
+          { label: `${terminologyTitle(terminology, "participant")} access`, value: String(accessibleParticipants.length), tone: "yellow" },
         ]}
       />
       <section className="mt-8">
@@ -1106,8 +1123,8 @@ export function StakeholderDetailPage() {
         </div>
         <ResourceActionPanel
           open={showCreateUser}
-          title="Create stakeholder user"
-          description="Create a login user that belongs only to this stakeholder."
+          title={`Create ${terminologyLabel(terminology, "stakeholder")} user`}
+          description={`Create a login user that belongs only to this ${terminologyLabel(terminology, "stakeholder")}.`}
           onClose={() => setShowCreateUser(false)}
           footer={
             <Button type="button" onClick={createStakeholderUser}>
@@ -1145,12 +1162,12 @@ export function StakeholderDetailPage() {
       </section>
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-bold">Participant access</h3>
+          <h3 className="text-xl font-bold">{terminologyTitle(terminology, "participant")} access</h3>
         </div>
         <p className="mb-3 max-w-3xl text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-          Vendor due diligence access is granted by the vendor account, not by the authority. This view only shows existing access relationships.
+          {terminologyTitle(terminology, "participant")} {terminologyLabel(terminology, "case")} access is granted by the {terminologyLabel(terminology, "participant")} account, not by the {terminologyLabel(terminology, "authority")}. This view only shows existing access relationships.
         </p>
-        <ResourceTable headings={["Participant", "Type", "Status", "Progress"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", "Status", "Progress"]}>
           {accessibleParticipants.map((participant) => (
             <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
@@ -1177,6 +1194,7 @@ export function CaseTemplatesPage() {
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const scopedTemplates = getCaseTemplatesForAuthority(user.authorityId ?? undefined);
 
   function createTemplate() {
@@ -1206,14 +1224,14 @@ export function CaseTemplatesPage() {
 
   return (
     <ConsoleLayout
-      appName="Administration"
-      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
-      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Case templates" }]}
+      appName={`${terminologyTitle(terminology, "authority")} Administration`}
+      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
+      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: terminologyTitle(terminology, "caseTemplate", true) }]}
     >
       <PageTitle
         eyebrow="Resource list"
-        title="Case templates"
-        description="Create reusable authority-owned case definitions, add tasks, assign participants, and publish cases."
+        title={terminologyTitle(terminology, "caseTemplate", true)}
+        description={`Create reusable ${terminologyLabel(terminology, "authority")}-owned ${terminologyLabel(terminology, "case")} definitions, add tasks, assign ${terminologyLabel(terminology, "participant", true)}, and publish ${terminologyLabel(terminology, "case", true)}.`}
         actions={
           <Button onClick={() => setShowCreate((current) => !current)}>
             <Plus />
@@ -1224,8 +1242,8 @@ export function CaseTemplatesPage() {
       <AdministrationResourceNav />
       <ResourceActionPanel
         open={showCreate}
-        title="Create case template"
-        description="Create a draft template inside the current authority."
+        title={`Create ${terminologyLabel(terminology, "caseTemplate")}`}
+        description={`Create a draft template inside the current ${terminologyLabel(terminology, "authority")}.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createTemplate}>
@@ -1244,7 +1262,7 @@ export function CaseTemplatesPage() {
         </div>
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
-      <ResourceTable headings={["Template", "Status", "Tasks", "Participants", "Published"]}>
+      <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Status", terminologyTitle(terminology, "caseTask", true), terminologyTitle(terminology, "participant", true), "Published"]}>
         {scopedTemplates.map((template) => (
           <tr key={template.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -1284,6 +1302,7 @@ export function CaseTemplateDetailPage() {
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const template = getCaseTemplate(templateId);
   if (!template) return <Navigate to="/admin/case-templates" replace />;
   const scopedTemplates = getCaseTemplatesForAuthority(user.authorityId ?? undefined);
@@ -1344,7 +1363,7 @@ export function CaseTemplateDetailPage() {
       setExemptionReason("");
       setShowAssignParticipant(false);
     } catch (caught) {
-      setAssignmentError(caught instanceof Error ? caught.message : "Participant could not be assigned.");
+      setAssignmentError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participant")} could not be assigned.`);
     }
   }
 
@@ -1399,16 +1418,16 @@ export function CaseTemplateDetailPage() {
 
   return (
     <ConsoleLayout
-      appName="Administration"
-      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
+      appName={`${terminologyTitle(terminology, "authority")} Administration`}
+      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
       breadcrumbs={[
         { label: "Administration", path: "/admin" },
-        { label: "Case templates", path: "/admin/case-templates" },
+        { label: terminologyTitle(terminology, "caseTemplate", true), path: "/admin/case-templates" },
         { label: templateRecord.name },
       ]}
     >
       <PageTitle
-        eyebrow="Case template"
+        eyebrow={terminologyTitle(terminology, "caseTemplate")}
         title={templateRecord.name}
         description={templateRecord.description}
         actions={
@@ -1425,33 +1444,33 @@ export function CaseTemplateDetailPage() {
         current="Overview"
         tabs={[
           { label: "Overview", path: `/admin/case-templates/${templateRecord.id}` },
-          { label: "Tasks", path: `/admin/case-templates/${templateRecord.id}` },
-          { label: "Participants", path: `/admin/case-templates/${templateRecord.id}` },
-          { label: "Generated cases", path: `/admin/case-templates/${templateRecord.id}` },
+          { label: terminologyTitle(terminology, "caseTask", true), path: `/admin/case-templates/${templateRecord.id}` },
+          { label: terminologyTitle(terminology, "participant", true), path: `/admin/case-templates/${templateRecord.id}` },
+          { label: `Generated ${terminologyLabel(terminology, "case", true)}`, path: `/admin/case-templates/${templateRecord.id}` },
           { label: "Activity", path: `/admin/case-templates/${templateRecord.id}` },
         ]}
       />
       <MetricStrip
         items={[
           { label: "Status", value: templateRecord.status.toLowerCase(), tone: templateRecord.status === "PUBLISHED" ? "green" : "yellow" },
-          { label: "Tasks", value: String(templateRecord.taskCount), tone: "blue" },
-          { label: "Participants", value: String(templateRecord.participantCount), tone: "blue" },
-          { label: "Generated cases", value: String(generatedCases.length), tone: "green" },
+          { label: terminologyTitle(terminology, "caseTask", true), value: String(templateRecord.taskCount), tone: "blue" },
+          { label: terminologyTitle(terminology, "participant", true), value: String(templateRecord.participantCount), tone: "blue" },
+          { label: `Generated ${terminologyLabel(terminology, "case", true)}`, value: String(generatedCases.length), tone: "green" },
         ]}
       />
       <div className="mt-3"><FormError message={publishError} /></div>
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-bold">Tasks</h3>
+          <h3 className="text-xl font-bold">{terminologyTitle(terminology, "caseTask", true)}</h3>
           <Button type="button" onClick={() => setShowAddTask((current) => !current)}>
             <Plus />
-            Add task
+            Add {terminologyLabel(terminology, "caseTask")}
           </Button>
         </div>
         <ResourceActionPanel
           open={showAddTask}
-          title="Add task"
-          description={templateRecord.status === "PUBLISHED" ? "Adding a task to a published template creates a case task for every generated case." : "Add a configured task type to this template."}
+          title={`Add ${terminologyLabel(terminology, "caseTask")}`}
+          description={templateRecord.status === "PUBLISHED" ? `Adding a task to a published template creates a ${terminologyLabel(terminology, "caseTask")} for every generated ${terminologyLabel(terminology, "case")}.` : "Add a configured task type to this template."}
           onClose={() => setShowAddTask(false)}
           footer={
             <Button type="button" onClick={addTask}>
@@ -1499,7 +1518,7 @@ export function CaseTemplateDetailPage() {
           </FormField>
           <div className="mt-3"><FormError message={withdrawError} /></div>
         </ResourceActionPanel>
-        <ResourceTable headings={["Order", "Task", "Type", "Due", "Status", "Actions"]}>
+        <ResourceTable headings={["Order", terminologyTitle(terminology, "caseTask"), "Type", "Due", "Status", "Actions"]}>
           {templateTasks.map((task) => (
             <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">{task.sortOrder}</td>
@@ -1545,16 +1564,16 @@ export function CaseTemplateDetailPage() {
       </section>
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-bold">Participants</h3>
+          <h3 className="text-xl font-bold">{terminologyTitle(terminology, "participant", true)}</h3>
           <Button type="button" onClick={() => setShowAssignParticipant((current) => !current)} disabled={assignableParticipants.length === 0}>
             <Plus />
-            Assign participant
+            Assign {terminologyLabel(terminology, "participant")}
           </Button>
         </div>
         <ResourceActionPanel
           open={showAssignParticipant}
-          title="Assign participant"
-          description={templateRecord.status === "PUBLISHED" ? "Required participants assigned after publication get a case immediately." : "Choose whether the participant is required or exempt for this template."}
+          title={`Assign ${terminologyLabel(terminology, "participant")}`}
+          description={templateRecord.status === "PUBLISHED" ? `Required ${terminologyLabel(terminology, "participant", true)} assigned after publication get a ${terminologyLabel(terminology, "case")} immediately.` : `Choose whether the ${terminologyLabel(terminology, "participant")} is required or exempt for this template.`}
           onClose={() => setShowAssignParticipant(false)}
           footer={
             <Button type="button" onClick={assignParticipant}>
@@ -1564,9 +1583,9 @@ export function CaseTemplateDetailPage() {
           }
         >
           <div className="grid gap-4 md:grid-cols-[1fr_12rem_1fr]">
-            <FormField label="Participant">
+            <FormField label={terminologyTitle(terminology, "participant")}>
               <SelectField value={participantId} onChange={setParticipantId}>
-                <option value="">Select participant</option>
+                <option value="">Select {terminologyLabel(terminology, "participant")}</option>
                 {assignableParticipants.map((participant) => (
                   <option key={participant.id} value={participant.id}>{participant.name}</option>
                 ))}
@@ -1584,7 +1603,7 @@ export function CaseTemplateDetailPage() {
           </div>
           <div className="mt-3"><FormError message={assignmentError} /></div>
         </ResourceActionPanel>
-        <ResourceTable headings={["Participant", "Type", "Status", "Generated case"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", "Status", `Generated ${terminologyLabel(terminology, "case")}`]}>
           {templateParticipants.map((assignment) => (
             <tr key={assignment.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3 font-bold text-[#1d70b8]">{assignment.participantName}</td>
@@ -1593,7 +1612,7 @@ export function CaseTemplateDetailPage() {
               <td className="px-4 py-3">
                 {assignment.caseId ? (
                   <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${assignment.caseId}`}>
-                    Open case
+                    Open {terminologyLabel(terminology, "case")}
                   </Link>
                 ) : (
                   "Not generated"
@@ -1604,8 +1623,8 @@ export function CaseTemplateDetailPage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Generated cases</h3>
-        <ResourceTable headings={["Case", "Participant", "Status", "Progress", "Outcome"]}>
+        <h3 className="mb-3 text-xl font-bold">Generated {terminologyLabel(terminology, "case", true)}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "case"), terminologyTitle(terminology, "participant"), "Status", "Progress", "Outcome"]}>
           {generatedCases.map((caseRecord) => {
             const participant = getParticipant(caseRecord.participantId);
             return (
@@ -1615,7 +1634,7 @@ export function CaseTemplateDetailPage() {
                     {caseRecord.title}
                   </Link>
                 </td>
-                <td className="px-4 py-3">{participant?.name ?? "Unknown participant"}</td>
+                <td className="px-4 py-3">{participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`}</td>
                 <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
                 <td className="px-4 py-3">{caseRecord.outcome}</td>
@@ -1631,17 +1650,18 @@ export function CaseTemplateDetailPage() {
 export function AdminHome() {
   const { user } = useAuth();
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
 
   return (
     <ConsoleLayout
-      appName="Administration"
-      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
+      appName={`${terminologyTitle(terminology, "authority")} Administration`}
+      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
       breadcrumbs={[{ label: "Administration" }]}
     >
       <PageTitle
         eyebrow="Administration"
-        title="Platform configuration"
-        description="Choose an administration resource to manage participants, stakeholders, templates, users, and review configuration."
+        title={`${terminologyTitle(terminology, "authority")} configuration`}
+        description={`Choose an administration resource to manage ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, templates, users, and parameters.`}
       />
       <AdministrationResourceNav />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -1664,6 +1684,109 @@ export function AdminHome() {
   );
 }
 
+const terminologyKeys: TerminologyKey[] = [
+  "authority",
+  "participant",
+  "stakeholder",
+  "case",
+  "caseTemplate",
+  "caseTask",
+  "participantSupplier",
+  "evidence",
+  "accessGrant",
+  "requestForInformation",
+];
+
+export function ParametersPage() {
+  const { user } = useAuth();
+  const { db, refresh } = useDomainData();
+  const terminology = getAuthorityTerminology(user.authorityId ?? undefined);
+  const [labels, setLabels] = useState(terminology.labels);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLabels(terminology.labels);
+  }, [terminology]);
+
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+
+  function updateLabel(key: TerminologyKey, plurality: "singular" | "plural", value: string) {
+    setLabels((current) => ({
+      ...current,
+      [key]: {
+        ...current[key],
+        [plurality]: value,
+      },
+    }));
+  }
+
+  function saveParameters() {
+    setError(null);
+    if (!user.authorityId) {
+      setError("No authority context is selected.");
+      return;
+    }
+    try {
+      db.updateAuthorityTerminology({
+        authorityId: user.authorityId,
+        labels,
+      });
+      refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Parameters could not be saved.");
+    }
+  }
+
+  function resetDefaults() {
+    setLabels(defaultTerminologyLabels);
+  }
+
+  return (
+    <ConsoleLayout
+      appName={`${terminologyTitle(terminology, "authority")} Administration`}
+      appDescription="Authority-owned terminology and display parameters."
+      breadcrumbs={[
+        { label: "Administration", path: "/admin" },
+        { label: "Parameters" },
+      ]}
+    >
+      <PageTitle
+        eyebrow="Parameters"
+        title="Terminology"
+        description="Set the labels this authority uses for the generic platform concepts."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={resetDefaults}>
+              Reset defaults
+            </Button>
+            <Button type="button" onClick={saveParameters}>
+              <Save />
+              Save parameters
+            </Button>
+          </div>
+        }
+      />
+      <AdministrationResourceNav />
+      <FormError message={error} />
+      <section className="mt-6">
+        <ResourceTable headings={["Concept", "Singular label", "Plural label"]}>
+          {terminologyKeys.map((key) => (
+            <tr key={key} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3 font-bold">{titleCaseForPage(key)}</td>
+              <td className="px-4 py-3">
+                <Input value={labels[key].singular} onChange={(event) => updateLabel(key, "singular", event.target.value)} />
+              </td>
+              <td className="px-4 py-3">
+                <Input value={labels[key].plural} onChange={(event) => updateLabel(key, "plural", event.target.value)} />
+              </td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+    </ConsoleLayout>
+  );
+}
+
 export function ParticipantsPage() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
@@ -1672,6 +1795,7 @@ export function ParticipantsPage() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const scopedParticipants = getScopedParticipants(user);
 
   function createParticipant() {
@@ -1696,32 +1820,32 @@ export function ParticipantsPage() {
       setParticipantType("ORGANISATION");
       setShowCreate(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Participant could not be created.");
+      setError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participant")} could not be created.`);
     }
   }
 
   return (
     <ConsoleLayout
-      appName="Administration"
-      appDescription="Configuration for case types, participants, workflow, and review."
-      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Participants" }]}
+      appName={`${terminologyTitle(terminology, "authority")} Administration`}
+      appDescription={`Configuration for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "participant", true)}, workflow, and review.`}
+      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: terminologyTitle(terminology, "participant", true) }]}
     >
       <PageTitle
         eyebrow="Resource list"
-        title="Participants"
-        description="Select a participant to review membership, stakeholder access, generated cases, task status, and activity."
+        title={terminologyTitle(terminology, "participant", true)}
+        description={`Select a ${terminologyLabel(terminology, "participant")} to review membership, ${terminologyLabel(terminology, "stakeholder")} access, generated ${terminologyLabel(terminology, "case", true)}, task status, and activity.`}
         actions={
           <Button onClick={() => setShowCreate((current) => !current)}>
             <Plus />
-            Create participant
+            Create {terminologyLabel(terminology, "participant")}
           </Button>
         }
       />
       <AdministrationResourceNav />
       <ResourceActionPanel
         open={showCreate}
-        title="Create participant"
-        description="Create a participant inside the current authority."
+        title={`Create ${terminologyLabel(terminology, "participant")}`}
+        description={`Create a ${terminologyLabel(terminology, "participant")} inside the current ${terminologyLabel(terminology, "authority")}.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createParticipant}>
@@ -1743,7 +1867,7 @@ export function ParticipantsPage() {
         </div>
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
-      <ResourceTable headings={["Participant", "Type", "Status", "Open cases", "Progress", "Last activity"]}>
+      <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", "Status", `Open ${terminologyLabel(terminology, "case", true)}`, "Progress", "Last activity"]}>
         {scopedParticipants.map((participant) => (
           <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -1776,6 +1900,7 @@ export function ParticipantDetailPage() {
   const [newUserRole, setNewUserRole] = useState<MembershipRole>("MEMBER");
   const [userError, setUserError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
+  const terminology = getTerminologyForUser(user);
   const participant = getParticipant(participantId);
   if (!participant) return <Navigate to="/admin/participants" replace />;
   const scopedParticipantIds = new Set(getScopedParticipants(user).map((item) => item.id));
@@ -1783,7 +1908,7 @@ export function ParticipantDetailPage() {
   const participantRecord = participant;
 
   const participantAccessGrants = getAccessGrantsForParticipant(participantRecord.id);
-  const activeSubscriberGrants = participantAccessGrants.filter(
+  const activeStakeholderGrants = participantAccessGrants.filter(
     (grant) => grant.status === "ACTIVE" && grant.granteeType === "STAKEHOLDER",
   ).length;
   const participantUsers = authenticatableUsers.filter(
@@ -1814,24 +1939,24 @@ export function ParticipantDetailPage() {
       setNewUserRole("MEMBER");
       setShowCreateUser(false);
     } catch (caught) {
-      setUserError(caught instanceof Error ? caught.message : "Participant user could not be created.");
+      setUserError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participant")} user could not be created.`);
     }
   }
 
   return (
     <ConsoleLayout
-      appName="Administration"
-      appDescription="Configuration for participants, stakeholders, case templates, task types, and review."
+      appName={`${terminologyTitle(terminology, "authority")} Administration`}
+      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
       breadcrumbs={[
         { label: "Administration", path: "/admin" },
-        { label: "Participants", path: "/admin/participants" },
+        { label: terminologyTitle(terminology, "participant", true), path: "/admin/participants" },
         { label: participant.name },
       ]}
     >
       <PageTitle
-        eyebrow="Participant"
+        eyebrow={terminologyTitle(terminology, "participant")}
         title={participant.name}
-        description="Review participant membership, stakeholder access, generated cases, users, and audit activity."
+        description={`Review ${terminologyLabel(terminology, "participant")} membership, ${terminologyLabel(terminology, "stakeholder")} access, generated ${terminologyLabel(terminology, "case", true)}, users, and audit activity.`}
       />
       <AdministrationResourceNav />
       <Tabs
@@ -1839,16 +1964,16 @@ export function ParticipantDetailPage() {
         tabs={[
           { label: "Overview", path: `/admin/participants/${participant.id}` },
           { label: "Users", path: `/admin/participants/${participant.id}` },
-          { label: "Cases", path: `/admin/participants/${participant.id}` },
+          { label: terminologyTitle(terminology, "case", true), path: `/admin/participants/${participant.id}` },
           { label: "Audit", path: `/admin/participants/${participant.id}` },
         ]}
       />
       <MetricStrip
         items={[
           { label: "Current status", value: participant.status.replace("-", " "), tone: participant.status === "attention" ? "red" : "blue" },
-          { label: "Open cases", value: String(participant.openCases), tone: "blue" },
+          { label: `Open ${terminologyLabel(terminology, "case", true)}`, value: String(participant.openCases), tone: "blue" },
           { label: "Tasks complete", value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
-          { label: "Active subscriber grants", value: String(activeSubscriberGrants), tone: "yellow" },
+          { label: `Active ${terminologyLabel(terminology, "stakeholder")} grants`, value: String(activeStakeholderGrants), tone: "yellow" },
         ]}
       />
       <section className="mt-8">
@@ -1861,8 +1986,8 @@ export function ParticipantDetailPage() {
         </div>
         <ResourceActionPanel
           open={showCreateUser}
-          title="Create participant user"
-          description="Create a login user that belongs only to this participant."
+          title={`Create ${terminologyLabel(terminology, "participant")} user`}
+          description={`Create a login user that belongs only to this ${terminologyLabel(terminology, "participant")}.`}
           onClose={() => setShowCreateUser(false)}
           footer={
             <Button type="button" onClick={createParticipantUser}>
@@ -1899,10 +2024,10 @@ export function ParticipantDetailPage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Due diligence boundary</h3>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "case")} boundary</h3>
         <div className="border border-[#b1b4b6] bg-white p-5 dark:bg-card">
           <p className="max-w-3xl text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-            This authority account can see vendor membership and aggregate progress, but it cannot open this vendor's due diligence packs, answers, evidence metadata, or evidence files by default.
+            This {terminologyLabel(terminology, "authority")} account can see {terminologyLabel(terminology, "participant")} membership and aggregate progress, but it cannot open this {terminologyLabel(terminology, "participant")}'s {terminologyLabel(terminology, "case", true)}, answers, {terminologyLabel(terminology, "evidence")} metadata, or {terminologyLabel(terminology, "evidence")} files by default.
           </p>
         </div>
       </section>
@@ -1913,64 +2038,65 @@ export function ParticipantDetailPage() {
 export function CaseManagementHome() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
-  const [showCreateVendor, setShowCreateVendor] = useState(false);
-  const [vendorName, setVendorName] = useState("");
+  const [showCreateSupplier, setShowCreateSupplier] = useState(false);
+  const [supplierName, setSupplierName] = useState("");
   const [relationshipType, setRelationshipType] = useState("");
-  const [criticality, setCriticality] = useState<VendorRelationshipCriticality>("HIGH");
+  const [criticality, setCriticality] = useState<ParticipantSupplierCriticality>("HIGH");
   const [servicesProvided, setServicesProvided] = useState("");
   const [dataExposure, setDataExposure] = useState("");
-  const [vendorError, setVendorError] = useState<string | null>(null);
+  const [supplierError, setSupplierError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "helper") return <Navigate to="/helper" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+  const terminology = getTerminologyForUser(user);
   const authority = getAuthority(user.authorityId ?? undefined);
   const participant = getParticipant(user.participantId ?? undefined);
   const scopedCases = getScopedCases(user);
-  const participantVendorRelationships = getVendorRelationshipsForParticipant(user.participantId ?? undefined);
+  const participantSuppliersForParticipant = getParticipantSuppliersForParticipant(user.participantId ?? undefined);
   const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
   const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
   const openRequests = getRequestsForParticipant(user.participantId ?? undefined, user)
     .filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS").length;
 
-  function createVendorRelationship() {
-    setVendorError(null);
+  function createParticipantSupplier() {
+    setSupplierError(null);
     if (!participant || !user.authorityId) {
-      setVendorError("No vendor workspace is selected.");
+      setSupplierError("No participant workspace is selected.");
       return;
     }
     try {
-      db.createVendorRelationship({
+      db.createParticipantSupplier({
         authorityId: user.authorityId,
         participantId: participant.id,
-        vendorName,
+        supplierName,
         relationshipType,
         criticality,
         servicesProvided,
         dataExposure,
       });
       refresh();
-      setVendorName("");
+      setSupplierName("");
       setRelationshipType("");
       setCriticality("HIGH");
       setServicesProvided("");
       setDataExposure("");
-      setShowCreateVendor(false);
+      setShowCreateSupplier(false);
     } catch (caught) {
-      setVendorError(caught instanceof Error ? caught.message : "Vendor-of-vendor record could not be created.");
+      setSupplierError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participantSupplier")} record could not be created.`);
     }
   }
 
   return (
     <ConsoleLayout
-      appName="Due Diligence Packs"
-      appDescription="Operational workspace for DDQ packs, evidence metadata, and controlled subscriber review."
-      breadcrumbs={[{ label: "Due diligence packs" }]}
+      appName={terminologyTitle(terminology, "case", true)}
+      appDescription={`Operational workspace for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and controlled ${terminologyLabel(terminology, "stakeholder")} review.`}
+      breadcrumbs={[{ label: terminologyTitle(terminology, "case", true) }]}
       readOnly
     >
       <PageTitle
-        eyebrow="Vendor workspace"
-        title="Due diligence packs"
-        description="Complete vendor-owned DDQs, upload evidence metadata, and control who can review this workspace."
+        eyebrow={`${terminologyTitle(terminology, "participant")} workspace`}
+        title={terminologyTitle(terminology, "case", true)}
+        description={`Complete participant-owned ${terminologyLabel(terminology, "case", true)}, upload ${terminologyLabel(terminology, "evidence")} metadata, and control who can review this workspace.`}
         actions={
           <Button asChild>
             <Link to="/cases/access-grants">
@@ -1982,34 +2108,34 @@ export function CaseManagementHome() {
       />
       <MetricStrip
         items={[
-          { label: "Association", value: authority?.name ?? "None", tone: "blue" },
-          { label: "DDQ packs", value: String(scopedCases.length), tone: "blue" },
-          { label: "Vendors of vendors", value: String(participantVendorRelationships.length), tone: "yellow" },
+          { label: terminologyTitle(terminology, "authority"), value: authority?.name ?? "None", tone: "blue" },
+          { label: terminologyTitle(terminology, "case", true), value: String(scopedCases.length), tone: "blue" },
+          { label: terminologyTitle(terminology, "participantSupplier", true), value: String(participantSuppliersForParticipant.length), tone: "yellow" },
           { label: "Completed items", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
           { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
         ]}
       />
       <ResourceActionPanel
-        open={showCreateVendor}
-        title="Create vendor-of-vendor record"
-        description="Record a supplier or subprocessor controlled by this vendor workspace."
-        onClose={() => setShowCreateVendor(false)}
+        open={showCreateSupplier}
+        title={`Create ${terminologyLabel(terminology, "participantSupplier")} record`}
+        description={`Record a supplier controlled by this ${terminologyLabel(terminology, "participant")} workspace.`}
+        onClose={() => setShowCreateSupplier(false)}
         footer={
-          <Button type="button" onClick={createVendorRelationship}>
+          <Button type="button" onClick={createParticipantSupplier}>
             <CheckCircle2 />
-            Save vendor
+            Save
           </Button>
         }
       >
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr_12rem]">
-          <FormField label="Vendor of vendor">
-            <Input value={vendorName} onChange={(event) => setVendorName(event.target.value)} />
+          <FormField label={terminologyTitle(terminology, "participantSupplier")}>
+            <Input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
           </FormField>
           <FormField label="Relationship">
             <Input value={relationshipType} onChange={(event) => setRelationshipType(event.target.value)} />
           </FormField>
           <FormField label="Criticality">
-            <SelectField value={criticality} onChange={(value) => setCriticality(value as VendorRelationshipCriticality)}>
+            <SelectField value={criticality} onChange={(value) => setCriticality(value as ParticipantSupplierCriticality)}>
               <option value="LOW">Low</option>
               <option value="MEDIUM">Medium</option>
               <option value="HIGH">High</option>
@@ -2023,11 +2149,11 @@ export function CaseManagementHome() {
             <Input value={dataExposure} onChange={(event) => setDataExposure(event.target.value)} />
           </FormField>
         </div>
-        <div className="mt-3"><FormError message={vendorError} /></div>
+        <div className="mt-3"><FormError message={supplierError} /></div>
       </ResourceActionPanel>
       <section className="mt-8">
         <ResourceTable
-          headings={["Due diligence pack", "Type", "Status", "Progress", "Risk", "Last activity"]}
+          headings={[terminologyTitle(terminology, "case"), "Type", "Status", "Progress", "Risk", "Last activity"]}
         >
           {scopedCases.map((caseRecord) => {
             return (
@@ -2049,17 +2175,17 @@ export function CaseManagementHome() {
       </section>
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-bold">Vendors of vendors</h3>
-          <Button type="button" variant="outline" onClick={() => setShowCreateVendor((current) => !current)}>
+          <h3 className="text-xl font-bold">{terminologyTitle(terminology, "participantSupplier", true)}</h3>
+          <Button type="button" variant="outline" onClick={() => setShowCreateSupplier((current) => !current)}>
             <Plus />
-            Add vendor
+            Add participant
           </Button>
         </div>
-        <ResourceTable headings={["Vendor of vendor", "Relationship", "Criticality", "Data exposure", "Linked DDQ packs"]}>
-          {participantVendorRelationships.map((relationship) => (
+        <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Criticality", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
+          {participantSuppliersForParticipant.map((relationship) => (
             <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
-                <span className="block font-bold text-[#1d70b8]">{relationship.vendorName}</span>
+                <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
                   {relationship.status.replace("_", " ").toLowerCase()}
                 </span>
@@ -2074,7 +2200,7 @@ export function CaseManagementHome() {
                         {caseRecord.title}
                       </Link>
                     ))
-                  : "No DDQ pack linked"}
+                  : `No ${terminologyLabel(terminology, "case")} linked`}
               </td>
             </tr>
           ))}
@@ -2099,20 +2225,21 @@ export function AccessGrantsPage() {
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "helper") return <Navigate to="/helper" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+  const terminology = getTerminologyForUser(user);
 
   const participant = getParticipant(user.participantId ?? undefined);
   if (!participant || !user.authorityId || !user.authenticatableUserId) return <Navigate to="/cases" replace />;
 
   const grants = getAccessGrantsForParticipant(participant.id);
   const grantableStakeholders = getGrantableStakeholdersForParticipant(participant.id);
-  const participantVendorRelationships = getVendorRelationshipsForParticipant(participant.id);
+  const participantSuppliersForParticipant = getParticipantSuppliersForParticipant(participant.id);
   const activeGrants = grants.filter((grant) => grant.status === "ACTIVE");
   const helperGrants = grants.filter((grant) => grant.granteeType === "HELPER");
 
   function createGrant() {
     setError(null);
     if (!granteeStakeholderId) {
-      setError("Select a subscriber or service provider.");
+      setError("Select a stakeholder or service provider.");
       return;
     }
     try {
@@ -2123,7 +2250,7 @@ export function AccessGrantsPage() {
         granteeStakeholderId,
         permissionLevel,
         dataScopeType,
-        dataScopeId: dataScopeType === "VENDOR_RELATIONSHIP" ? dataScopeId : null,
+        dataScopeId: dataScopeType === "PARTICIPANT_SUPPLIER" ? dataScopeId : null,
         status,
         createdByUserId: user.authenticatableUserId ?? "",
       });
@@ -2151,17 +2278,17 @@ export function AccessGrantsPage() {
 
   return (
     <ConsoleLayout
-      appName="Due Diligence Packs"
-      appDescription="Operational workspace for due diligence packs, evidence, and controlled review access."
+      appName={terminologyTitle(terminology, "case", true)}
+      appDescription={`Operational workspace for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")}, and controlled review access.`}
       breadcrumbs={[
-        { label: "Due diligence packs", path: "/cases" },
-        { label: "Access grants" },
+        { label: terminologyTitle(terminology, "case", true), path: "/cases" },
+        { label: terminologyTitle(terminology, "accessGrant", true) },
       ]}
     >
       <PageTitle
-        eyebrow="Vendor-controlled access"
-        title="Access grants"
-        description="Invite subscribers and service providers into this vendor workspace without giving the association default access to private DDQ answers or evidence."
+        eyebrow={`${terminologyTitle(terminology, "participant")}-controlled access`}
+        title={terminologyTitle(terminology, "accessGrant", true)}
+        description={`Invite ${terminologyLabel(terminology, "stakeholder", true)} and helpers into this ${terminologyLabel(terminology, "participant")} workspace without giving the ${terminologyLabel(terminology, "authority")} default access to private ${terminologyLabel(terminology, "case")} answers or ${terminologyLabel(terminology, "evidence")}.`}
         actions={
           <Button type="button" onClick={() => setShowCreate((current) => !current)}>
             <UserPlus />
@@ -2171,7 +2298,7 @@ export function AccessGrantsPage() {
       />
       <MetricStrip
         items={[
-          { label: "Vendor", value: participant.name, tone: "blue" },
+          { label: terminologyTitle(terminology, "participant"), value: participant.name, tone: "blue" },
           { label: "Active grants", value: String(activeGrants.length), tone: "green" },
           { label: "Service providers", value: String(helperGrants.length), tone: "yellow" },
           { label: "Total grants", value: String(grants.length), tone: "blue" },
@@ -2180,7 +2307,7 @@ export function AccessGrantsPage() {
       <ResourceActionPanel
         open={showCreate}
         title="Create access grant"
-        description="Grant a subscriber or service provider scoped access to this vendor workspace."
+        description={`Grant a ${terminologyLabel(terminology, "stakeholder")} or helper scoped access to this ${terminologyLabel(terminology, "participant")} workspace.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createGrant}>
@@ -2192,7 +2319,7 @@ export function AccessGrantsPage() {
         <div className="grid gap-4 md:grid-cols-[12rem_1fr_14rem_14rem_14rem_10rem]">
           <FormField label="Grantee type">
             <SelectField value={granteeType} onChange={(value) => setGranteeType(value as AccessGrantGranteeType)}>
-              <option value="STAKEHOLDER">Subscriber</option>
+              <option value="STAKEHOLDER">{terminologyTitle(terminology, "stakeholder")}</option>
               <option value="HELPER">Service provider</option>
             </SelectField>
           </FormField>
@@ -2224,18 +2351,18 @@ export function AccessGrantsPage() {
               }}
             >
               <option value="PARTICIPANT_WORKSPACE">Entire workspace</option>
-              <option value="VENDOR_RELATIONSHIP">Vendor-of-vendor</option>
+              <option value="PARTICIPANT_SUPPLIER">{terminologyTitle(terminology, "participantSupplier")}</option>
             </SelectField>
           </FormField>
-          <FormField label="Vendor-of-vendor">
+          <FormField label={terminologyTitle(terminology, "participantSupplier")}>
             <SelectField
               value={dataScopeId}
               onChange={setDataScopeId}
-              disabled={dataScopeType !== "VENDOR_RELATIONSHIP"}
+              disabled={dataScopeType !== "PARTICIPANT_SUPPLIER"}
             >
               <option value="">Select record</option>
-              {participantVendorRelationships.map((relationship) => (
-                <option key={relationship.id} value={relationship.id}>{relationship.vendorName}</option>
+              {participantSuppliersForParticipant.map((relationship) => (
+                <option key={relationship.id} value={relationship.id}>{relationship.supplierName}</option>
               ))}
             </SelectField>
           </FormField>
@@ -2259,7 +2386,7 @@ export function AccessGrantsPage() {
                   Created by {grant.createdByName}
                 </span>
               </td>
-              <td className="px-4 py-3">{grant.granteeType === "HELPER" ? "Service provider" : "Subscriber"}</td>
+              <td className="px-4 py-3">{grant.granteeType === "HELPER" ? "Helper" : terminologyTitle(terminology, "stakeholder")}</td>
               <td className="px-4 py-3">{grant.permissionLabel}</td>
               <td className="px-4 py-3">{grant.scopeLabel}</td>
               <td className="px-4 py-3"><GrantStatusBadge status={grant.status} /></td>
@@ -2304,6 +2431,7 @@ export function CaseDetailPage() {
   const [requestError, setRequestError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+  const terminology = getTerminologyForUser(user);
   const caseRecord = getCase(caseId);
   if (!caseRecord) return <Navigate to="/cases" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
@@ -2347,7 +2475,7 @@ export function CaseDetailPage() {
       return;
     }
     if (!user.authenticatableUserId) {
-      setRequestError("No vendor user is selected for this session.");
+      setRequestError("No participant user is selected for this session.");
       return;
     }
     try {
@@ -2367,23 +2495,23 @@ export function CaseDetailPage() {
 
   return (
     <ConsoleLayout
-      appName="Due Diligence Packs"
-      appDescription="Operational workspace for DDQ packs, evidence metadata, and controlled subscriber review."
+      appName={terminologyTitle(terminology, "case", true)}
+      appDescription={`Operational workspace for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and controlled ${terminologyLabel(terminology, "stakeholder")} review.`}
       breadcrumbs={[
-        { label: "Due diligence packs", path: "/cases" },
+        { label: terminologyTitle(terminology, "case", true), path: "/cases" },
         { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}` },
       ]}
       readOnly
     >
       <PageTitle
-        eyebrow="Due diligence pack"
+        eyebrow={terminologyTitle(terminology, "case")}
         title={caseRecord.title}
-        description={`${participant?.name ?? "Unknown vendor"} ${caseRecord.caseType.toLowerCase()} for item completion, evidence metadata, subscriber review, and outcome visibility.`}
+        description={`${participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`} ${caseRecord.caseType.toLowerCase()} for ${terminologyLabel(terminology, "caseTask")} completion, ${terminologyLabel(terminology, "evidence")} metadata, ${terminologyLabel(terminology, "stakeholder")} review, and outcome visibility.`}
         actions={
           user.role === "participant" ? (
             <Button type="button" onClick={submitCase} disabled={!canSubmitCase}>
               <SendHorizontal />
-              Submit pack
+              Submit {terminologyLabel(terminology, "case")}
             </Button>
           ) : undefined
         }
@@ -2400,20 +2528,20 @@ export function CaseDetailPage() {
       />
       <MetricStrip
         items={[
-          { label: "Pack status", value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
-          { label: "Items complete", value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
+          { label: `${terminologyTitle(terminology, "case")} status`, value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
+          { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
           { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
-          { label: "Linked vendor", value: caseRecord.vendorRelationshipName ?? "Vendor workspace", tone: caseRecord.vendorRelationshipName ? "yellow" : "blue" },
+          { label: `Linked ${terminologyLabel(terminology, "participantSupplier")}`, value: caseRecord.participantSupplierName ?? `${terminologyTitle(terminology, "participant")} workspace`, tone: caseRecord.participantSupplierName ? "yellow" : "blue" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Subscriber requests</h3>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "stakeholder")} requests</h3>
         <FormError message={requestError} />
         {respondingRequestId && (
           <ResourceActionPanel
             open
             title="Respond to request"
-            description="Save a vendor response without changing DDQ item answers or evidence metadata."
+            description={`Save a ${terminologyLabel(terminology, "participant")} response without changing ${terminologyLabel(terminology, "caseTask")} answers or ${terminologyLabel(terminology, "evidence")} metadata.`}
             onClose={() => setRespondingRequestId(null)}
             footer={
               <div className="flex flex-wrap gap-2">
@@ -2428,12 +2556,12 @@ export function CaseDetailPage() {
               </div>
             }
           >
-            <FormField label="Vendor response">
+            <FormField label={`${terminologyTitle(terminology, "participant")} response`}>
               <Input value={requestResponseText} onChange={(event) => setRequestResponseText(event.target.value)} />
             </FormField>
           </ResourceActionPanel>
         )}
-        <ResourceTable headings={["Subscriber", "Scope", "Status", "Request", "Response", "Actions"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "stakeholder"), "Scope", "Status", "Request", "Response", "Actions"]}>
           {requests.map((request) => (
             <tr key={request.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">{request.stakeholderName}</td>
@@ -2457,7 +2585,7 @@ export function CaseDetailPage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Due diligence items</h3>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "caseTask", true)}</h3>
         <div className="grid gap-3">
           {tasks.map((task) => {
             const Icon = task.Icon;
@@ -2519,6 +2647,7 @@ export function TaskDetailPage() {
 
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+  const terminology = getTerminologyForUser(user);
 
   if (!caseRecord || !task) return <Navigate to="/cases" replace />;
   const scopedCaseIds = new Set(getScopedCases(user).map((item) => item.id));
@@ -2617,7 +2746,7 @@ export function TaskDetailPage() {
       return;
     }
     if (!user.authenticatableUserId) {
-      setRequestError("No vendor user is selected for this session.");
+      setRequestError("No participant user is selected for this session.");
       return;
     }
     try {
@@ -2637,17 +2766,17 @@ export function TaskDetailPage() {
 
   return (
     <ConsoleLayout
-      appName="Due Diligence Packs"
-      appDescription="Operational workspace for DDQ packs, evidence metadata, and controlled subscriber review."
+      appName={terminologyTitle(terminology, "case", true)}
+      appDescription={`Operational workspace for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and controlled ${terminologyLabel(terminology, "stakeholder")} review.`}
       breadcrumbs={[
-        { label: "Due diligence packs", path: "/cases" },
+        { label: terminologyTitle(terminology, "case", true), path: "/cases" },
         { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
         { label: task.title },
       ]}
       isEdited={isEdited}
     >
       <PageTitle
-        eyebrow="Due diligence item"
+        eyebrow={terminologyTitle(terminology, "caseTask")}
         title={task.title}
         description={task.description}
         actions={
@@ -2691,7 +2820,7 @@ export function TaskDetailPage() {
               <StatusBadge status={task.status} />
               <h3 className="mt-4 text-xl font-bold">Work area</h3>
               <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-                Record the response and evidence metadata for this due diligence item, then submit it when it is ready for subscriber review.
+                Record the response and {terminologyLabel(terminology, "evidence")} metadata for this {terminologyLabel(terminology, "caseTask")}, then submit it when it is ready for {terminologyLabel(terminology, "stakeholder")} review.
               </p>
             </div>
           </div>
@@ -2753,7 +2882,7 @@ export function TaskDetailPage() {
                 <dd className="mt-2 text-sm font-bold text-[#d4351c]">More evidence requested.</dd>
               )}
               {task.domainStatus === "PASSED" && (
-                <dd className="mt-2 text-sm font-bold text-[#00703c]">Accepted for this DDQ pack.</dd>
+                <dd className="mt-2 text-sm font-bold text-[#00703c]">Accepted for this {terminologyLabel(terminology, "case")}.</dd>
               )}
             </div>
             <div>
@@ -2778,7 +2907,7 @@ export function TaskDetailPage() {
             <ResourceActionPanel
               open
               title="Respond to request"
-              description="Add a response to the subscriber's request without overwriting this DDQ item answer."
+              description={`Add a response to the ${terminologyLabel(terminology, "stakeholder")}'s request without overwriting this ${terminologyLabel(terminology, "caseTask")} answer.`}
               onClose={() => setRespondingRequestId(null)}
               footer={
                 <div className="flex flex-wrap gap-2">
@@ -2793,12 +2922,12 @@ export function TaskDetailPage() {
                 </div>
               }
             >
-            <FormField label="Vendor response">
+            <FormField label={`${terminologyTitle(terminology, "participant")} response`}>
               <Input value={requestResponseText} onChange={(event) => setRequestResponseText(event.target.value)} />
             </FormField>
             </ResourceActionPanel>
           )}
-          <ResourceTable headings={["Subscriber", "Status", "Request", "Response", "Actions"]}>
+          <ResourceTable headings={[terminologyTitle(terminology, "stakeholder"), "Status", "Request", "Response", "Actions"]}>
             {taskRequests.map((request) => (
               <tr key={request.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">{request.stakeholderName}</td>
@@ -2836,6 +2965,7 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
   if (!isAdmin && user.role === "authority-admin") return <Navigate to="/admin" replace />;
   if (!isAdmin && user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (!isAdmin && user.role === "helper") return <Navigate to="/helper" replace />;
+  const terminology = getTerminologyForUser(user);
   const authorityId = user.authorityId ?? undefined;
   const scopedParticipants = getScopedParticipants(user);
   const scopedStakeholders = getStakeholdersForAuthority(authorityId);
@@ -2860,9 +2990,9 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
           : location.pathname.includes("users")
             ? "users"
             : "placeholder";
-  const titleMap = {
-    stakeholders: "Stakeholders",
-    "case-templates": "Case templates",
+  const titleMap: Record<typeof resource, string> = {
+    stakeholders: terminologyTitle(terminology, "stakeholder", true),
+    "case-templates": terminologyTitle(terminology, "caseTemplate", true),
     "task-types": "Task types",
     users: "Users",
     placeholder: "Coming next",
@@ -2870,10 +3000,10 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
 
   return (
     <ConsoleLayout
-      appName={isAdmin ? "Administration" : "Case Management"}
-      appDescription={isAdmin ? "Configuration for participants, stakeholders, case templates, task types, and review." : "Operational workspace for case tasks, forms, evidence, and workflow."}
+      appName={isAdmin ? `${terminologyTitle(terminology, "authority")} Administration` : terminologyTitle(terminology, "case", true)}
+      appDescription={isAdmin ? `Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.` : `Operational workspace for ${terminologyLabel(terminology, "caseTask", true)}, forms, ${terminologyLabel(terminology, "evidence")}, and workflow.`}
       breadcrumbs={[
-        { label: isAdmin ? "Administration" : "Case Management", path: isAdmin ? "/admin" : "/cases" },
+        { label: isAdmin ? "Administration" : terminologyTitle(terminology, "case", true), path: isAdmin ? "/admin" : "/cases" },
         { label: titleMap[resource] },
       ]}
     >
@@ -2882,11 +3012,11 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
         title={titleMap[resource]}
         description={
           resource === "stakeholders"
-            ? "Stakeholders belong to the selected authority and receive explicit participant access records."
+            ? `${terminologyTitle(terminology, "stakeholder", true)} belong to the selected ${terminologyLabel(terminology, "authority")} and receive explicit ${terminologyLabel(terminology, "participant")} access records.`
             : resource === "case-templates"
-              ? "Case templates are reusable authority definitions. Publishing them creates participant cases immediately."
+              ? `${terminologyTitle(terminology, "caseTemplate", true)} are reusable ${terminologyLabel(terminology, "authority")} definitions. Publishing them creates ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)} immediately.`
               : resource === "task-types"
-                ? "Task types are global software capabilities configured into authority-owned case templates."
+                ? `Task types are global software capabilities configured into ${terminologyLabel(terminology, "authority")}-owned ${terminologyLabel(terminology, "caseTemplate", true)}.`
                 : resource === "users"
                   ? "Users authenticate through Entra and have exactly one application user kind plus Admin or Member membership."
                   : "This resource area is ready for the next implementation lesson."
@@ -2894,7 +3024,7 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
       />
       {isAdmin && <AdministrationResourceNav />}
       {resource === "stakeholders" && (
-        <ResourceTable headings={["Stakeholder", "Type", "Status", "Participant access"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "stakeholder"), "Type", "Status", `${terminologyTitle(terminology, "participant")} access`]}>
           {scopedStakeholders.map((stakeholder) => (
             <tr key={stakeholder.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3 font-bold text-[#1d70b8]">{stakeholder.name}</td>
@@ -2906,7 +3036,7 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
         </ResourceTable>
       )}
       {resource === "case-templates" && (
-        <ResourceTable headings={["Template", "Status", "Tasks", "Participants", "Published"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Status", terminologyTitle(terminology, "caseTask", true), terminologyTitle(terminology, "participant", true), "Published"]}>
           {scopedTemplates.map((template) => (
             <tr key={template.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">

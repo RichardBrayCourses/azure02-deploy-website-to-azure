@@ -12,6 +12,7 @@ import {
   CaseTemplateDetailPage,
   CaseTemplatesPage,
   TaskDetailPage,
+  ParametersPage,
   ParticipantsPage,
   ParticipantDetailPage,
   PlaceholderResourcePage,
@@ -52,6 +53,7 @@ const AppContent = () => {
         <Route path="/admin/case-templates/:templateId" element={<CaseTemplateDetailPage />} />
         <Route path="/admin/task-types" element={<PlaceholderResourcePage app="admin" />} />
         <Route path="/admin/users" element={<PlaceholderResourcePage app="admin" />} />
+        <Route path="/admin/parameters" element={<ParametersPage />} />
 
         <Route path="/cases" element={<CaseManagementHome />} />
         <Route path="/cases/access-grants" element={<AccessGrantsPage />} />

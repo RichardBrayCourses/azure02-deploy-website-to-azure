@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { getUserRoleLabel, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import {
   type AccountContext,
@@ -19,6 +19,9 @@ import {
   getParticipant,
   getAuthority,
   getSearchItemsForUser,
+  getTerminologyForUser,
+  terminologyLabel,
+  terminologyTitle,
 } from "@/data/console";
 import { cn } from "@/lib/utils";
 import {
@@ -49,6 +52,7 @@ function AppLauncherIcon() {
 function GlobalSearch() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const terminology = getTerminologyForUser(user);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -83,7 +87,7 @@ function GlobalSearch() {
       <Input
         aria-label="Search console"
         className="h-9 rounded-sm border-white/25 bg-white/10 pl-9 text-sm text-white shadow-none placeholder:text-white/65 focus-visible:border-white focus-visible:ring-white/35"
-        placeholder="Search apps, vendors, DDQs, items"
+        placeholder={`Search apps, ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "caseTask", true)}`}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -129,14 +133,30 @@ const Header = () => {
   const authority = getAuthority(user.authorityId ?? undefined);
   const participant = getParticipant(user.participantId ?? undefined);
   const stakeholder = getStakeholder(user.stakeholderId ?? undefined);
+  const terminology = getTerminologyForUser(user);
   const accountContexts = getAccountContextsForUser(user.authenticatableUserId);
   const entityName =
     user.accountContextName ??
     (user.role === "authority-admin"
       ? authority?.name
+        : user.role === "participant"
+          ? participant?.name
+          : stakeholder?.name);
+  const currentRoleLabel =
+    user.role === "authority-admin"
+      ? terminologyTitle(terminology, "authority")
       : user.role === "participant"
-        ? participant?.name
-        : stakeholder?.name);
+        ? terminologyTitle(terminology, "participant")
+        : user.role === "stakeholder"
+          ? terminologyTitle(terminology, "stakeholder")
+          : "Helper";
+
+  function contextRoleLabel(role: AccountContext["role"]) {
+    if (role === "authority-admin") return terminologyTitle(terminology, "authority");
+    if (role === "participant") return terminologyTitle(terminology, "participant");
+    if (role === "stakeholder") return terminologyTitle(terminology, "stakeholder");
+    return "Helper";
+  }
 
   function switchContext(context: AccountContext) {
     switchAccountContext({
@@ -263,7 +283,7 @@ const Header = () => {
                   <span className="text-muted-foreground">Authority</span>
                   <span className="font-medium text-foreground">{authority?.name ?? "Not selected"}</span>
                   <span className="text-muted-foreground">Type</span>
-                  <span className="font-medium text-foreground">{getUserRoleLabel(user.role)}</span>
+                  <span className="font-medium text-foreground">{currentRoleLabel}</span>
                   <span className="text-muted-foreground">Name</span>
                   <span className="font-medium text-foreground">{entityName ?? "Not selected"}</span>
                 </span>
@@ -285,7 +305,7 @@ const Header = () => {
                         <span className="min-w-0">
                           <span className="block truncate font-medium">{context.entityName}</span>
                           <span className="block truncate text-xs text-muted-foreground">
-                            {getUserRoleLabel(context.role)} · {context.authorityName}
+                            {contextRoleLabel(context.role)} · {context.authorityName}
                           </span>
                         </span>
                       </DropdownMenuItem>

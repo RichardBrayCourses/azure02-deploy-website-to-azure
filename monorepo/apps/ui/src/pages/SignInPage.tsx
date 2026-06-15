@@ -23,9 +23,9 @@ const contextIcons = {
 };
 
 const contextLabels = {
-  authority: "Association",
-  participant: "Vendor",
-  stakeholder: "Subscriber",
+  authority: "Authority",
+  participant: "Participant",
+  stakeholder: "Stakeholder",
   helper: "Service provider",
 };
 
@@ -66,7 +66,7 @@ export default function SignInPage() {
           <p className="text-sm font-bold uppercase text-[#505a5f] dark:text-muted-foreground">Sign in</p>
           <h1 className="mt-1 text-3xl font-bold sm:text-4xl">CaseFlow Console</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[#505a5f] dark:text-muted-foreground">
-            Choose a user identity, then choose the association account context for this session.
+            Choose a user identity, then choose the authority account context for this session.
           </p>
         </div>
 
@@ -128,7 +128,7 @@ export default function SignInPage() {
           <aside className="border border-[#b1b4b6] bg-white p-4 dark:bg-card">
             <h2 className="text-base font-bold">Choose account context</h2>
             <p className="mt-1 text-xs leading-5 text-[#505a5f] dark:text-muted-foreground">
-              The active context controls which apps, vendors, DDQs, and subscriber reviews are visible.
+              The active context controls which apps, participants, cases, and stakeholder reviews are visible.
             </p>
 
             {selectedUser ? (
