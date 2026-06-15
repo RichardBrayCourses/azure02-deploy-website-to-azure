@@ -94,6 +94,8 @@ export function VerificationPortalPage() {
 
   return (
     <ConsoleLayout
+      affirmativeActionCompleteLabel="View recorded"
+      affirmativeActionLabel="Record view"
       breadcrumbs={[{ label: "Assurance Portal" }]}
     >
       <PageTitle
@@ -147,6 +149,8 @@ export function AdminHome() {
 
   return (
     <ConsoleLayout
+      affirmativeActionCompleteLabel="Configuration applied"
+      affirmativeActionLabel="Apply configuration"
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[{ label: "Administration" }]}
@@ -183,6 +187,8 @@ export function OperationalParticipantsPage() {
 
   return (
     <ConsoleLayout
+      affirmativeActionCompleteLabel="Participants updated"
+      affirmativeActionLabel="Update participants"
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: "Operational participants" }]}
@@ -235,6 +241,8 @@ export function OperationalParticipantDetailPage() {
 
   return (
     <ConsoleLayout
+      affirmativeActionCompleteLabel="Participant saved"
+      affirmativeActionLabel="Save participant"
       appName="Administration"
       appDescription="Configuration for case types, participants, workflow, and review."
       breadcrumbs={[
@@ -299,6 +307,8 @@ export function CaseManagementHome() {
 
   return (
     <ConsoleLayout
+      affirmativeActionCompleteLabel="Case register updated"
+      affirmativeActionLabel="Update case register"
       appName="Case Management"
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[{ label: "Case Management" }]}
@@ -364,6 +374,8 @@ export function CaseDetailPage() {
 
   return (
     <ConsoleLayout
+      affirmativeActionCompleteLabel="Case saved"
+      affirmativeActionLabel="Save case"
       appName="Case Management"
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
@@ -440,6 +452,8 @@ export function TaskDetailPage() {
 
   return (
     <ConsoleLayout
+      affirmativeActionCompleteLabel="Task submitted"
+      affirmativeActionLabel="Submit task update"
       appName="Case Management"
       appDescription="Operational workspace for case tasks, forms, evidence, and workflow."
       breadcrumbs={[
@@ -536,6 +550,8 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
   const isAdmin = app === "admin";
   return (
     <ConsoleLayout
+      affirmativeActionCompleteLabel="Resource updated"
+      affirmativeActionLabel="Update resource"
       appName={isAdmin ? "Administration" : "Case Management"}
       appDescription={isAdmin ? "Configuration for case types, participants, workflow, and review." : "Operational workspace for case tasks, forms, evidence, and workflow."}
       breadcrumbs={[

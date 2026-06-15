@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
-import { ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { CheckCircle2, ChevronRight } from "lucide-react";
+import { ReactNode, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export type Crumb = {
   label: string;
@@ -14,6 +14,8 @@ type ConsoleLayoutProps = {
   appDescription?: string;
   breadcrumbs: Crumb[];
   actions?: ReactNode;
+  affirmativeActionLabel?: string;
+  affirmativeActionCompleteLabel?: string;
   children: ReactNode;
 };
 
@@ -21,11 +23,17 @@ function confirmBreadcrumbNavigation() {
   return window.confirm("You have unsaved work. If you leave this page, your changes may be lost.");
 }
 
-export function Breadcrumbs({ items }: { items: Crumb[] }) {
+export function Breadcrumbs({
+  hasPendingChanges,
+  items,
+}: {
+  hasPendingChanges: boolean;
+  items: Crumb[];
+}) {
   const navigate = useNavigate();
 
   function go(path: string) {
-    if (confirmBreadcrumbNavigation()) {
+    if (!hasPendingChanges || confirmBreadcrumbNavigation()) {
       navigate(path);
     }
   }
@@ -53,21 +61,41 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
 }
 
 export function ConsoleLayout({
+  affirmativeActionCompleteLabel = "Updated",
+  affirmativeActionLabel = "Save changes",
   breadcrumbs,
   actions,
   children,
 }: ConsoleLayoutProps) {
+  const location = useLocation();
+  const [hasPendingChanges, setHasPendingChanges] = useState(true);
+
+  useEffect(() => {
+    setHasPendingChanges(true);
+  }, [location.pathname]);
+
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-[#f8f8f8] text-[#0b0c0c] dark:bg-background dark:text-foreground">
       <div className="border-b border-[#b1b4b6] bg-white dark:bg-card">
         <div className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6">
-          <Breadcrumbs items={breadcrumbs} />
+          <Breadcrumbs hasPendingChanges={hasPendingChanges} items={breadcrumbs} />
         </div>
       </div>
 
       <div className="mx-auto w-full max-w-[1440px]">
         <main className="min-w-0 p-4 sm:p-6">
-          {actions && <div className="mb-4 flex flex-wrap justify-end gap-2">{actions}</div>}
+          <div className="mb-4 flex flex-wrap justify-end gap-2">
+            {actions}
+            <Button
+              type="button"
+              variant={hasPendingChanges ? "default" : "outline"}
+              onClick={() => setHasPendingChanges(false)}
+              disabled={!hasPendingChanges}
+            >
+              <CheckCircle2 />
+              {hasPendingChanges ? affirmativeActionLabel : affirmativeActionCompleteLabel}
+            </Button>
+          </div>
           {children}
         </main>
       </div>
