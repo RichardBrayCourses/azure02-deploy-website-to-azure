@@ -29,7 +29,8 @@
   - The umbrella organisation, scheme owner, tenant partition, and commercial customer.
   - For the primary scenario, the authority is an association.
   - The authority defines terminology, participant membership, DDQ templates, required tasks, workflows, roles, and high-level scheme rules.
-  - The authority does not automatically have unrestricted access to every participant's private due diligence submissions.
+  - The authority does not have default access to participant/vendor due diligence submissions, answers, evidence metadata, or evidence files.
+  - Authority users may access participant/vendor due diligence data only through an explicit access grant or explicit governance workflow that is visible and auditable.
 - Participant:
   - A member organisation inside an authority.
   - For the primary scenario, a participant is a vendor or IT platform supplier.
@@ -86,6 +87,7 @@
 - Authority context:
   - User acts for the authority.
   - Can configure scheme-level settings and templates.
+  - Cannot view or modify participant/vendor due diligence data by default.
 - Participant context:
   - User acts for a participant/vendor.
   - Can manage that participant's due diligence according to membership role.
@@ -150,7 +152,8 @@
   - Participant-specific instance of a case template.
   - Displayed as due diligence pack for the primary scenario.
   - Owned operationally by the participant.
-  - Authority-scoped but not automatically visible to every authority user.
+  - Authority-scoped for tenant partitioning, but not visible to authority users by default.
+  - Visible to non-participant contexts only through explicit access grants or explicit governance workflows.
 - Case task:
   - Participant-specific instance of a template task.
   - Displayed as due diligence item for the primary scenario.
@@ -295,7 +298,7 @@
   - Set participant status.
   - Manage participant membership in the authority.
   - View high-level status and aggregate progress.
-  - Does not automatically expose private evidence or answers unless permission allows.
+  - Does not expose private due diligence answers, evidence metadata, or evidence files by default.
 - Manage stakeholders:
   - Create stakeholder/subscriber records.
   - Manage stakeholder users.
@@ -419,6 +422,7 @@
 - Rules:
   - Grants are scoped to one authority.
   - Grants are controlled by the participant unless delegated.
+  - Authority users receive no implicit grant from authority membership alone.
   - Suspended, revoked, or expired grants do not provide access.
   - Duplicate active grants for the same target and scope should be blocked or merged.
   - Grant changes should be auditable in later phases.
@@ -566,8 +570,8 @@
 - Active authority and account context should always be visible.
 - Tenant scoping by authority must be preserved.
 - Participant data access must be grant-based.
+- Authority/association users must not receive default access to vendor due diligence data.
 - Users must be allowed to hold multiple memberships.
 - Source-of-truth domain commands should be used for mutations.
 - UI refresh must happen after successful mutations.
 - Future backend phases must enforce all authority, account, and grant boundaries server-side.
-

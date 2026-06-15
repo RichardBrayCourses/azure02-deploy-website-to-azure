@@ -17,10 +17,18 @@ export type AuthenticatedUser = {
   email: string | null;
   role: UserRole;
   authorityId: string | null;
+  accountContextId: string | null;
+  accountContextType: AccountContextType | null;
+  accountContextEntityId: string | null;
+  accountContextName: string | null;
+  membershipRole: MembershipRole | null;
   participantId: string | null;
+  stakeholderId: string | null;
 };
 
 export type UserRole = "authority-admin" | "participant" | "stakeholder";
+export type AccountContextType = "authority" | "participant" | "stakeholder";
+export type MembershipRole = "ADMIN" | "MEMBER";
 type StoredUserRole = UserRole | "authority-admin";
 type StoredUser = Partial<Omit<AuthenticatedUser, "role">> & {
   role?: StoredUserRole;
@@ -60,7 +68,13 @@ const LOGGED_IN_USER = {
   email: null,
   role: "authority-admin" as UserRole,
   authorityId: null,
+  accountContextId: null,
+  accountContextType: null,
+  accountContextEntityId: null,
+  accountContextName: null,
+  membershipRole: null,
   participantId: null,
+  stakeholderId: null,
 };
 
 const LOGGED_OUT_USER = {
@@ -70,7 +84,13 @@ const LOGGED_OUT_USER = {
   email: null,
   role: "authority-admin" as UserRole,
   authorityId: null,
+  accountContextId: null,
+  accountContextType: null,
+  accountContextEntityId: null,
+  accountContextName: null,
+  membershipRole: null,
   participantId: null,
+  stakeholderId: null,
 };
 
 /////////////
@@ -86,11 +106,18 @@ export type SignInSelection = {
   email: string;
   authorityId: string;
   role: UserRole;
+  accountContextId: string;
+  accountContextType: AccountContextType;
+  accountContextEntityId: string;
+  accountContextName: string;
+  membershipRole: MembershipRole;
   participantId: string | null;
+  stakeholderId: string | null;
 };
 
 interface AuthContextValue extends AuthContextData {
   login: (selection: SignInSelection) => void;
+  switchAccountContext: (selection: SignInSelection) => void;
   logout: () => void;
 }
 
@@ -109,6 +136,16 @@ export function useAuth() {
 function normalizeRole(role: StoredUserRole | undefined): UserRole {
   if (role === "authority-admin") return "authority-admin";
   return role ?? "authority-admin";
+}
+
+function normalizeContextType(value: unknown): AccountContextType | null {
+  return value === "authority" || value === "participant" || value === "stakeholder"
+    ? value
+    : null;
+}
+
+function normalizeMembershipRole(value: unknown): MembershipRole | null {
+  return value === "ADMIN" || value === "MEMBER" ? value : null;
 }
 
 ////////////////////////
@@ -136,7 +173,13 @@ function loadContext(): AuthContextData {
         email: isLoggedIn ? storedUser.email ?? null : null,
         role: normalizeRole(storedUser.role),
         authorityId: isLoggedIn ? authorityId : null,
+        accountContextId: isLoggedIn ? storedUser.accountContextId ?? null : null,
+        accountContextType: isLoggedIn ? normalizeContextType(storedUser.accountContextType) : null,
+        accountContextEntityId: isLoggedIn ? storedUser.accountContextEntityId ?? null : null,
+        accountContextName: isLoggedIn ? storedUser.accountContextName ?? null : null,
+        membershipRole: isLoggedIn ? normalizeMembershipRole(storedUser.membershipRole) : null,
         participantId: isLoggedIn ? storedUser.participantId ?? null : null,
+        stakeholderId: isLoggedIn ? storedUser.stakeholderId ?? null : null,
       },
     };
   }
@@ -165,13 +208,21 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       email: selection.email,
       role: selection.role,
       authorityId: selection.authorityId,
+      accountContextId: selection.accountContextId,
+      accountContextType: selection.accountContextType,
+      accountContextEntityId: selection.accountContextEntityId,
+      accountContextName: selection.accountContextName,
+      membershipRole: selection.membershipRole,
       participantId:
         selection.role === "authority-admin" ? null : selection.participantId,
+      stakeholderId: selection.stakeholderId,
     });
+
+  const switchAccountContext = (selection: SignInSelection) => login(selection);
 
   const logout = () => setUser(LOGGED_OUT_USER);
 
-  const sharedData = { user, login, logout };
+  const sharedData = { user, login, switchAccountContext, logout };
 
   return (
     <AuthContext.Provider value={sharedData}>{children}</AuthContext.Provider>

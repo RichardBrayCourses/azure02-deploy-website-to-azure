@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { getUserRoleLabel, useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import {
-  authenticatableUsers,
+  type AccountContext,
+  getAccountContextsForUser,
   getConsoleAppsForRole,
   getDefaultConsolePath,
   getStakeholder,
@@ -22,6 +23,8 @@ import {
 import { cn } from "@/lib/utils";
 import {
   Bell,
+  Check,
+  ChevronsUpDown,
   CircleHelp,
   Grid3X3,
   LogOut,
@@ -120,26 +123,38 @@ function GlobalSearch() {
 
 const Header = () => {
   const { dark, setDark } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, switchAccountContext } = useAuth();
+  const navigate = useNavigate();
   const availableApps = getConsoleAppsForRole(user.role);
   const authority = getAuthority(user.authorityId ?? undefined);
   const participant = getParticipant(user.participantId ?? undefined);
-  const stakeholderUser = authenticatableUsers.find(
-    (account) =>
-      account.id === user.authenticatableUserId &&
-      account.membership.entityType === "stakeholder",
-  );
-  const stakeholder = getStakeholder(
-    stakeholderUser?.membership.entityType === "stakeholder"
-      ? stakeholderUser.membership.entityId
-      : participant?.stakeholderId,
-  );
+  const stakeholder = getStakeholder(user.stakeholderId ?? undefined);
+  const accountContexts = getAccountContextsForUser(user.authenticatableUserId);
   const entityName =
-    user.role === "authority-admin"
+    user.accountContextName ??
+    (user.role === "authority-admin"
       ? authority?.name
       : user.role === "participant"
         ? participant?.name
-        : stakeholder?.name;
+        : stakeholder?.name);
+
+  function switchContext(context: AccountContext) {
+    switchAccountContext({
+      authenticatableUserId: context.authenticatableUserId,
+      name: context.name,
+      email: context.email,
+      authorityId: context.authorityId,
+      role: context.role,
+      accountContextId: context.id,
+      accountContextType: context.entityType,
+      accountContextEntityId: context.entityId,
+      accountContextName: context.entityName,
+      membershipRole: context.membershipRole,
+      participantId: context.participantId,
+      stakeholderId: context.stakeholderId,
+    });
+    navigate(getDefaultConsolePath(context.role));
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-black bg-[#0b1f33] text-white">
@@ -243,14 +258,41 @@ const Header = () => {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="space-y-2">
-                <span className="block text-xs font-bold uppercase text-muted-foreground">Entity</span>
+                <span className="block text-xs font-bold uppercase text-muted-foreground">Active context</span>
                 <span className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 text-sm font-normal">
+                  <span className="text-muted-foreground">Authority</span>
+                  <span className="font-medium text-foreground">{authority?.name ?? "Not selected"}</span>
                   <span className="text-muted-foreground">Type</span>
                   <span className="font-medium text-foreground">{getUserRoleLabel(user.role)}</span>
                   <span className="text-muted-foreground">Name</span>
                   <span className="font-medium text-foreground">{entityName ?? "Not selected"}</span>
                 </span>
               </DropdownMenuLabel>
+              {accountContexts.length > 1 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="flex items-center gap-2 text-xs font-bold uppercase text-muted-foreground">
+                    <ChevronsUpDown className="size-3" />
+                    Switch context
+                  </DropdownMenuLabel>
+                  {accountContexts.map((context) => {
+                    const isActive = context.id === user.accountContextId;
+                    return (
+                      <DropdownMenuItem key={context.id} onClick={() => switchContext(context)}>
+                        <span className="flex size-4 items-center justify-center">
+                          {isActive && <Check className="size-4" />}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{context.entityName}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {getUserRoleLabel(context.role)} · {context.authorityName}
+                          </span>
+                        </span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="size-4" />

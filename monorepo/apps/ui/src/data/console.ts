@@ -14,7 +14,7 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import type { AuthenticatedUser, UserRole } from "@/context/AuthContext";
+import type { AccountContextType, AuthenticatedUser, UserRole } from "@/context/AuthContext";
 
 export type EntityStatus = "ACTIVE" | "INACTIVE";
 export type InviteStatus = EntityStatus | "INVITED";
@@ -302,6 +302,30 @@ export type AuthenticatableUser = {
   membershipRole: MembershipRole;
 };
 
+export type UserIdentity = {
+  id: UserAccountId;
+  name: string;
+  email: string;
+  status: UserAccountStatus;
+};
+
+export type AccountContext = {
+  id: string;
+  authenticatableUserId: UserAccountId;
+  name: string;
+  email: string;
+  authorityId: AuthorityId;
+  authorityName: string;
+  role: UserRole;
+  entityType: AccountContextType;
+  entityId: AuthorityId | ParticipantId | StakeholderId;
+  entityName: string;
+  membershipRole: MembershipRole;
+  participantId: ParticipantId | null;
+  stakeholderId: StakeholderId | null;
+  description: string;
+};
+
 export type Task = {
   id: CaseTaskId;
   title: string;
@@ -523,6 +547,7 @@ export class InMemoryAllChecksOutDatabase {
     this.user("user-benjamin-foster", "Benjamin Foster", "benjamin.foster@mercury-retail.example", "STAKEHOLDER"),
     this.user("user-priya-shah", "Priya Shah", "priya.shah@sentinel-grc.example", "STAKEHOLDER"),
     this.user("user-george-evans", "George Evans", "george.evans@sentinel-grc.example", "STAKEHOLDER"),
+    this.user("user-nadia-cole", "Nadia Cole", "nadia.cole@portfolio.example", "PARTICIPANT"),
   ];
 
   readonly authorityUsers = [
@@ -535,6 +560,7 @@ export class InMemoryAllChecksOutDatabase {
     this.membership("participant-user-michael-reeves", "northstar-cloud", "user-michael-reeves", "MEMBER", ParticipantUserEntity),
     this.membership("participant-user-lewis-green", "cobalt-workflow", "user-lewis-green", "ADMIN", ParticipantUserEntity),
     this.membership("participant-user-amelia-wright", "cobalt-workflow", "user-amelia-wright", "MEMBER", ParticipantUserEntity),
+    this.membership("participant-user-nadia-cole", "cobalt-workflow", "user-nadia-cole", "ADMIN", ParticipantUserEntity),
     this.membership("participant-user-maya-patel", "pinebridge-data", "user-maya-patel", "ADMIN", ParticipantUserEntity),
     this.membership("participant-user-owen-clarke", "asteria-identity", "user-owen-clarke", "ADMIN", ParticipantUserEntity),
   ];
@@ -546,6 +572,7 @@ export class InMemoryAllChecksOutDatabase {
     this.membership("stakeholder-user-benjamin-foster", "mercury-retail", "user-benjamin-foster", "MEMBER", StakeholderUserEntity),
     this.membership("stakeholder-user-priya-shah", "sentinel-grc", "user-priya-shah", "ADMIN", StakeholderUserEntity),
     this.membership("stakeholder-user-george-evans", "sentinel-grc", "user-george-evans", "MEMBER", StakeholderUserEntity),
+    this.membership("stakeholder-user-nadia-cole", "sentinel-grc", "user-nadia-cole", "MEMBER", StakeholderUserEntity),
   ];
 
   readonly stakeholderParticipantAccess = [
@@ -690,9 +717,7 @@ export class InMemoryAllChecksOutDatabase {
     this.caseTask("case-task-asteria-attestation", "case-2026-asteria", "template-task-senior-attestation", "PASSED"),
   ];
 
-  constructor() {
-    this.assertUserKindExclusivity();
-  }
+  constructor() {}
 
   listAuthorities() {
     return this.authorities.map((authority) => authority.toDto());
@@ -801,7 +826,6 @@ export class InMemoryAllChecksOutDatabase {
       role: command.role,
     });
     this.participantUsers.push(membership);
-    this.assertUserKindExclusivity();
     return { userAccount, participantUser: membership.toDto() };
   }
 
@@ -828,7 +852,6 @@ export class InMemoryAllChecksOutDatabase {
       role: command.role,
     });
     this.stakeholderUsers.push(membership);
-    this.assertUserKindExclusivity();
     return { userAccount, stakeholderUser: membership.toDto() };
   }
 
@@ -1422,18 +1445,6 @@ export class InMemoryAllChecksOutDatabase {
     );
   }
 
-  private assertUserKindExclusivity() {
-    const membershipUserIds = [
-      ...this.authorityUsers,
-      ...this.participantUsers,
-      ...this.stakeholderUsers,
-    ].map((membership) => membership.toDto().userAccountId);
-
-    const duplicate = membershipUserIds.find((userId, index) => membershipUserIds.indexOf(userId) !== index);
-    if (duplicate) {
-      throw new Error(`User ${duplicate} belongs to more than one user kind.`);
-    }
-  }
 }
 
 export const db = new InMemoryAllChecksOutDatabase();
@@ -1675,6 +1686,92 @@ function buildAuthenticatableUsers(): AuthenticatableUser[] {
   ];
 }
 
+function buildUserIdentities(): UserIdentity[] {
+  return db.userAccounts
+    .map((account) => account.toDto())
+    .filter((account) => account.status === "ACTIVE")
+    .map((account) => ({
+      id: account.id,
+      name: account.displayName,
+      email: account.email,
+      status: account.status,
+    }));
+}
+
+function roleForContext(entityType: AccountContextType): UserRole {
+  if (entityType === "authority") return "authority-admin";
+  return entityType;
+}
+
+function buildAccountContexts(): AccountContext[] {
+  return authenticatableUsers.flatMap<AccountContext>((membership) => {
+    const role = roleForContext(membership.membership.entityType);
+
+    if (membership.membership.entityType === "authority") {
+      const authority = getAuthority(membership.membership.entityId);
+      if (!authority) return [];
+      return [{
+        id: `${membership.id}:authority:${authority.id}`,
+        authenticatableUserId: membership.id,
+        name: membership.name,
+        email: membership.email,
+        authorityId: authority.id,
+        authorityName: authority.name,
+        role,
+        entityType: membership.membership.entityType,
+        entityId: authority.id,
+        entityName: authority.name,
+        membershipRole: membership.membershipRole,
+        participantId: null,
+        stakeholderId: null,
+        description: "Configure scheme settings, DDQ templates, vendors, subscribers, and users.",
+      }];
+    }
+
+    if (membership.membership.entityType === "participant") {
+      const participant = getParticipant(membership.membership.entityId);
+      const authority = getAuthority(participant?.authorityId);
+      if (!participant || !authority) return [];
+      return [{
+        id: `${membership.id}:participant:${participant.id}`,
+        authenticatableUserId: membership.id,
+        name: membership.name,
+        email: membership.email,
+        authorityId: authority.id,
+        authorityName: authority.name,
+        role,
+        entityType: membership.membership.entityType,
+        entityId: participant.id,
+        entityName: participant.name,
+        membershipRole: membership.membershipRole,
+        participantId: participant.id,
+        stakeholderId: null,
+        description: "Complete due diligence packs, manage evidence, and control subscriber access.",
+      }];
+    }
+
+    const stakeholder = getStakeholder(membership.membership.entityId);
+    const authority = getAuthority(stakeholder?.authorityId);
+    if (!stakeholder || !authority) return [];
+    return [{
+      id: `${membership.id}:stakeholder:${stakeholder.id}`,
+      authenticatableUserId: membership.id,
+      name: membership.name,
+      email: membership.email,
+      authorityId: authority.id,
+      authorityName: authority.name,
+      role,
+      entityType: membership.membership.entityType,
+      entityId: stakeholder.id,
+      entityName: stakeholder.name,
+      membershipRole: membership.membershipRole,
+      participantId: null,
+      stakeholderId: stakeholder.id,
+      description: "Review vendor due diligence that has been granted to this subscriber account.",
+    }];
+  });
+}
+
 function buildAdminResources() {
   return [
     { name: "Vendors", path: "/admin/participants", Icon: Building2, count: `${participants.length} in scope` },
@@ -1742,6 +1839,8 @@ export let cases: CaseRecord[] = [];
 export let stakeholders: Stakeholder[] = [];
 export let participants: Participant[] = [];
 export let authenticatableUsers: AuthenticatableUser[] = [];
+export let userIdentities: UserIdentity[] = [];
+export let accountContexts: AccountContext[] = [];
 export let adminResources: ReturnType<typeof buildAdminResources> = [];
 export let searchItems: SearchItem[] = [];
 
@@ -1753,6 +1852,8 @@ export function refreshConsoleViewModels() {
   stakeholders = buildStakeholders();
   participants = buildParticipants(cases);
   authenticatableUsers = buildAuthenticatableUsers();
+  userIdentities = buildUserIdentities();
+  accountContexts = buildAccountContexts();
   adminResources = buildAdminResources();
   searchItems = buildSearchItems();
 }
@@ -1767,6 +1868,23 @@ export function getDefaultConsolePath(role: UserRole) {
   if (role === "stakeholder") return "/stakeholder";
   if (role === "authority-admin") return "/admin";
   return "/cases";
+}
+
+export function getDefaultConsolePathForUser(user: AuthenticatedUser) {
+  return getDefaultConsolePath(user.role);
+}
+
+export function getAccountContextsForUser(userAccountId: string | null | undefined) {
+  if (!userAccountId) return [];
+  return accountContexts.filter((context) => context.authenticatableUserId === userAccountId);
+}
+
+export function getAccountContext(id: string | null | undefined) {
+  return accountContexts.find((context) => context.id === id);
+}
+
+export function getUserIdentity(id: string | null | undefined) {
+  return userIdentities.find((identity) => identity.id === id);
 }
 
 export function getSearchItemsForUser(user: AuthenticatedUser) {
@@ -1889,12 +2007,19 @@ export function getScopedParticipants(user: AuthenticatedUser) {
     return authorityParticipants.filter((participant) => participant.id === user.participantId);
   }
 
-  const stakeholderMembership = authenticatableUsers.find((candidate) => candidate.id === user.authenticatableUserId);
-  if (stakeholderMembership?.membership.entityType !== "stakeholder") return [];
+  const stakeholderId =
+    user.stakeholderId ??
+    (user.accountContextType === "stakeholder" ? user.accountContextEntityId : null) ??
+    authenticatableUsers.find(
+      (candidate) =>
+        candidate.id === user.authenticatableUserId &&
+        candidate.membership.entityType === "stakeholder",
+    )?.membership.entityId;
+  if (!stakeholderId) return [];
   const visibleParticipantIds = new Set(
     db.stakeholderParticipantAccess
       .map((access) => access.toDto())
-      .filter((access) => access.stakeholderId === stakeholderMembership.membership.entityId && access.status === "APPROVED")
+      .filter((access) => access.stakeholderId === stakeholderId && access.status === "APPROVED")
       .map((access) => access.participantId),
   );
   return authorityParticipants.filter((participant) => visibleParticipantIds.has(participant.id));

@@ -36,7 +36,7 @@ The authority owns the scheme and the tenant partition. It may define:
 - Which roles and permissions are available.
 - Overall reporting needed to run the scheme.
 
-The authority should not automatically have unrestricted access to private vendor due diligence submissions simply because it owns the scheme. Access to participant due diligence records should be governed by explicit permissions.
+The authority should not have default access to private vendor due diligence submissions, answers, evidence metadata, or evidence files simply because it owns the scheme. Access to participant due diligence records should be governed by explicit permissions, explicit governance workflows, and auditability.
 
 ### Participants
 
@@ -165,6 +165,8 @@ To:
 
 This keeps the authority central without making it the default owner of each vendor's private data.
 
+For the primary scenario, "association" is the authority. No association/authority user should be able to view or modify vendor due diligence data unless the vendor has explicitly granted that access or an explicit authority-review workflow requires it.
+
 ### Authority Responsibilities
 
 Authority users may need to:
@@ -181,6 +183,7 @@ Authority users may need to:
 Authority users should not automatically:
 
 - Read every participant's evidence.
+- Read participant/vendor DDQ answers or evidence metadata.
 - Modify participant-submitted due diligence data.
 - Grant subscriber access on behalf of a participant unless a specific delegated permission exists.
 
@@ -570,14 +573,15 @@ Work:
 
 - Reframe participant pages as vendor workspace pages using configured labels.
 - Ensure due diligence packs belong to participants.
-- Ensure authority users do not automatically see private participant evidence.
+- Ensure authority users do not automatically see private participant due diligence answers, evidence metadata, or evidence files.
+- Remove default authority-admin route/search/app access to vendor due diligence pack and item detail views.
 - Add participant user management where needed.
 
 Acceptance:
 
 - Vendor users can manage their own workspace.
 - Authority data partitioning is preserved.
-- Authority access to vendor due diligence is restricted unless explicitly granted.
+- Authority access to vendor due diligence is absent by default and available only when explicitly granted or through an explicit auditable authority-review workflow.
 
 ### Stage 4 - Access Grants
 
