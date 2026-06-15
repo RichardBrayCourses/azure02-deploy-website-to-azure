@@ -16,6 +16,7 @@ import {
   PlaceholderResourcePage,
   StakeholderDetailPage,
   StakeholderCaseDetailPage,
+  StakeholderParticipantDetailPage,
   StakeholdersPage,
   StakeholderPortalPage,
 } from "./pages/ConsolePages";
@@ -56,6 +57,7 @@ const AppContent = () => {
         <Route path="/cases/evidence" element={<PlaceholderResourcePage app="cases" />} />
         <Route path="/cases/stakeholder-preview" element={<PlaceholderResourcePage app="cases" />} />
         <Route path="/stakeholder" element={<StakeholderPortalPage />} />
+        <Route path="/stakeholder/participants/:participantId" element={<StakeholderParticipantDetailPage />} />
         <Route path="/stakeholder/:caseId" element={<StakeholderCaseDetailPage />} />
 
         <Route path="*" element={<NotFound />} />

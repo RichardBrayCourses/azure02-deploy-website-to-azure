@@ -23,7 +23,7 @@ Use this file to understand:
 
 # Current Status Summary
 
-Phase 1, Phase 1.5, Phase 2, Phase 3, Phase 4 and Phase 5 are complete.
+Phase 1, Phase 1.5, Phase 2, Phase 3, Phase 4, Phase 5 and Phase 6 are complete.
 
 The app now has:
 
@@ -40,8 +40,9 @@ The app now has:
 - Authority setup CRUD flows for participants, participant users, stakeholders, stakeholder users and stakeholder access
 - Participant task response, evidence upload, task submission and case submission flows
 - Authority task review controls for submitted participant tasks
+- Stakeholder read-only participant detail, task outcome and evidence metadata views
 
-The next implementation work should start Phase 6: Stakeholder Read-Only Portal.
+The next implementation work should start Phase 7: Published Template Changes.
 
 ---
 
@@ -395,7 +396,7 @@ Task activity timestamps are currently UI-side mock data in `ConsolePages.tsx`. 
 Status:
 
 ```text
-Partially started
+Complete
 ```
 
 Stories covered:
@@ -412,6 +413,11 @@ Already implemented:
 - Stakeholder portal shows visible cases
 - Stakeholder case detail no longer shows full task list
 - Stakeholder case detail now shows outcome and participant performance summary
+- Stakeholder portal links approved participants to `/stakeholder/participants/:participantId`
+- Stakeholder participant detail shows read-only case counts, task progress and attention summary
+- Stakeholder participant detail shows visible cases and task outcomes
+- Stakeholder case detail shows task outcomes and read-only evidence metadata
+- Evidence metadata follows the first-release visibility rule: visible only for submitted, passed or failed tasks
 
 Domain support:
 
@@ -425,12 +431,17 @@ Relevant query exists:
 db.getAccessibleParticipantsForStakeholder(...)
 ```
 
-UI work remaining:
+Acceptance covered:
 
-- Add participant-level stakeholder detail route
-- Add stronger read-only participant performance view
-- Decide and implement evidence visibility rule
-- Optionally add task outcome summary without task workbench detail
+- Stakeholder sees only approved participant records through scoped helpers
+- Stakeholder cannot open inaccessible participant detail pages
+- Stakeholder can open visible participant cases
+- Stakeholder cannot mutate case, task or evidence data
+- Stakeholder can see task title, status and pass/fail outcome
+- Evidence metadata is visible for submitted, passed or failed tasks only
+- Evidence metadata is not visible cross-authority because participant and case routes are scope-checked
+- `npm run type-check` passes
+- `npm run build` passes
 
 Recommended evidence visibility rule for first release:
 
@@ -548,13 +559,13 @@ Do not implement this before the main user-story flows unless activity accuracy 
 Recommended immediate next step:
 
 ```text
-Start Phase 6 with stakeholder participant detail and evidence metadata visibility.
+Start Phase 7 with published template task withdrawal and post-publication task additions.
 ```
 
 Suggested agent prompt:
 
 ```text
-Please implement Phase 6: Stakeholder read-only portal polish.
+Please implement Phase 7: Published template changes.
 
 Read:
 - fullhandover.md
@@ -564,12 +575,14 @@ Read:
 
 Requirements:
 - Preserve the login screen
-- Keep stakeholder portal read-only
-- Add stakeholder participant-level detail route
-- Add stronger participant performance view
-- Implement the first-release evidence visibility rule
+- Keep template changes inside Administration case template detail pages
+- Add withdraw task action for published template tasks
+- Capture withdrawal reason
+- Show withdrawn task state and created-after-publish state
 - Use useDomainData()
-- Stakeholders should see evidence metadata for submitted, passed or failed tasks on approved participants
+- Call db.withdrawTemplateTask(...)
+- Reuse db.addTaskToTemplate(...) for published template additions
+- Call refresh() after mutations
 - Keep the existing UI style
 - Run npm run type-check and npm run build
 ```

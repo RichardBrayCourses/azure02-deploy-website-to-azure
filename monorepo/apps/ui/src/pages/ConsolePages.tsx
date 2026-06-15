@@ -24,6 +24,7 @@ import {
   Status,
   taskTypes,
 } from "@/data/console";
+import type { Task } from "@/data/console";
 import { cn } from "@/lib/utils";
 import {
   CheckCircle2,
@@ -199,6 +200,33 @@ function FormError({ message }: { message: string | null }) {
   return <p className="text-sm font-bold text-[#d4351c]">{message}</p>;
 }
 
+function stakeholderCanSeeEvidence(task: Task) {
+  return task.domainStatus === "SUBMITTED" || task.domainStatus === "PASSED" || task.domainStatus === "FAILED";
+}
+
+function EvidenceMetadataList({ task }: { task: Task }) {
+  if (!stakeholderCanSeeEvidence(task)) {
+    return <span className="text-sm text-[#505a5f] dark:text-muted-foreground">Visible after submission</span>;
+  }
+
+  if (task.evidenceFiles.length === 0) {
+    return <span className="text-sm text-[#505a5f] dark:text-muted-foreground">No evidence metadata</span>;
+  }
+
+  return (
+    <ul className="grid gap-1 text-sm">
+      {task.evidenceFiles.map((file) => (
+        <li key={`${task.id}-${file.name}-${file.uploadedAt}`}>
+          <span className="font-bold text-[#1d70b8]">{file.name}</span>
+          <span className="block text-xs text-[#505a5f] dark:text-muted-foreground">
+            {file.size} · {new Date(file.uploadedAt).toLocaleString("en-GB")}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function AdministrationResourceNav() {
   const location = useLocation();
 
@@ -263,7 +291,9 @@ export function StakeholderPortalPage() {
             return (
               <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
-                  <span className="font-bold text-[#1d70b8]">{participant.name}</span>
+                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/stakeholder/participants/${participant.id}`}>
+                    {participant.name}
+                  </Link>
                   <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
                     {stakeholder?.name}
                   </span>
@@ -299,6 +329,90 @@ export function StakeholderPortalPage() {
       <p className="mt-4 text-sm text-[#505a5f] dark:text-muted-foreground">
         Visible progress across approved participants: {completedTasks} of {totalTasks}.
       </p>
+    </ConsoleLayout>
+  );
+}
+
+export function StakeholderParticipantDetailPage() {
+  const { user } = useAuth();
+  if (user.role !== "stakeholder") return <Navigate to="/" replace />;
+  const { participantId } = useParams();
+  const participant = getScopedParticipants(user).find((item) => item.id === participantId);
+  if (!participant) return <Navigate to="/stakeholder" replace />;
+
+  const participantCases = getScopedCases(user).filter((caseRecord) => caseRecord.participantId === participant.id);
+  const openCases = participantCases.filter((caseRecord) => caseRecord.status !== "closed").length;
+  const attentionTasks = participantCases.flatMap((caseRecord) => caseRecord.tasks).filter((task) => task.status === "attention").length;
+
+  return (
+    <ConsoleLayout
+      breadcrumbs={[
+        { label: "Stakeholder Portal", path: "/stakeholder" },
+        { label: participant.name },
+      ]}
+      readOnly
+    >
+      <PageTitle
+        eyebrow="Read-only participant"
+        title={participant.name}
+        description="Participant status, visible cases, task outcomes, and submitted evidence metadata for approved stakeholder monitoring."
+      />
+      <MetricStrip
+        items={[
+          { label: "Visible cases", value: String(participantCases.length), tone: "blue" },
+          { label: "Open cases", value: String(openCases), tone: "yellow" },
+          { label: "Tasks complete", value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
+          { label: "Needs attention", value: String(attentionTasks), tone: attentionTasks > 0 ? "red" : "green" },
+        ]}
+      />
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Visible cases</h3>
+        <ResourceTable headings={["Case", "Status", "Progress", "Outcome", "Last activity"]}>
+          {participantCases.map((caseRecord) => (
+            <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/stakeholder/${caseRecord.id}`}>
+                  {caseRecord.title}
+                </Link>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
+                  {caseRecord.caseType}
+                </span>
+              </td>
+              <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
+              <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
+              <td className="px-4 py-3">{caseRecord.outcome}</td>
+              <td className="px-4 py-3">{caseRecord.lastActivity}</td>
+            </tr>
+          ))}
+        </ResourceTable>
+      </section>
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Task outcomes and evidence</h3>
+        <ResourceTable headings={["Case", "Task", "Outcome", "Evidence metadata"]}>
+          {participantCases.flatMap((caseRecord) =>
+            caseRecord.tasks.map((task) => (
+              <tr key={`${caseRecord.id}-${task.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">
+                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/stakeholder/${caseRecord.id}`}>
+                    {caseRecord.title}
+                  </Link>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="block font-bold">{task.title}</span>
+                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{task.type}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={task.status} />
+                  <span className="mt-2 block text-xs font-bold text-[#505a5f] dark:text-muted-foreground">
+                    {task.domainStatus.replace("_", " ")}
+                  </span>
+                </td>
+                <td className="px-4 py-3"><EvidenceMetadataList task={task} /></td>
+              </tr>
+            )),
+          )}
+        </ResourceTable>
+      </section>
     </ConsoleLayout>
   );
 }
@@ -361,6 +475,27 @@ export function StakeholderCaseDetailPage() {
             </dd>
           </div>
         </dl>
+      </section>
+      <section className="mt-8">
+        <h3 className="mb-3 text-xl font-bold">Task outcomes and evidence</h3>
+        <ResourceTable headings={["Task", "Status", "Response", "Evidence metadata"]}>
+          {caseRecord.tasks.map((task) => (
+            <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <span className="block font-bold">{task.title}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{task.type}</span>
+              </td>
+              <td className="px-4 py-3">
+                <StatusBadge status={task.status} />
+                <span className="mt-2 block text-xs font-bold text-[#505a5f] dark:text-muted-foreground">
+                  {task.domainStatus.replace("_", " ")}
+                </span>
+              </td>
+              <td className="px-4 py-3">{task.responseText || "No response visible"}</td>
+              <td className="px-4 py-3"><EvidenceMetadataList task={task} /></td>
+            </tr>
+          ))}
+        </ResourceTable>
       </section>
     </ConsoleLayout>
   );
