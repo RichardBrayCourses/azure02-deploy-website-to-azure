@@ -1,0 +1,19 @@
+{
+  "name": "azure02-deploy-website-to-azure",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "infra:deploy": "pnpm --dir monorepo run infra:deploy",
+    "infra:what-if": "pnpm --dir monorepo run infra:what-if",
+    "infra:destroy": "pnpm --dir monorepo run infra:destroy",
+    "ui:dev": "pnpm --dir monorepo run ui:dev",
+    "ui:build": "pnpm --dir monorepo run ui:build",
+    "ui:preview": "pnpm --dir monorepo run ui:preview",
+    "ui:upload": "pnpm --dir monorepo run ui:upload",
+    "ui:url": "pnpm --dir monorepo run ui:url",
+    "deploy-website": "pnpm --dir monorepo run deploy-website",
+    "deploy-everything": "pnpm --dir monorepo run deploy-everything",
+    "type-check": "pnpm --dir monorepo run type-check",
+    "package-cleanup": "pnpm --dir monorepo run package-cleanup"
+  }
+}

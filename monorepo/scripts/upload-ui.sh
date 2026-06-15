@@ -17,6 +17,17 @@ STORAGE_ACCOUNT_NAME=$(az deployment group show \
   --query "properties.outputs.storageAccountName.value" \
   --output tsv)
 
+if [[ "$AZURE_STORAGE_AUTH_MODE" == "key" ]]; then
+  STORAGE_ACCOUNT_KEY=$(az storage account keys list \
+    --resource-group "$AZURE_RESOURCE_GROUP" \
+    --account-name "$STORAGE_ACCOUNT_NAME" \
+    --query "[0].value" \
+    --output tsv)
+  STORAGE_AUTH_ARGS=(--account-key "$STORAGE_ACCOUNT_KEY")
+else
+  STORAGE_AUTH_ARGS=(--auth-mode "$AZURE_STORAGE_AUTH_MODE")
+fi
+
 echo ""
 echo "Uploading $UI_DIST_DIR to the static website container in $STORAGE_ACCOUNT_NAME"
 echo ""
@@ -26,7 +37,7 @@ az storage blob upload-batch \
   --destination '$web' \
   --source "$UI_DIST_DIR" \
   --overwrite true \
-  --auth-mode login \
+  "${STORAGE_AUTH_ARGS[@]}" \
   --output table
 
 echo ""

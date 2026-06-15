@@ -84,19 +84,19 @@ flowchart LR
 - **Static website hosting is enabled by script.** The deployment script uses Azure CLI to enable static website hosting with `index.html` as both the index document and the not-found document.
 - **Single-page app routing is supported for this lesson.** Because the not-found document is also `index.html`, direct visits to routes such as `/cases` or `/admin/operational-participants` return the React app instead of a storage error page.
 - **The upload script publishes the Vite build.** `scripts/upload-ui.sh` uploads `apps/ui/dist` into the `$web` container with overwrite enabled.
-- **Root scripts hide command complexity.** Students can run `pnpm run deploy-everything` for the full path, or run `infra:deploy`, `ui:build`, `ui:upload`, and `ui:url` one step at a time.
-- **Configuration is environment-driven.** `scripts/config.sh` provides sensible defaults while still allowing `AZURE_LOCATION`, `AZURE_RESOURCE_GROUP`, `AZURE_DEPLOYMENT_NAME`, `AZURE_APP_NAME`, and `UI_DIST_DIR` to be overridden.
+- **Root scripts hide command complexity.** Students can run `pnpm run deploy-everything` for the full path, or run `infra:deploy`, `ui:build`, `ui:upload`, and `ui:url` one step at a time from the repository root.
+- **The live URL can be printed after deployment.** `pnpm run ui:url` reads the deployed storage account and prints the Azure Blob static website endpoint so it can be opened directly from the terminal.
+- **Configuration is environment-driven.** `scripts/config.sh` provides sensible defaults while still allowing `AZURE_LOCATION`, `AZURE_RESOURCE_GROUP`, `AZURE_DEPLOYMENT_NAME`, `AZURE_APP_NAME`, `AZURE_STORAGE_AUTH_MODE`, and `UI_DIST_DIR` to be overridden.
 - **Teardown is included.** `pnpm run infra:destroy` deletes the resource group so the lesson can be repeated cleanly.
 
 ## How To Run
 
-Most work starts inside the `monorepo` folder.
+Most commands can be run from the repository root. The root `package.json` delegates to the implementation scripts in `monorepo`.
 
 **Install dependencies**
 
 ```bash
-cd monorepo
-pnpm install
+pnpm --dir monorepo install
 ```
 
 **Run the app locally**
@@ -188,26 +188,28 @@ az account set --subscription "<subscription-id-or-name>"
 ## Monorepo Structure
 
 ```text
-monorepo
-├── apps
-│   └── ui
-│       ├── src
-│       ├── index.html
-│       ├── package.json
-│       ├── tsconfig.json
-│       └── vite.config.ts
-├── infra
-│   └── main.bicep
-├── scripts
-│   ├── config.sh
-│   ├── deploy-infra.sh
-│   ├── destroy-infra.sh
-│   ├── show-url.sh
-│   ├── upload-ui.sh
-│   └── what-if-infra.sh
+.
 ├── package.json
-├── pnpm-lock.yaml
-└── pnpm-workspace.yaml
+└── monorepo
+    ├── apps
+    │   └── ui
+    │       ├── src
+    │       ├── index.html
+    │       ├── package.json
+    │       ├── tsconfig.json
+    │       └── vite.config.ts
+    ├── infra
+    │   └── main.bicep
+    ├── scripts
+    │   ├── config.sh
+    │   ├── deploy-infra.sh
+    │   ├── destroy-infra.sh
+    │   ├── show-url.sh
+    │   ├── upload-ui.sh
+    │   └── what-if-infra.sh
+    ├── package.json
+    ├── pnpm-lock.yaml
+    └── pnpm-workspace.yaml
 ```
 
 The structure is deliberately small. A single application, a single infrastructure template, and a handful of scripts are enough to teach the first deployment pattern without hiding the important details.
@@ -303,7 +305,7 @@ az storage blob service-properties update \
   --static-website \
   --index-document index.html \
   --404-document index.html \
-  --auth-mode login
+  --auth-mode "$AZURE_STORAGE_AUTH_MODE"
 ```
 
 The key detail is the not-found document. This React app uses browser routing. If a user visits `/cases` or `/admin/operational-participants` directly, Azure Blob static website hosting does not know that route exists as a physical file. Returning `index.html` lets React Router take over in the browser.
@@ -319,6 +321,7 @@ AZURE_LOCATION="${AZURE_LOCATION:-uksouth}"
 AZURE_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-azure02-static-website-rg}"
 AZURE_DEPLOYMENT_NAME="${AZURE_DEPLOYMENT_NAME:-azure02-static-website}"
 AZURE_APP_NAME="${AZURE_APP_NAME:-azure02web}"
+AZURE_STORAGE_AUTH_MODE="${AZURE_STORAGE_AUTH_MODE:-key}"
 UI_DIST_DIR="${UI_DIST_DIR:-apps/ui/dist}"
 ```
 
@@ -344,18 +347,29 @@ az storage blob upload-batch \
   --destination '$web' \
   --source "$UI_DIST_DIR" \
   --overwrite true \
-  --auth-mode login
+  --auth-mode "$AZURE_STORAGE_AUTH_MODE"
 ```
 
 The `$web` container is created by Azure when static website hosting is enabled. Files in this container are served by the static website endpoint.
 
-`show-url.sh` prints the static website URL from the deployment output.
+`show-url.sh` reads the storage account name from the deployment output, then asks Azure for the storage account's `primaryEndpoints.web` value. This avoids making the learner hunt through the Azure portal after deployment.
 
 `destroy-infra.sh` deletes the whole resource group. That is simple and appropriate for this lesson because the resource group is dedicated to this deployment.
 
-## Root Package Scripts
+## Package Scripts
 
-The root `package.json` is the learner-facing command surface:
+The repository-root `package.json` is the learner-facing command surface. It delegates into the monorepo so students can run commands from the top of the repo:
+
+```json
+{
+  "scripts": {
+    "ui:url": "pnpm --dir monorepo run ui:url",
+    "deploy-everything": "pnpm --dir monorepo run deploy-everything"
+  }
+}
+```
+
+Inside `monorepo`, `package.json` owns the actual UI, infrastructure, deployment, and cleanup commands:
 
 ```json
 {
@@ -400,7 +414,7 @@ cd monorepo
 
 ### 2. Create The Workspace
 
-Create `package.json` at the monorepo root with scripts for the UI, infrastructure, deployment, and cleanup.
+Create `package.json` at the monorepo root with scripts for the UI, infrastructure, deployment, URL lookup, and cleanup.
 
 Create `pnpm-workspace.yaml`:
 
@@ -492,7 +506,18 @@ Make the scripts executable:
 chmod +x scripts/*.sh
 ```
 
-The scripts should always read deployment outputs instead of asking the learner to paste values. That is a small habit, but it makes the project feel much more like a real deployment pipeline.
+The scripts should always read Azure state instead of asking the learner to paste values. For example, `show-url.sh` reads the storage account name from the deployment output, then prints the storage account's current static website endpoint.
+
+Add a repository-root `package.json` as a convenience wrapper so learners can run the same commands from the top of the repo:
+
+```json
+{
+  "scripts": {
+    "ui:url": "pnpm --dir monorepo run ui:url",
+    "deploy-everything": "pnpm --dir monorepo run deploy-everything"
+  }
+}
+```
 
 ### 8. Install, Build, And Verify
 
@@ -595,13 +620,21 @@ Then test the route again.
 
 ### Permission Errors During Upload
 
-The scripts use Azure CLI login mode:
+The scripts default to Azure CLI account-key mode for storage operations:
 
 ```bash
---auth-mode login
+AZURE_STORAGE_AUTH_MODE="${AZURE_STORAGE_AUTH_MODE:-key}"
 ```
 
-Your signed-in Azure identity needs permission to manage the storage account and upload blobs. In a personal subscription, Owner or Contributor usually covers this. In an organization, you may need a role assignment that allows blob data writes as well.
+In this mode the scripts read the storage account key and pass it explicitly to the Azure CLI storage commands. That avoids requiring a separate Storage Blob Data role for the tutorial upload and keeps the CLI output focused on the deployment. Your signed-in Azure identity still needs permission to read the storage account keys, which Owner and Contributor normally include.
+
+If your organization disables shared key access, use Azure RBAC instead:
+
+```bash
+AZURE_STORAGE_AUTH_MODE=login pnpm run deploy-everything
+```
+
+In that mode, your signed-in Azure identity needs a blob data-plane role such as `Storage Blob Data Contributor` on the storage account or resource group.
 
 ## What You Have Learned
 
