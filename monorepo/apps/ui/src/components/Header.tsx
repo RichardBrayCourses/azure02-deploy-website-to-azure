@@ -13,6 +13,7 @@ import { useTheme } from "@/context/ThemeContext";
 import {
   getConsoleAppsForRole,
   getDefaultConsolePath,
+  getInterestedParty,
   getOperationalParticipant,
   getUmbrellaOrganization,
   getSearchItemsForUser,
@@ -122,6 +123,13 @@ const Header = () => {
   const availableApps = getConsoleAppsForRole(user.role);
   const umbrellaOrganization = getUmbrellaOrganization(user.umbrellaOrganizationId ?? undefined);
   const operationalParticipant = getOperationalParticipant(user.operationalParticipantId ?? undefined);
+  const interestedParty = getInterestedParty(operationalParticipant?.interestedPartyId);
+  const entityName =
+    user.role === "umbrella-organization-admin"
+      ? umbrellaOrganization?.name
+      : user.role === "operational-participant"
+        ? operationalParticipant?.name
+        : interestedParty?.name;
 
   return (
     <header className="sticky top-0 z-40 border-b border-black bg-[#0b1f33] text-white">
@@ -172,15 +180,6 @@ const Header = () => {
           </Link>
         </Button>
 
-        <span className="hidden rounded-sm border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold sm:inline-flex">
-          {getUserRoleLabel(user.role)}
-        </span>
-        {umbrellaOrganization && (
-          <span className="hidden rounded-sm border border-white/25 bg-white/10 px-2 py-1 text-xs font-bold xl:inline-flex">
-            {umbrellaOrganization.name}
-          </span>
-        )}
-
         <GlobalSearch />
 
         <div className="ml-auto flex items-center gap-1">
@@ -212,12 +211,15 @@ const Header = () => {
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "text-white hover:bg-white/10 hover:text-white",
+                buttonVariants({ variant: "ghost" }),
+                "h-10 max-w-52 gap-2 px-2 text-white hover:bg-white/10 hover:text-white",
               )}
               aria-label="Open account menu"
             >
-              <User />
+              <User className="size-4 shrink-0" />
+              <span className="hidden truncate text-sm font-bold sm:block">
+                {user.name ?? user.email ?? "Account"}
+              </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 rounded-sm">
               <DropdownMenuLabel>
@@ -230,15 +232,14 @@ const Header = () => {
                 </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>
-                <span className="block text-xs font-bold uppercase text-muted-foreground">Current scope</span>
-                <span className="mt-1 block text-sm font-medium">{getUserRoleLabel(user.role)}</span>
-                {umbrellaOrganization && (
-                  <span className="block text-xs text-muted-foreground">{umbrellaOrganization.name}</span>
-                )}
-                {operationalParticipant && (
-                  <span className="block text-xs text-muted-foreground">{operationalParticipant.name}</span>
-                )}
+              <DropdownMenuLabel className="space-y-2">
+                <span className="block text-xs font-bold uppercase text-muted-foreground">Entity</span>
+                <span className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 text-sm font-normal">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="font-medium text-foreground">{getUserRoleLabel(user.role)}</span>
+                  <span className="text-muted-foreground">Name</span>
+                  <span className="font-medium text-foreground">{entityName ?? "Not selected"}</span>
+                </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>

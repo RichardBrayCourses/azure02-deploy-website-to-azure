@@ -27,6 +27,7 @@ export default function SignInPage() {
   );
   const requiresOperationalParticipant = role === "operational-participant" || role === "interested-party";
   const step = !umbrellaOrganizationId ? 1 : !role ? 2 : requiresOperationalParticipant && !operationalParticipantId ? 3 : 4;
+  const selectedUmbrellaOrganization = umbrellaOrganizations.find((organization) => organization.id === umbrellaOrganizationId);
   const selectedParticipant = operationalParticipants.find((participant) => participant.id === operationalParticipantId);
   const selectedMembership: AuthenticatableUserMembership | null =
     !umbrellaOrganizationId || !role
@@ -48,6 +49,21 @@ export default function SignInPage() {
 
   function selectRole(nextRole: UserRole) {
     setRole(nextRole);
+    setOperationalParticipantId(null);
+  }
+
+  function changeUmbrellaOrganization() {
+    setUmbrellaOrganizationId(null);
+    setRole(null);
+    setOperationalParticipantId(null);
+  }
+
+  function changeRole() {
+    setRole(null);
+    setOperationalParticipantId(null);
+  }
+
+  function changeOperationalParticipant() {
     setOperationalParticipantId(null);
   }
 
@@ -74,7 +90,7 @@ export default function SignInPage() {
           </p>
         </div>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <section className="grid gap-6 lg:grid-cols-[minmax(20rem,32rem)_22rem]">
           <div className="border border-[#b1b4b6] bg-white p-4 dark:bg-card">
             <div className="mb-4 flex flex-wrap gap-2 text-xs font-bold">
               {["Umbrella organization", "Role", "Operational participant"].map((label, index) => {
@@ -100,56 +116,67 @@ export default function SignInPage() {
             <div className="grid gap-5">
               <div>
                 <h2 className="text-base font-bold">Which umbrella organization are you interested in?</h2>
-                <div className="mt-3 grid gap-2">
-                  {umbrellaOrganizations.map((organization) => (
-                    <button
-                      key={organization.id}
-                      type="button"
-                      onClick={() => selectUmbrellaOrganization(organization.id)}
-                      className={cn(
-                        "border p-3 text-left hover:border-[#1d70b8]",
-                        umbrellaOrganizationId === organization.id
-                          ? "border-[#1d70b8] bg-[#eaf4fb]"
-                          : "border-[#b1b4b6] bg-[#f8f8f8] dark:bg-background",
-                      )}
-                    >
-                      <span className="block text-sm font-bold text-[#1d70b8]">{organization.name}</span>
-                      <span className="mt-1 block text-xs font-bold">{organization.scenario}</span>
-                      <span className="mt-1 block text-xs leading-5 text-[#505a5f] dark:text-muted-foreground">
-                        {organization.description}
-                      </span>
+                {selectedUmbrellaOrganization ? (
+                  <div className="mt-2 flex items-center justify-between gap-3 border border-[#00703c] bg-[#eaf7ef] p-2">
+                    <div>
+                      <span className="block text-sm font-bold text-[#00703c]">{selectedUmbrellaOrganization.name}</span>
+                      <span className="block text-xs text-[#505a5f]">{selectedUmbrellaOrganization.scenario}</span>
+                    </div>
+                    <button className="text-xs font-bold text-[#1d70b8] hover:underline" type="button" onClick={changeUmbrellaOrganization}>
+                      Change
                     </button>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 grid gap-2">
+                    {umbrellaOrganizations.map((organization) => (
+                      <button
+                        key={organization.id}
+                        type="button"
+                        onClick={() => selectUmbrellaOrganization(organization.id)}
+                        className="border border-[#b1b4b6] bg-[#f8f8f8] p-3 text-left hover:border-[#1d70b8] dark:bg-background"
+                      >
+                        <span className="block text-sm font-bold text-[#1d70b8]">{organization.name}</span>
+                        <span className="mt-1 block text-xs font-bold">{organization.scenario}</span>
+                        <span className="mt-1 block text-xs leading-5 text-[#505a5f] dark:text-muted-foreground">
+                          {organization.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {umbrellaOrganizationId && (
                 <div>
                   <h2 className="text-base font-bold">Are you signing in as?</h2>
-                  <div className="mt-3 grid gap-2">
-                    {USER_ROLES.map((item) => {
-                      const Icon = roleIcons[item.id];
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => selectRole(item.id)}
-                          className={cn(
-                            "border p-3 text-left hover:border-[#1d70b8]",
-                            role === item.id
-                              ? "border-[#1d70b8] bg-[#eaf4fb]"
-                              : "border-[#b1b4b6] bg-[#f8f8f8] dark:bg-background",
-                          )}
-                        >
-                          <Icon className="mb-2 size-5 text-[#1d70b8]" />
-                          <span className="block text-sm font-bold">{item.label}</span>
-                          <span className="mt-1 block text-xs leading-5 text-[#505a5f] dark:text-muted-foreground">
-                            {item.description}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {role ? (
+                    <div className="mt-2 flex items-center justify-between gap-3 border border-[#00703c] bg-[#eaf7ef] p-2">
+                      <span className="text-sm font-bold text-[#00703c]">{USER_ROLES.find((item) => item.id === role)?.label}</span>
+                      <button className="text-xs font-bold text-[#1d70b8] hover:underline" type="button" onClick={changeRole}>
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 grid gap-2">
+                      {USER_ROLES.map((item) => {
+                        const Icon = roleIcons[item.id];
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => selectRole(item.id)}
+                            className="border border-[#b1b4b6] bg-[#f8f8f8] p-3 text-left hover:border-[#1d70b8] dark:bg-background"
+                          >
+                            <Icon className="mb-2 size-5 text-[#1d70b8]" />
+                            <span className="block text-sm font-bold">{item.label}</span>
+                            <span className="mt-1 block text-xs leading-5 text-[#505a5f] dark:text-muted-foreground">
+                              {item.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -160,27 +187,34 @@ export default function SignInPage() {
                       ? "Which operational participant are you?"
                       : "Which operational participant are you interested in?"}
                   </h2>
-                  <div className="mt-3 grid gap-2">
-                    {operationalParticipants.map((participant) => (
-                      <button
-                        key={participant.id}
-                        type="button"
-                        onClick={() => setOperationalParticipantId(participant.id)}
-                        className={cn(
-                          "border p-3 text-left hover:border-[#1d70b8]",
-                          operationalParticipantId === participant.id
-                            ? "border-[#1d70b8] bg-[#eaf4fb]"
-                            : "border-[#b1b4b6] bg-[#f8f8f8] dark:bg-background",
-                        )}
-                      >
-                        <span className="block text-sm font-bold text-[#1d70b8]">{participant.name}</span>
-                        <span className="mt-1 block text-xs font-bold">{participant.type}</span>
-                        <span className="mt-1 block text-xs leading-5 text-[#505a5f] dark:text-muted-foreground">
-                          {participant.operationalRole}
-                        </span>
+                  {selectedParticipant ? (
+                    <div className="mt-2 flex items-center justify-between gap-3 border border-[#00703c] bg-[#eaf7ef] p-2">
+                      <div>
+                        <span className="block text-sm font-bold text-[#00703c]">{selectedParticipant.name}</span>
+                        <span className="block text-xs text-[#505a5f]">{selectedParticipant.type}</span>
+                      </div>
+                      <button className="text-xs font-bold text-[#1d70b8] hover:underline" type="button" onClick={changeOperationalParticipant}>
+                        Change
                       </button>
-                    ))}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 grid gap-2">
+                      {operationalParticipants.map((participant) => (
+                        <button
+                          key={participant.id}
+                          type="button"
+                          onClick={() => setOperationalParticipantId(participant.id)}
+                          className="border border-[#b1b4b6] bg-[#f8f8f8] p-3 text-left hover:border-[#1d70b8] dark:bg-background"
+                        >
+                          <span className="block text-sm font-bold text-[#1d70b8]">{participant.name}</span>
+                          <span className="mt-1 block text-xs font-bold">{participant.type}</span>
+                          <span className="mt-1 block text-xs leading-5 text-[#505a5f] dark:text-muted-foreground">
+                            {participant.operationalRole}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
