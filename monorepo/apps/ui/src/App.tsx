@@ -5,6 +5,7 @@ import DomainDataProvider, { useDomainData } from "./context/DomainDataContext";
 import ThemeProvider, { useTheme } from "./context/ThemeContext";
 import { getDefaultConsolePath } from "./data/console";
 import {
+  AdminHome,
   CaseDetailPage,
   CaseManagementHome,
   TaskDetailPage,
@@ -36,7 +37,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Navigate to={getDefaultConsolePath(user.role)} replace />} />
 
-        <Route path="/admin" element={<Navigate to="/admin/participants" replace />} />
+        <Route path="/admin" element={<AdminHome />} />
         <Route path="/admin/participants" element={<ParticipantsPage />} />
         <Route path="/admin/participants/:participantId" element={<ParticipantDetailPage />} />
         <Route path="/admin/stakeholders" element={<StakeholdersPage />} />

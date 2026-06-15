@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConsoleLayout, MetricStrip, PageTitle, Tabs } from "@/components/ConsoleLayout";
+import ResourceActionPanel from "@/components/ResourceActionPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useDomainData } from "@/context/DomainDataContext";
 import {
@@ -191,6 +192,35 @@ function SelectField({
 function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return <p className="text-sm font-bold text-[#d4351c]">{message}</p>;
+}
+
+function AdministrationResourceNav() {
+  const location = useLocation();
+
+  return (
+    <nav aria-label="Administration resources" className="mb-6 border-b border-[#b1b4b6]">
+      <div className="flex gap-1 overflow-x-auto">
+        {adminResources.map((resource) => {
+          const isCurrent =
+            location.pathname === resource.path ||
+            (resource.path !== "/admin" && location.pathname.startsWith(`${resource.path}/`));
+          return (
+            <Button
+              key={resource.path}
+              asChild
+              variant="ghost"
+              className={cn(
+                "h-11 rounded-none border-b-4 border-transparent px-4 font-bold",
+                isCurrent && "border-[#1d70b8] bg-white dark:bg-card",
+              )}
+            >
+              <Link to={resource.path}>{resource.name}</Link>
+            </Button>
+          );
+        })}
+      </div>
+    </nav>
+  );
 }
 
 export function StakeholderPortalPage() {
@@ -386,27 +416,32 @@ export function StakeholdersPage() {
           </Button>
         }
       />
-      {showCreate && (
-        <section className="mb-6 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
-          <h3 className="text-lg font-bold">Create stakeholder</h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-[14rem_1fr_auto] md:items-end">
-            <FormField label="Type">
-              <SelectField value={stakeholderType} onChange={(value) => setStakeholderType(value as PartyType)}>
-                <option value="ORGANISATION">Organisation</option>
-                <option value="PERSON">Person</option>
-              </SelectField>
-            </FormField>
-            <FormField label="Display name">
-              <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-            </FormField>
-            <Button type="button" onClick={createStakeholder}>
-              <CheckCircle2 />
-              Save
-            </Button>
-          </div>
-          <div className="mt-3"><FormError message={error} /></div>
-        </section>
-      )}
+      <AdministrationResourceNav />
+      <ResourceActionPanel
+        open={showCreate}
+        title="Create stakeholder"
+        description="Create a stakeholder inside the current authority."
+        onClose={() => setShowCreate(false)}
+        footer={
+          <Button type="button" onClick={createStakeholder}>
+            <CheckCircle2 />
+            Save
+          </Button>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
+          <FormField label="Type">
+            <SelectField value={stakeholderType} onChange={(value) => setStakeholderType(value as PartyType)}>
+              <option value="ORGANISATION">Organisation</option>
+              <option value="PERSON">Person</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Display name">
+            <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </FormField>
+        </div>
+        <div className="mt-3"><FormError message={error} /></div>
+      </ResourceActionPanel>
       <ResourceTable headings={["Stakeholder", "Type", "Status", "Participant access"]}>
         {scopedStakeholders.map((stakeholder) => (
           <tr key={stakeholder.id} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -522,6 +557,7 @@ export function StakeholderDetailPage() {
         title={stakeholder.name}
         description="Manage stakeholder users and approved participant monitoring access."
       />
+      <AdministrationResourceNav />
       <Tabs
         current="Overview"
         tabs={[
@@ -547,30 +583,34 @@ export function StakeholderDetailPage() {
             Create user
           </Button>
         </div>
-        {showCreateUser && (
-          <div className="mb-4 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
-            <h4 className="text-base font-bold">Create stakeholder user</h4>
-            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_10rem_auto] md:items-end">
-              <FormField label="Display name">
-                <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
-              </FormField>
-              <FormField label="Email">
-                <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
-              </FormField>
-              <FormField label="Role">
-                <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
-                  <option value="MEMBER">Member</option>
-                  <option value="ADMIN">Admin</option>
-                </SelectField>
-              </FormField>
-              <Button type="button" onClick={createStakeholderUser}>
-                <CheckCircle2 />
-                Save
-              </Button>
-            </div>
-            <div className="mt-3"><FormError message={userError} /></div>
+        <ResourceActionPanel
+          open={showCreateUser}
+          title="Create stakeholder user"
+          description="Create a login user that belongs only to this stakeholder."
+          onClose={() => setShowCreateUser(false)}
+          footer={
+            <Button type="button" onClick={createStakeholderUser}>
+              <CheckCircle2 />
+              Save
+            </Button>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
+            <FormField label="Display name">
+              <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
+            </FormField>
+            <FormField label="Email">
+              <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
+            </FormField>
+            <FormField label="Role">
+              <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
+                <option value="MEMBER">Member</option>
+                <option value="ADMIN">Admin</option>
+              </SelectField>
+            </FormField>
           </div>
-        )}
+          <div className="mt-3"><FormError message={userError} /></div>
+        </ResourceActionPanel>
         <ResourceTable headings={["User", "Email", "Kind", "Role"]}>
           {stakeholderUsers.map((account) => (
             <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -590,26 +630,28 @@ export function StakeholderDetailPage() {
             Grant access
           </Button>
         </div>
-        {showGrantAccess && (
-          <div className="mb-4 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
-            <h4 className="text-base font-bold">Grant participant access</h4>
-            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-              <FormField label="Participant">
-                <SelectField value={selectedParticipantId} onChange={setSelectedParticipantId}>
-                  <option value="">Select participant</option>
-                  {grantableParticipants.map((participant) => (
-                    <option key={participant.id} value={participant.id}>{participant.name}</option>
-                  ))}
-                </SelectField>
-              </FormField>
-              <Button type="button" onClick={grantAccess}>
-                <CheckCircle2 />
-                Grant
-              </Button>
-            </div>
-            <div className="mt-3"><FormError message={accessError} /></div>
-          </div>
-        )}
+        <ResourceActionPanel
+          open={showGrantAccess}
+          title="Grant participant access"
+          description="Allow this stakeholder to monitor a participant in the same authority."
+          onClose={() => setShowGrantAccess(false)}
+          footer={
+            <Button type="button" onClick={grantAccess}>
+              <CheckCircle2 />
+              Grant
+            </Button>
+          }
+        >
+          <FormField label="Participant">
+            <SelectField value={selectedParticipantId} onChange={setSelectedParticipantId}>
+              <option value="">Select participant</option>
+              {grantableParticipants.map((participant) => (
+                <option key={participant.id} value={participant.id}>{participant.name}</option>
+              ))}
+            </SelectField>
+          </FormField>
+          <div className="mt-3"><FormError message={accessError} /></div>
+        </ResourceActionPanel>
         <ResourceTable headings={["Participant", "Type", "Status", "Progress"]}>
           {accessibleParticipants.map((participant) => (
             <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -644,8 +686,9 @@ export function AdminHome() {
       <PageTitle
         eyebrow="Administration"
         title="Platform configuration"
-        description="Configure case types, participant roles, task templates, and access to the management console."
+        description="Choose an administration resource to manage participants, stakeholders, templates, users, and review configuration."
       />
+      <AdministrationResourceNav />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {adminResources.map((resource) => {
           const Icon = resource.Icon;
@@ -721,27 +764,32 @@ export function ParticipantsPage() {
           </Button>
         }
       />
-      {showCreate && (
-        <section className="mb-6 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
-          <h3 className="text-lg font-bold">Create participant</h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-[14rem_1fr_auto] md:items-end">
-            <FormField label="Type">
-              <SelectField value={participantType} onChange={(value) => setParticipantType(value as PartyType)}>
-                <option value="ORGANISATION">Organisation</option>
-                <option value="PERSON">Person</option>
-              </SelectField>
-            </FormField>
-            <FormField label="Display name">
-              <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-            </FormField>
-            <Button type="button" onClick={createParticipant}>
-              <CheckCircle2 />
-              Save
-            </Button>
-          </div>
-          <div className="mt-3"><FormError message={error} /></div>
-        </section>
-      )}
+      <AdministrationResourceNav />
+      <ResourceActionPanel
+        open={showCreate}
+        title="Create participant"
+        description="Create a participant inside the current authority."
+        onClose={() => setShowCreate(false)}
+        footer={
+          <Button type="button" onClick={createParticipant}>
+            <CheckCircle2 />
+            Save
+          </Button>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
+          <FormField label="Type">
+            <SelectField value={participantType} onChange={(value) => setParticipantType(value as PartyType)}>
+              <option value="ORGANISATION">Organisation</option>
+              <option value="PERSON">Person</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Display name">
+            <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </FormField>
+        </div>
+        <div className="mt-3"><FormError message={error} /></div>
+      </ResourceActionPanel>
       <ResourceTable headings={["Participant", "Type", "Status", "Open cases", "Progress", "Last activity"]}>
         {scopedParticipants.map((participant) => (
           <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -832,6 +880,7 @@ export function ParticipantDetailPage() {
         title={participant.name}
         description="Review participant membership, stakeholder access, generated cases, users, and audit activity."
       />
+      <AdministrationResourceNav />
       <Tabs
         current="Overview"
         tabs={[
@@ -857,30 +906,34 @@ export function ParticipantDetailPage() {
             Create user
           </Button>
         </div>
-        {showCreateUser && (
-          <div className="mb-4 border border-[#b1b4b6] bg-white p-4 dark:bg-card">
-            <h4 className="text-base font-bold">Create participant user</h4>
-            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_10rem_auto] md:items-end">
-              <FormField label="Display name">
-                <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
-              </FormField>
-              <FormField label="Email">
-                <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
-              </FormField>
-              <FormField label="Role">
-                <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
-                  <option value="MEMBER">Member</option>
-                  <option value="ADMIN">Admin</option>
-                </SelectField>
-              </FormField>
-              <Button type="button" onClick={createParticipantUser}>
-                <CheckCircle2 />
-                Save
-              </Button>
-            </div>
-            <div className="mt-3"><FormError message={userError} /></div>
+        <ResourceActionPanel
+          open={showCreateUser}
+          title="Create participant user"
+          description="Create a login user that belongs only to this participant."
+          onClose={() => setShowCreateUser(false)}
+          footer={
+            <Button type="button" onClick={createParticipantUser}>
+              <CheckCircle2 />
+              Save
+            </Button>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
+            <FormField label="Display name">
+              <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
+            </FormField>
+            <FormField label="Email">
+              <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
+            </FormField>
+            <FormField label="Role">
+              <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
+                <option value="MEMBER">Member</option>
+                <option value="ADMIN">Admin</option>
+              </SelectField>
+            </FormField>
           </div>
-        )}
+          <div className="mt-3"><FormError message={userError} /></div>
+        </ResourceActionPanel>
         <ResourceTable headings={["User", "Email", "Kind", "Role"]}>
           {participantUsers.map((account) => (
             <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -1281,6 +1334,7 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
                   : "This resource area is ready for the next implementation lesson."
         }
       />
+      {isAdmin && <AdministrationResourceNav />}
       {resource === "stakeholders" && (
         <ResourceTable headings={["Stakeholder", "Type", "Status", "Participant access"]}>
           {scopedStakeholders.map((stakeholder) => (

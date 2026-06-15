@@ -23,7 +23,7 @@ Use this file to understand:
 
 # Current Status Summary
 
-Phase 1 and Phase 2 are complete.
+Phase 1, Phase 1.5 and Phase 2 are complete.
 
 The app now has:
 
@@ -34,6 +34,8 @@ The app now has:
 - `DomainDataContext`
 - App-level `DomainDataProvider`
 - Existing screens subscribed to domain data refreshes
+- Administration hub and consistent Administration resource navigation
+- Shared `ResourceActionPanel` pattern for CRUD/action forms
 - Authority/Participant/Stakeholder case experience partially separated by role
 - Authority setup CRUD flows for participants, participant users, stakeholders, stakeholder users and stakeholder access
 
@@ -100,6 +102,50 @@ Notes:
 - Existing helper imports such as `participants`, `cases`, `authorities`, `getScopedCases`, etc. still work.
 - The exported view arrays are live bindings rebuilt by `refreshConsoleViewModels()`.
 - React screens subscribe to `version` from `useDomainData()`.
+
+---
+
+## Phase 1.5 - Administration Navigation Foundation
+
+Status:
+
+```text
+Complete
+```
+
+Implemented:
+
+- `/admin` is now a real Administration hub instead of redirecting to Participants
+- 3x3 launcher sends Authority users to `/admin`
+- Authority default path is `/admin`
+- Administration pages include a consistent resource navigation strip
+- Administration resources are reachable from inside Administration:
+  - Participants
+  - Stakeholders
+  - Case templates
+  - Task types
+  - Users
+- Added shared `ResourceActionPanel`
+- Refactored existing Phase 2 action forms to use `ResourceActionPanel`
+
+Important files:
+
+```text
+monorepo/apps/ui/src/App.tsx
+monorepo/apps/ui/src/components/ResourceActionPanel.tsx
+monorepo/apps/ui/src/pages/ConsolePages.tsx
+monorepo/apps/ui/src/data/console.ts
+```
+
+Acceptance covered:
+
+- Authority user can open Administration from the app launcher
+- Authority user can reach every Administration resource from inside Administration
+- Existing Participants and Stakeholders pages remain reachable
+- CRUD/action forms use the shared panel pattern
+- Login screen unchanged
+- `npm run type-check` passes
+- `npm run build` passes
 
 ---
 
@@ -492,8 +538,9 @@ Requirements:
 - Replace the Case Templates placeholder with a real list page
 - Add /admin/case-templates/:templateId
 - Use useDomainData()
+- Use the existing Administration resource navigation
+- Use ResourceActionPanel when actions are added
 - Start with read-only template detail before adding create/publish actions
-- Call refresh()
 - Keep the existing UI style
 - Run npm run type-check and npm run build
 ```
@@ -542,4 +589,6 @@ Requirements:
 - [x] Domain commands
 - [x] Refreshable view models
 - [x] Domain data React provider
+- [x] Administration hub/resource navigation
+- [x] Shared ResourceActionPanel
 - [ ] Domain command tests

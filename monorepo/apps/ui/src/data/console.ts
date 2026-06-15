@@ -1354,7 +1354,7 @@ export const consoleApps: ConsoleApp[] = [
     name: "Administration",
     shortName: "Admin",
     description: "Manage authorities, participants, stakeholders, case templates, task types, and users.",
-    path: "/admin/participants",
+    path: "/admin",
     accent: "bg-[#1d70b8]",
     Icon: Landmark,
     audience: ["authority-admin"],
@@ -1657,7 +1657,7 @@ export function getConsoleAppsForRole(role: UserRole) {
 
 export function getDefaultConsolePath(role: UserRole) {
   if (role === "stakeholder") return "/stakeholder";
-  if (role === "authority-admin") return "/admin/participants";
+  if (role === "authority-admin") return "/admin";
   return "/cases";
 }
 

@@ -37,11 +37,13 @@ The current implementation includes:
 - A sign-in screen for Authority, Participant and Stakeholder users
 - No System Owner sign-in option
 - Header, app launcher and global search
-- Authority admin pages
+- Administration hub and Authority admin resource navigation
 - Participant list/detail pages
+- Stakeholder list/detail pages
 - Case list/detail pages
 - Task detail page
 - Stakeholder read-only portal
+- Shared `ResourceActionPanel` pattern for CRUD/action forms
 - In-memory domain data in `src/data/console.ts`
 - TypeScript DTOs and entity classes for the domain model
 - An `InMemoryAllChecksOutDatabase` with seeded data
@@ -121,6 +123,172 @@ Avoid:
 - Large visual redesigns
 - Nested cards
 - Unnecessary animation
+
+---
+
+# Navigation And Action Pattern
+
+This is a foundational UI rule for the whole implementation.
+
+The 3x3 app launcher is for top-level app/module navigation only.
+
+It should contain entries such as:
+
+```text
+Administration
+Case Management
+Stakeholder Portal
+```
+
+It should not contain direct CRUD actions such as:
+
+```text
+Create Participant
+Create Stakeholder
+Create Template
+Grant Access
+```
+
+CRUD actions belong inside the relevant app and resource page.
+
+The universal navigation model is:
+
+```text
+Use the app launcher to choose the app.
+Use the app resource navigation to choose the thing.
+Use page/detail actions to create or change that thing.
+```
+
+For Authority users:
+
+```text
+3x3 app launcher
+  -> Administration
+      -> Participants
+      -> Stakeholders
+      -> Case templates
+      -> Task types
+      -> Users
+```
+
+From each resource:
+
+```text
+Participants page
+  -> Create participant
+
+Participant detail
+  -> Create participant user
+
+Stakeholders page
+  -> Create stakeholder
+
+Stakeholder detail
+  -> Create stakeholder user
+  -> Grant participant access
+
+Case templates page
+  -> Create template
+
+Case template detail
+  -> Add task
+  -> Assign participant
+  -> Publish
+```
+
+## Administration Hub
+
+`/admin` should be a real Administration hub/dashboard.
+
+It should give Authority users a consistent way to reach:
+
+- Participants
+- Stakeholders
+- Case templates
+- Task types
+- Users
+
+The current default redirect from `/admin` to `/admin/participants` should eventually be replaced with this hub.
+
+The hub should show resource tiles or a compact resource list using the existing console style.
+
+## Resource Navigation
+
+Administration pages should expose a consistent resource navigation pattern.
+
+Acceptable first-release options:
+
+- A compact resource strip near the top of Administration pages
+- Tabs for major Administration resources
+- A left/sidebar navigation only if the layout remains restrained and not card-heavy
+
+The key requirement is consistency. Do not make each resource page invent a different way to reach related admin resources.
+
+## Resource Actions
+
+Each resource page should put its primary create action in `PageTitle.actions`.
+
+Examples:
+
+```text
+Participants      [Create participant]
+Stakeholders      [Create stakeholder]
+Case templates    [Create template]
+```
+
+Detail pages should put contextual actions in the section header where they apply.
+
+Examples:
+
+```text
+Participant detail -> Users section -> [Create user]
+Stakeholder detail -> Users section -> [Create user]
+Stakeholder detail -> Access section -> [Grant access]
+Template detail    -> Tasks section -> [Add task]
+Template detail    -> Participants section -> [Assign participant]
+```
+
+## Resource Action Panel
+
+Use one consistent action form pattern across CRUD screens.
+
+Preferred pattern:
+
+```text
+ResourceActionPanel
+```
+
+This can initially be implemented as a compact inline panel or a right-side panel. It should eventually become a reusable component.
+
+Required behaviour:
+
+- Opens from a page/detail action
+- Has a clear title
+- Contains compact form fields
+- Has Save/Cancel actions
+- Shows validation/domain errors
+- Calls a domain command
+- Calls `refresh()`
+- Closes after successful save
+
+Avoid one-off form layouts and direct array mutations.
+
+## Authority Creation
+
+Authority users do not create Authorities.
+
+Creating Authorities is a System Owner responsibility. Since this prototype deliberately does not expose System Owner login, Authority CRUD should not be reachable in the current UI.
+
+Authority users administer data inside their own Authority:
+
+- Participants
+- Stakeholders
+- Stakeholder access
+- Case templates
+- Case template tasks
+- Case template participants
+- Cases and reviews
+- Users for Participants and Stakeholders
 
 ---
 
@@ -224,6 +392,45 @@ Acceptance:
 
 ---
 
+## Phase 1.5 - Administration Navigation Foundation
+
+Goal:
+
+Make all Authority-admin resources consistently reachable before adding more CRUD flows.
+
+Tasks:
+
+- Replace `/admin` redirect with an Administration hub
+- Add a consistent Administration resource navigation pattern
+- Ensure these resources are reachable:
+  - Participants
+  - Stakeholders
+  - Case templates
+  - Task types
+  - Users
+- Keep the 3x3 app launcher as app/module navigation only
+- Do not add create/grant/publish actions to the app launcher
+
+Suggested files:
+
+```text
+monorepo/apps/ui/src/App.tsx
+monorepo/apps/ui/src/pages/ConsolePages.tsx
+monorepo/apps/ui/src/components/ConsoleLayout.tsx
+```
+
+Acceptance:
+
+- Authority user can open Administration from the app launcher
+- Authority user can reach every Administration resource from inside Administration
+- The resource navigation appears consistently across Administration pages
+- Existing Participants and Stakeholders pages remain reachable
+- Login screen unchanged
+- `npm run type-check` passes
+- `npm run build` passes
+
+---
+
 ## Phase 2 - Authority Setup CRUD
 
 Goal:
@@ -240,21 +447,22 @@ Stories covered:
 
 Recommended UI:
 
-- Participants page: `Create Participant` button opens modal/form
+- Administration resource navigation should make Participants and Stakeholders reachable from inside Administration
+- Participants page: `Create Participant` action in `PageTitle.actions`
 - Participant detail page: add `Users` area/table and `Create User`
 - Stakeholders page: real list/detail page instead of generic placeholder
 - Stakeholder detail page: tabs for `Overview`, `Users`, `Participant Access`
 - Stakeholder detail page: grant access by selecting participants in the same authority
+- All create/grant forms should use the shared Resource Action Panel pattern
 
 Suggested new pages/components:
 
 ```text
 src/pages/StakeholderPages.tsx
-src/components/EntityFormDialog.tsx
-src/components/UserFormDialog.tsx
+src/components/ResourceActionPanel.tsx
 ```
 
-Keep forms small and direct.
+Keep forms small and direct. Do not add CRUD actions to the 3x3 app launcher.
 
 ### Create Participant
 
@@ -394,6 +602,10 @@ Recommended UI:
 
 - Replace `Case templates` placeholder with list page
 - Add case template detail page
+- Case Templates must be reachable through Administration resource navigation, not through the 3x3 launcher as a CRUD shortcut
+- `Create template` belongs in `PageTitle.actions` on the Case Templates page
+- `Add task`, `Assign participant` and `Publish` belong on the Case Template detail page
+- Use the shared Resource Action Panel pattern for create/add/assign actions
 - Use tabs:
   - Overview
   - Tasks
@@ -1082,4 +1294,3 @@ The full user story set is implemented when:
   - Participant completes and submits work
   - Authority reviews work
   - Stakeholder views approved outcomes
-
