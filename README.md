@@ -1,45 +1,44 @@
 # Azure 02 - Deploy A Website To Azure Blob Static Website Hosting
 
-## Introduction
+## Overview
 
-This lesson deploys a React, TypeScript, and Vite website to Azure in the simplest low-cost way used by this course: one Azure Storage account with Blob static website hosting enabled.
+This lesson deploys a built frontend to Azure Blob static website hosting.
 
-The deployed site uses the Azure-generated static website URL from the storage account. The lesson stays focused on Blob static website hosting and does not add extra hosting, edge, backend, database, secrets, or monitoring resources.
+The infrastructure is deliberately small:
 
-The application code lives in `monorepo/apps/ui`, the Bicep template lives in `monorepo/infra`, and the Azure CLI automation lives in `monorepo/scripts`.
+- one Azure resource group
+- one Azure Storage account
+- Blob static website hosting enabled on that storage account
+- the special `$web` container used by Azure static website hosting
+
+The site is served from the Azure-generated static website endpoint for the storage account.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  terminal[Developer terminal]
-  ui[React + Vite app<br/>monorepo/apps/ui]
-  dist[Build output<br/>apps/ui/dist]
-  bicep[Bicep<br/>one StorageV2 account]
-  storage[Azure Storage account<br/>Standard_LRS]
-  web[Blob static website<br/>$web container]
-  endpoint[Azure-generated website URL<br/>primaryEndpoints.web]
-  browser[Browser]
+  developer[Developer terminal]
+  build[Local website build output<br/>apps/ui/dist]
+  bicep[Bicep template<br/>monorepo/infra/main.bicep]
+  scripts[Azure CLI scripts<br/>monorepo/scripts]
 
-  terminal --> ui
-  terminal --> bicep
-  ui --> dist
-  bicep --> storage
-  storage --> web
-  dist --> web
+  subgraph Azure
+    rg[Resource group]
+    storage[Storage account<br/>StorageV2 / Standard_LRS]
+    web[Static website hosting<br/>$web container]
+    endpoint[Azure static website endpoint<br/>primaryEndpoints.web]
+  end
+
+  developer --> bicep
+  developer --> scripts
+  developer --> build
+  bicep --> rg
+  rg --> storage
+  scripts --> web
+  build --> web
+  storage --> endpoint
   web --> endpoint
-  browser --> endpoint
 ```
-
-## What Azure Creates
-
-The infrastructure is intentionally small:
-
-- one resource group
-- one Azure Storage account
-- the special `$web` container created when static website hosting is enabled
-
-The Bicep template provisions the storage account with `StorageV2` and `Standard_LRS`. The deployment script then enables static website hosting and uses `index.html` as both the index document and the 404 document so React Router routes can refresh correctly.
 
 ## Prerequisites
 
@@ -69,9 +68,9 @@ Select a subscription if your account has access to more than one:
 az account set --subscription "<subscription-id-or-name>"
 ```
 
-## How To Run
+## Deploy
 
-Run these commands from the repository root.
+Run commands from the repository root.
 
 Install dependencies:
 
@@ -79,18 +78,10 @@ Install dependencies:
 pnpm --dir monorepo install
 ```
 
-Run the app locally:
+Preview the infrastructure deployment:
 
 ```bash
-pnpm --dir monorepo run ui:dev
-```
-
-Run local checks:
-
-```bash
-pnpm --dir monorepo run type-check
-pnpm --dir monorepo run ui:build
-pnpm --dir monorepo run ui:preview
+pnpm --dir monorepo run infra:what-if
 ```
 
 Deploy the Azure infrastructure:
@@ -111,7 +102,7 @@ Print the live Azure-generated website URL:
 pnpm --dir monorepo run ui:url
 ```
 
-Deploy everything in one command:
+Deploy infrastructure, upload the files, and print the URL in one command:
 
 ```bash
 pnpm --dir monorepo run deploy-everything
@@ -141,37 +132,51 @@ Override values inline when needed:
 AZURE_LOCATION=westeurope AZURE_RESOURCE_GROUP=my-static-site-rg pnpm --dir monorepo run deploy-everything
 ```
 
-## Project Structure
-
-```text
-.
-├── README.md
-├── docs
-└── monorepo
-    ├── apps
-    │   └── ui
-    │       ├── src
-    │       ├── index.html
-    │       ├── package.json
-    │       ├── tsconfig.json
-    │       └── vite.config.ts
-    ├── infra
-    │   └── main.bicep
-    ├── scripts
-    │   ├── config.sh
-    │   ├── deploy-infra.sh
-    │   ├── destroy-infra.sh
-    │   ├── show-url.sh
-    │   ├── upload-ui.sh
-    │   └── what-if-infra.sh
-    ├── package.json
-    ├── pnpm-lock.yaml
-    └── pnpm-workspace.yaml
-```
-
 ## Infrastructure
 
-`monorepo/infra/main.bicep` creates a single storage account:
+The Bicep file for this lesson is `monorepo/infra/main.bicep`. It creates the Azure Storage account that will host the static website files.
+
+The first two lines define the Azure region:
+
+```bicep
+@description('The Azure region where the storage account will be created.')
+param location string = resourceGroup().location
+```
+
+`@description(...)` documents the parameter for anyone reading the template or viewing it through Azure tooling.
+
+`param location string` creates a parameter called `location` with the type `string`.
+
+`= resourceGroup().location` gives the parameter a default value. If the deployment command does not pass a location, Bicep uses the location of the resource group being deployed into.
+
+The next block defines a short application name:
+
+```bicep
+@description('A short lowercase name used to build the storage account name.')
+@minLength(3)
+@maxLength(16)
+param appName string = 'azure02web'
+```
+
+`@description(...)` explains why the parameter exists.
+
+`@minLength(3)` and `@maxLength(16)` validate the value before Azure tries to create anything. This matters because the value is used as part of an Azure Storage account name, and storage account names have strict length rules.
+
+`param appName string = 'azure02web'` creates the `appName` parameter and gives it a default value.
+
+The next line creates the final storage account name:
+
+```bicep
+var storageAccountName = take('${appName}${uniqueString(resourceGroup().id)}', 24)
+```
+
+`var storageAccountName` creates a Bicep variable. Variables are calculated during deployment and are not Azure resources themselves.
+
+`'${appName}${uniqueString(resourceGroup().id)}'` joins the short app name to a deterministic unique suffix based on the resource group id. The suffix helps make the storage account name globally unique while staying repeatable for the same resource group.
+
+`take(..., 24)` limits the generated name to 24 characters, which is the maximum length for an Azure Storage account name.
+
+The resource block creates the Azure Storage account:
 
 ```bicep
 resource websiteStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -187,18 +192,75 @@ resource websiteStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 }
 ```
 
-The storage account name is generated from `AZURE_APP_NAME` and the resource group id so it is globally unique and repeatable for the same resource group.
+`resource websiteStorage` declares an Azure resource in Bicep and gives it the local symbolic name `websiteStorage`. Other parts of the template can refer to this symbolic name.
+
+`'Microsoft.Storage/storageAccounts@2023-05-01'` tells Bicep the Azure resource type and API version to use.
+
+`name: storageAccountName` sets the real Azure resource name from the variable created earlier.
+
+`location: location` deploys the storage account to the parameter value from the first block.
+
+`sku: { name: 'Standard_LRS' }` chooses the storage account pricing and replication option. `Standard_LRS` means standard performance with locally redundant storage.
+
+`kind: 'StorageV2'` creates a general-purpose v2 storage account, which is the storage account type used for Blob static website hosting.
+
+`properties: { allowBlobPublicAccess: true }` allows blob containers in this account to support public access settings. Static website hosting serves files publicly from the special `$web` container.
+
+The final line outputs the storage account name:
+
+```bicep
+output storageAccountName string = websiteStorage.name
+```
+
+`output` exposes a value after deployment. The deployment scripts read this output so they can enable static website hosting and upload files without asking the learner to copy and paste the generated storage account name.
+
+The Bicep file creates the storage account. One extra infrastructure step is done by `monorepo/scripts/deploy-infra.sh` after the Bicep deployment: it enables Blob static website hosting on that storage account.
+
+This is the Azure CLI command that enables static website hosting:
+
+```bash
+az storage blob service-properties update \
+  --account-name "$STORAGE_ACCOUNT_NAME" \
+  --static-website \
+  --index-document index.html \
+  --404-document index.html \
+  --account-key "$STORAGE_ACCOUNT_KEY"
+```
+
+`index.html` is used as the 404 document so browser routes can be handled by the uploaded frontend.
 
 ## Scripts
 
 - `infra:deploy` creates the resource group, deploys Bicep, reads the storage account name, and enables Blob static website hosting.
 - `infra:what-if` previews the Bicep deployment.
-- `ui:build` builds the Vite app into `apps/ui/dist`.
+- `ui:build` builds the website into `apps/ui/dist`.
 - `ui:upload` uploads `apps/ui/dist` into the `$web` container.
 - `ui:url` prints the storage account's `primaryEndpoints.web` URL.
-- `deploy-website` builds and uploads the frontend.
-- `deploy-everything` deploys infrastructure, builds the frontend, uploads it, and prints the live URL.
+- `deploy-website` builds and uploads the website.
+- `deploy-everything` deploys infrastructure, builds the website, uploads it, and prints the live URL.
 - `infra:destroy` deletes the resource group.
+
+## Project Structure
+
+```text
+.
+├── README.md
+└── monorepo
+    ├── apps
+    │   └── ui
+    ├── infra
+    │   └── main.bicep
+    ├── scripts
+    │   ├── config.sh
+    │   ├── deploy-infra.sh
+    │   ├── destroy-infra.sh
+    │   ├── show-url.sh
+    │   ├── upload-ui.sh
+    │   └── what-if-infra.sh
+    ├── package.json
+    ├── pnpm-lock.yaml
+    └── pnpm-workspace.yaml
+```
 
 ## Troubleshooting
 
@@ -213,5 +275,3 @@ If `ui:url` cannot find a URL, deploy the infrastructure first:
 ```bash
 pnpm --dir monorepo run infra:deploy
 ```
-
-If a refreshed route such as `/cases` does not load, redeploy the infrastructure. The deployment script sets `index.html` as the static website 404 document, which lets the React app handle client-side routes.
