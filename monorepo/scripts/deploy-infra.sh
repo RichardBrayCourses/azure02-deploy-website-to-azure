@@ -33,16 +33,11 @@ STORAGE_ACCOUNT_NAME=$(az deployment group show \
   --query "properties.outputs.storageAccountName.value" \
   --output tsv)
 
-if [[ "$AZURE_STORAGE_AUTH_MODE" == "key" ]]; then
-  STORAGE_ACCOUNT_KEY=$(az storage account keys list \
-    --resource-group "$AZURE_RESOURCE_GROUP" \
-    --account-name "$STORAGE_ACCOUNT_NAME" \
-    --query "[0].value" \
-    --output tsv)
-  STORAGE_AUTH_ARGS=(--account-key "$STORAGE_ACCOUNT_KEY")
-else
-  STORAGE_AUTH_ARGS=(--auth-mode "$AZURE_STORAGE_AUTH_MODE")
-fi
+STORAGE_ACCOUNT_KEY=$(az storage account keys list \
+  --resource-group "$AZURE_RESOURCE_GROUP" \
+  --account-name "$STORAGE_ACCOUNT_NAME" \
+  --query "[0].value" \
+  --output tsv)
 
 echo ""
 echo "Enabling static website hosting on: $STORAGE_ACCOUNT_NAME"
@@ -53,7 +48,7 @@ az storage blob service-properties update \
   --static-website \
   --index-document index.html \
   --404-document index.html \
-  "${STORAGE_AUTH_ARGS[@]}" \
+  --account-key "$STORAGE_ACCOUNT_KEY" \
   --output table
 
 echo ""

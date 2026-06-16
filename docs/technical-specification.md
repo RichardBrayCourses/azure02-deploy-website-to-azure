@@ -43,13 +43,11 @@ It is based on:
 | Queues | Azure Queue Storage |
 | Monitoring | Application Insights, Azure Monitor |
 | Infrastructure as code | Bicep |
-| DNS and edge | Azure DNS, Azure Managed Certificates, future Azure Front Door or Static Web Apps where needed |
 
 ## Current Repository Structure
 
 ```text
 .
-+-- package.json
 +-- README.md
 +-- docs
 +-- monorepo
@@ -222,25 +220,24 @@ It is based on:
 
 ## Automation
 
-- Root scripts delegate into `monorepo`.
+- Commands can be run from the repository root with `pnpm --dir monorepo`.
 - Main scripts:
-  - `pnpm run ui:dev`
-  - `pnpm run ui:build`
-  - `pnpm run ui:preview`
-  - `pnpm run type-check`
-  - `pnpm run infra:what-if`
-  - `pnpm run infra:deploy`
-  - `pnpm run ui:upload`
-  - `pnpm run ui:url`
-  - `pnpm run deploy-website`
-  - `pnpm run deploy-everything`
-  - `pnpm run infra:destroy`
+  - `pnpm --dir monorepo run ui:dev`
+  - `pnpm --dir monorepo run ui:build`
+  - `pnpm --dir monorepo run ui:preview`
+  - `pnpm --dir monorepo run type-check`
+  - `pnpm --dir monorepo run infra:what-if`
+  - `pnpm --dir monorepo run infra:deploy`
+  - `pnpm --dir monorepo run ui:upload`
+  - `pnpm --dir monorepo run ui:url`
+  - `pnpm --dir monorepo run deploy-website`
+  - `pnpm --dir monorepo run deploy-everything`
+  - `pnpm --dir monorepo run infra:destroy`
 - Configurable environment values:
   - `AZURE_LOCATION`
   - `AZURE_RESOURCE_GROUP`
   - `AZURE_DEPLOYMENT_NAME`
   - `AZURE_APP_NAME`
-  - `AZURE_STORAGE_AUTH_MODE`
   - `UI_DIST_DIR`
 
 ## Current Limitations
