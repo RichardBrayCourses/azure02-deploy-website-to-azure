@@ -58,14 +58,15 @@ const AppContent = () => {
 
         <Route path="/cases" element={<CaseManagementHome mode="cases" />} />
         <Route path="/cases/suppliers" element={<CaseManagementHome mode="suppliers" />} />
+        <Route path="/cases/users" element={<CaseManagementHome mode="users" />} />
         <Route path="/cases/access-grants" element={<AccessGrantsPage />} />
         <Route path="/cases/:caseId" element={<CaseDetailPage />} />
         <Route path="/cases/:caseId/tasks/:taskId" element={<TaskDetailPage />} />
         <Route path="/stakeholder" element={<StakeholderPortalPage />} />
         <Route path="/stakeholder/participants/:participantId" element={<StakeholderParticipantDetailPage />} />
         <Route path="/stakeholder/:caseId" element={<StakeholderCaseDetailPage />} />
-        <Route path="/helper" element={<HelperWorkspacePage />} />
-        <Route path="/helper/participants/:participantId" element={<HelperParticipantPage />} />
+        <Route path="/agent" element={<Navigate to="/cases" replace />} />
+        <Route path="/agent/participants/:participantId" element={<Navigate to="/cases" replace />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

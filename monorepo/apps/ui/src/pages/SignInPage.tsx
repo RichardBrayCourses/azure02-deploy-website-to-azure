@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import {
   type AuthenticatableUserMembership,
+  agents,
   authorities,
   getAccountContextsForUser,
   getAuthenticatableUsersForEntity,
@@ -21,13 +22,14 @@ const contextLabels = {
   authority: "Authority",
   participant: "Participant",
   stakeholder: "Stakeholder",
-  helper: "Service provider",
+  agent: "Agent",
 };
 
 const contextTypeOptions: Array<{ value: PrimaryContextType; label: string }> = [
   { value: "authority", label: "Authority" },
   { value: "participant", label: "Participant" },
   { value: "stakeholder", label: "Stakeholder" },
+  { value: "agent", label: "Agent" },
 ];
 
 export default function SignInPage() {
@@ -53,6 +55,13 @@ export default function SignInPage() {
         id: stakeholder.id,
         name: stakeholder.name,
         authorityName: authorities.find((authority) => authority.id === stakeholder.authorityId)?.name,
+      }));
+    }
+    if (selectedContextType === "agent") {
+      return agents.map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        authorityName: authorities.find((authority) => authority.id === agent.authorityId)?.name,
       }));
     }
     return [];

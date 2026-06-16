@@ -147,13 +147,13 @@ const Header = () => {
         ? terminologyTitle(terminology, "participant")
         : user.role === "stakeholder"
           ? terminologyTitle(terminology, "stakeholder")
-          : "Helper";
+          : "Agent";
 
   function contextRoleLabel(role: AccountContext["role"]) {
     if (role === "authority-admin") return terminologyTitle(terminology, "authority");
     if (role === "participant") return terminologyTitle(terminology, "participant");
     if (role === "stakeholder") return terminologyTitle(terminology, "stakeholder");
-    return "Helper";
+    return "Agent";
   }
 
   function switchContext(context: AccountContext) {

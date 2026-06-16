@@ -19,12 +19,12 @@ import type { AccountContextType, AuthenticatedUser, UserRole } from "@/context/
 
 export type EntityStatus = "ACTIVE" | "INACTIVE";
 export type InviteStatus = EntityStatus | "INVITED";
-export type UserKind = "SYSTEM_OWNER" | "AUTHORITY" | "PARTICIPANT" | "STAKEHOLDER";
+export type UserKind = "SYSTEM_OWNER" | "AUTHORITY" | "PARTICIPANT" | "STAKEHOLDER" | "AGENT";
 export type MembershipRole = "ADMIN" | "MEMBER";
 export type PartyType = "ORGANISATION" | "PERSON";
 export type AccessStatus = "APPROVED" | "SUSPENDED" | "REVOKED";
 export type AccessGrantStatus = "INVITED" | "ACTIVE" | "SUSPENDED" | "REVOKED" | "EXPIRED";
-export type AccessGrantGranteeType = "STAKEHOLDER" | "HELPER" | "USER" | "AUTHORITY";
+export type AccessGrantGranteeType = "STAKEHOLDER" | "AGENT" | "USER" | "AUTHORITY";
 export type AccessGrantPermissionLevel =
   | "READ_ONLY"
   | "REQUEST_INFORMATION"
@@ -49,6 +49,7 @@ export type SystemOwnerId = string;
 export type AuthorityId = string;
 export type ParticipantId = string;
 export type StakeholderId = string;
+export type AgentId = string;
 export type UserAccountId = string;
 export type TaskTypeId = string;
 export type CaseTemplateId = string;
@@ -115,6 +116,13 @@ export type StakeholderDto = BaseDto & {
   status: InviteStatus;
 };
 
+export type AgentDto = BaseDto & {
+  authorityId: AuthorityId;
+  agentType: PartyType;
+  displayName: string;
+  status: InviteStatus;
+};
+
 export type UserAccountDto = BaseDto & {
   entraObjectId: string;
   email: string;
@@ -124,7 +132,7 @@ export type UserAccountDto = BaseDto & {
 };
 
 export type MembershipDto = BaseDto & {
-  entityId: SystemOwnerId | AuthorityId | ParticipantId | StakeholderId;
+  entityId: SystemOwnerId | AuthorityId | ParticipantId | StakeholderId | AgentId;
   userAccountId: UserAccountId;
   role: MembershipRole;
 };
@@ -142,6 +150,7 @@ export type AccessGrantDto = BaseDto & {
   participantId: ParticipantId;
   granteeType: AccessGrantGranteeType;
   granteeStakeholderId: StakeholderId | null;
+  granteeAgentId: AgentId | null;
   granteeUserId: UserAccountId | null;
   permissionLevel: AccessGrantPermissionLevel;
   dataScopeType: AccessGrantDataScopeType;
@@ -254,11 +263,19 @@ export type CreateParticipantCommand = {
   participantType: PartyType;
   displayName: string;
   status?: InviteStatus;
+  initialUser?: CreateEntityUserCommand;
 };
 
 export type CreateStakeholderCommand = {
   authorityId: AuthorityId;
   stakeholderType: PartyType;
+  displayName: string;
+  status?: InviteStatus;
+};
+
+export type CreateAgentCommand = {
+  authorityId: AuthorityId;
+  agentType: PartyType;
   displayName: string;
   status?: InviteStatus;
 };
@@ -285,6 +302,7 @@ export type CreateAccessGrantCommand = {
   participantId: ParticipantId;
   granteeType: AccessGrantGranteeType;
   granteeStakeholderId?: StakeholderId | null;
+  granteeAgentId?: AgentId | null;
   granteeUserId?: UserAccountId | null;
   permissionLevel: AccessGrantPermissionLevel;
   dataScopeType?: AccessGrantDataScopeType;
@@ -389,11 +407,13 @@ export class AuthorityEntity extends DomainEntity<AuthorityDto> {}
 export class AuthorityTerminologyEntity extends DomainEntity<AuthorityTerminologyDto> {}
 export class ParticipantEntity extends DomainEntity<ParticipantDto> {}
 export class StakeholderEntity extends DomainEntity<StakeholderDto> {}
+export class AgentEntity extends DomainEntity<AgentDto> {}
 export class UserAccountEntity extends DomainEntity<UserAccountDto> {}
 export class SystemOwnerUserEntity extends DomainEntity<MembershipDto> {}
 export class AuthorityUserEntity extends DomainEntity<MembershipDto> {}
 export class ParticipantUserEntity extends DomainEntity<MembershipDto> {}
 export class StakeholderUserEntity extends DomainEntity<MembershipDto> {}
+export class AgentUserEntity extends DomainEntity<MembershipDto> {}
 export class StakeholderParticipantAccessEntity extends DomainEntity<StakeholderParticipantAccessDto> {}
 export class AccessGrantEntity extends DomainEntity<AccessGrantDto> {}
 export class TaskTypeEntity extends DomainEntity<TaskTypeDto> {}
@@ -409,10 +429,11 @@ export class ParticipantSupplierEntity extends DomainEntity<ParticipantSupplierD
 export type AuthenticatableUserMembership =
   | { entityType: "authority"; entityId: AuthorityId }
   | { entityType: "participant"; entityId: ParticipantId }
-  | { entityType: "stakeholder"; entityId: StakeholderId };
+  | { entityType: "stakeholder"; entityId: StakeholderId }
+  | { entityType: "agent"; entityId: AgentId };
 
 export type ConsoleApp = {
-  id: "administration" | "case-management" | "stakeholder-portal" | "helper-workspace";
+  id: "administration" | "case-management" | "stakeholder-portal";
   name: string;
   shortName: string;
   description: string;
@@ -459,6 +480,15 @@ export type Stakeholder = {
   visibleParticipants: number;
 };
 
+export type Agent = {
+  id: AgentId;
+  authorityId: AuthorityId;
+  name: string;
+  type: string;
+  status: InviteStatus;
+  grantedParticipants: number;
+};
+
 export type AccessGrant = {
   id: AccessGrantId;
   authorityId: AuthorityId;
@@ -467,6 +497,7 @@ export type AccessGrant = {
   granteeType: AccessGrantGranteeType;
   granteeName: string;
   granteeStakeholderId: StakeholderId | null;
+  granteeAgentId: AgentId | null;
   permissionLevel: AccessGrantPermissionLevel;
   permissionLabel: string;
   dataScopeType: AccessGrantDataScopeType;
@@ -853,11 +884,21 @@ export class InMemoryAllChecksOutDatabase {
       displayName: "Mercury Retail PLC",
       status: "ACTIVE",
     }),
-    new StakeholderEntity({
+  ];
+
+  readonly agents = [
+    new AgentEntity({
       ...base("sentinel-grc"),
       authorityId: "northstar-association",
-      stakeholderType: "ORGANISATION",
+      agentType: "ORGANISATION",
       displayName: "Sentinel GRC Advisory",
+      status: "ACTIVE",
+    }),
+    new AgentEntity({
+      ...base("ledgerfield-legal"),
+      authorityId: "northstar-association",
+      agentType: "ORGANISATION",
+      displayName: "Ledgerfield Legal LLP",
       status: "ACTIVE",
     }),
   ];
@@ -875,8 +916,9 @@ export class InMemoryAllChecksOutDatabase {
     this.user("user-peter-walsh", "Peter Walsh", "peter.walsh@harrington.example", "STAKEHOLDER"),
     this.user("user-sophie-turner", "Sophie Turner", "sophie.turner@mercury-retail.example", "STAKEHOLDER"),
     this.user("user-benjamin-foster", "Benjamin Foster", "benjamin.foster@mercury-retail.example", "STAKEHOLDER"),
-    this.user("user-priya-shah", "Priya Shah", "priya.shah@sentinel-grc.example", "STAKEHOLDER"),
-    this.user("user-george-evans", "George Evans", "george.evans@sentinel-grc.example", "STAKEHOLDER"),
+    this.user("user-priya-shah", "Priya Shah", "priya.shah@sentinel-grc.example", "AGENT"),
+    this.user("user-george-evans", "George Evans", "george.evans@sentinel-grc.example", "AGENT"),
+    this.user("user-ellen-brooks", "Ellen Brooks", "ellen.brooks@ledgerfield.example", "AGENT"),
     this.user("user-nadia-cole", "Nadia Cole", "nadia.cole@portfolio.example", "PARTICIPANT"),
   ];
 
@@ -900,9 +942,12 @@ export class InMemoryAllChecksOutDatabase {
     this.membership("stakeholder-user-peter-walsh", "harrington-financial", "user-peter-walsh", "MEMBER", StakeholderUserEntity),
     this.membership("stakeholder-user-sophie-turner", "mercury-retail", "user-sophie-turner", "ADMIN", StakeholderUserEntity),
     this.membership("stakeholder-user-benjamin-foster", "mercury-retail", "user-benjamin-foster", "MEMBER", StakeholderUserEntity),
-    this.membership("stakeholder-user-priya-shah", "sentinel-grc", "user-priya-shah", "ADMIN", StakeholderUserEntity),
-    this.membership("stakeholder-user-george-evans", "sentinel-grc", "user-george-evans", "MEMBER", StakeholderUserEntity),
-    this.membership("stakeholder-user-nadia-cole", "sentinel-grc", "user-nadia-cole", "MEMBER", StakeholderUserEntity),
+  ];
+
+  readonly agentUsers = [
+    this.membership("agent-user-priya-shah", "sentinel-grc", "user-priya-shah", "ADMIN", AgentUserEntity),
+    this.membership("agent-user-george-evans", "sentinel-grc", "user-george-evans", "MEMBER", AgentUserEntity),
+    this.membership("agent-user-ellen-brooks", "ledgerfield-legal", "user-ellen-brooks", "ADMIN", AgentUserEntity),
   ];
 
   readonly stakeholderParticipantAccess = [
@@ -910,8 +955,6 @@ export class InMemoryAllChecksOutDatabase {
     this.access("access-harrington-cobalt", "harrington-financial", "cobalt-workflow", "user-lewis-green"),
     this.access("access-mercury-cobalt", "mercury-retail", "cobalt-workflow", "user-lewis-green"),
     this.access("access-mercury-pinebridge", "mercury-retail", "pinebridge-data", "user-maya-patel"),
-    this.access("access-sentinel-northstar", "sentinel-grc", "northstar-cloud", "user-aisha-khan"),
-    this.access("access-sentinel-asteria", "sentinel-grc", "asteria-identity", "user-owen-clarke"),
   ];
 
   readonly accessGrants = [
@@ -920,8 +963,8 @@ export class InMemoryAllChecksOutDatabase {
     this.accessGrant("grant-mercury-cobalt", "cobalt-workflow", "STAKEHOLDER", "mercury-retail", "REQUEST_INFORMATION", "ACTIVE", "user-lewis-green"),
     this.accessGrant("grant-mercury-pinebridge", "pinebridge-data", "STAKEHOLDER", "mercury-retail", "REVIEW_AND_COMMENT", "ACTIVE", "user-maya-patel"),
     this.accessGrant("grant-mercury-northstar-stratuspay", "northstar-cloud", "STAKEHOLDER", "mercury-retail", "REQUEST_INFORMATION", "ACTIVE", "user-aisha-khan", "PARTICIPANT_SUPPLIER", "participant-supplier-northstar-stratuspay"),
-    this.accessGrant("grant-sentinel-northstar", "northstar-cloud", "HELPER", "sentinel-grc", "CREATE_AND_EDIT", "ACTIVE", "user-aisha-khan"),
-    this.accessGrant("grant-sentinel-asteria", "asteria-identity", "HELPER", "sentinel-grc", "REVIEW_AND_COMMENT", "ACTIVE", "user-owen-clarke"),
+    this.accessGrant("grant-sentinel-northstar", "northstar-cloud", "AGENT", "sentinel-grc", "CREATE_AND_EDIT", "ACTIVE", "user-aisha-khan"),
+    this.accessGrant("grant-sentinel-asteria", "asteria-identity", "AGENT", "sentinel-grc", "REVIEW_AND_COMMENT", "ACTIVE", "user-owen-clarke"),
   ];
 
   readonly participantSuppliers = [
@@ -1201,6 +1244,16 @@ export class InMemoryAllChecksOutDatabase {
       .filter((stakeholder) => stakeholder.authorityId === authorityId);
   }
 
+  getAgent(agentId: AgentId) {
+    return this.agents.find((agent) => agent.id === agentId)?.toDto() ?? null;
+  }
+
+  getAgentsForAuthority(authorityId: AuthorityId) {
+    return this.agents
+      .map((agent) => agent.toDto())
+      .filter((agent) => agent.authorityId === authorityId);
+  }
+
   getCaseTemplate(caseTemplateId: CaseTemplateId) {
     return this.caseTemplates.find((template) => template.id === caseTemplateId)?.toDto() ?? null;
   }
@@ -1251,13 +1304,13 @@ export class InMemoryAllChecksOutDatabase {
       .filter((grant) => grant.granteeStakeholderId === stakeholderId && grant.status === "ACTIVE");
   }
 
-  getActiveHelperAccessGrants(helperStakeholderId: StakeholderId) {
+  getActiveHelperAccessGrants(agentId: AgentId) {
     return this.accessGrants
       .map((grant) => grant.toDto())
       .filter(
         (grant) =>
-          grant.granteeStakeholderId === helperStakeholderId &&
-          grant.granteeType === "HELPER" &&
+          grant.granteeAgentId === agentId &&
+          grant.granteeType === "AGENT" &&
           grant.status === "ACTIVE",
       );
   }
@@ -1280,6 +1333,10 @@ export class InMemoryAllChecksOutDatabase {
     return this.getMembershipUsers(this.stakeholderUsers, stakeholderId);
   }
 
+  getUsersForAgent(agentId: AgentId) {
+    return this.getMembershipUsers(this.agentUsers, agentId);
+  }
+
   getUsersForAuthority(authorityId: AuthorityId) {
     return this.getMembershipUsers(this.authorityUsers, authorityId);
   }
@@ -1294,6 +1351,9 @@ export class InMemoryAllChecksOutDatabase {
       status: command.status ?? "ACTIVE",
     });
     this.participants.push(participant);
+    if (command.initialUser) {
+      this.createParticipantUser(participant.id, command.initialUser);
+    }
     return participant.toDto();
   }
 
@@ -1349,6 +1409,32 @@ export class InMemoryAllChecksOutDatabase {
     return { userAccount, stakeholderUser: membership.toDto() };
   }
 
+  createAgent(command: CreateAgentCommand) {
+    this.requireAuthority(command.authorityId);
+    const agent = new AgentEntity({
+      ...this.createBase(this.nextId("agent", this.agents)),
+      authorityId: command.authorityId,
+      agentType: command.agentType,
+      displayName: command.displayName,
+      status: command.status ?? "ACTIVE",
+    });
+    this.agents.push(agent);
+    return agent.toDto();
+  }
+
+  createAgentUser(agentId: AgentId, command: CreateEntityUserCommand) {
+    this.requireAgent(agentId);
+    const userAccount = this.createUserAccount(command.displayName, command.email, "AGENT");
+    const membership = new AgentUserEntity({
+      ...this.createBase(this.nextId("agent-user", this.agentUsers)),
+      entityId: agentId,
+      userAccountId: userAccount.id,
+      role: command.role,
+    });
+    this.agentUsers.push(membership);
+    return { userAccount, agentUser: membership.toDto() };
+  }
+
   grantStakeholderAccess(command: GrantStakeholderAccessCommand) {
     const stakeholder = this.requireStakeholder(command.stakeholderId);
     const participant = this.requireParticipant(command.participantId);
@@ -1392,12 +1478,21 @@ export class InMemoryAllChecksOutDatabase {
     if (participant.authorityId !== authority.id) {
       throw new Error("Access grant participant must belong to the selected authority.");
     }
-    if (command.granteeType === "STAKEHOLDER" || command.granteeType === "HELPER") {
+    if (command.granteeType === "STAKEHOLDER") {
       if (!command.granteeStakeholderId) {
-        throw new Error("Select a stakeholder or service provider for this access grant.");
+        throw new Error("Select a stakeholder for this access grant.");
       }
       const stakeholder = this.requireStakeholder(command.granteeStakeholderId);
       if (stakeholder.authorityId !== authority.id) {
+        throw new Error("Access grant grantee must belong to the selected authority.");
+      }
+    }
+    if (command.granteeType === "AGENT") {
+      if (!command.granteeAgentId) {
+        throw new Error("Select an agent for this access grant.");
+      }
+      const agent = this.requireAgent(command.granteeAgentId);
+      if (agent.authorityId !== authority.id) {
         throw new Error("Access grant grantee must belong to the selected authority.");
       }
     }
@@ -1420,6 +1515,7 @@ export class InMemoryAllChecksOutDatabase {
         dto.participantId === command.participantId &&
         dto.granteeType === command.granteeType &&
         dto.granteeStakeholderId === (command.granteeStakeholderId ?? null) &&
+        dto.granteeAgentId === (command.granteeAgentId ?? null) &&
         dto.granteeUserId === (command.granteeUserId ?? null) &&
         dto.dataScopeType === (command.dataScopeType ?? "PARTICIPANT_WORKSPACE") &&
         dto.dataScopeId === (command.dataScopeId ?? null) &&
@@ -1436,6 +1532,7 @@ export class InMemoryAllChecksOutDatabase {
       participantId: command.participantId,
       granteeType: command.granteeType,
       granteeStakeholderId: command.granteeStakeholderId ?? null,
+      granteeAgentId: command.granteeAgentId ?? null,
       granteeUserId: command.granteeUserId ?? null,
       permissionLevel: command.permissionLevel,
       dataScopeType: command.dataScopeType ?? "PARTICIPANT_WORKSPACE",
@@ -1625,12 +1722,12 @@ export class InMemoryAllChecksOutDatabase {
       const dto = membership.toDto();
       return dto.entityId === request.participantId && dto.userAccountId === respondent.id;
     });
-    const helperStakeholderIds = this.stakeholderUsers
+    const agentIds = this.agentUsers
       .map((membership) => membership.toDto())
       .filter((membership) => membership.userAccountId === respondent.id)
       .map((membership) => membership.entityId);
-    const hasHelperEditGrant = helperStakeholderIds.some((stakeholderId) =>
-      this.getActiveHelperAccessGrants(stakeholderId).some(
+    const hasHelperEditGrant = agentIds.some((agentId) =>
+      this.getActiveHelperAccessGrants(agentId).some(
         (grant) =>
           grant.participantId === request.participantId &&
           (grant.permissionLevel === "CREATE_AND_EDIT" || grant.permissionLevel === "ADMINISTER_GRANTS") &&
@@ -1638,7 +1735,7 @@ export class InMemoryAllChecksOutDatabase {
       ),
     );
     if (!isParticipantUser && !hasHelperEditGrant) {
-      throw new Error("Only the owning participant or an authorised service provider can respond to this request.");
+      throw new Error("Only the owning participant or an authorised agent can respond to this request.");
     }
     const responseText = command.responseText.trim();
     if (!responseText) {
@@ -1990,7 +2087,7 @@ export class InMemoryAllChecksOutDatabase {
     id: AccessGrantId,
     participantId: ParticipantId,
     granteeType: AccessGrantGranteeType,
-    granteeStakeholderId: StakeholderId,
+    granteeEntityId: StakeholderId | AgentId,
     permissionLevel: AccessGrantPermissionLevel,
     status: AccessGrantStatus,
     createdByUserId: UserAccountId,
@@ -2003,7 +2100,8 @@ export class InMemoryAllChecksOutDatabase {
       authorityId: participant?.authorityId ?? "northstar-association",
       participantId,
       granteeType,
-      granteeStakeholderId,
+      granteeStakeholderId: granteeType === "STAKEHOLDER" ? granteeEntityId : null,
+      granteeAgentId: granteeType === "AGENT" ? granteeEntityId : null,
       granteeUserId: null,
       permissionLevel,
       dataScopeType,
@@ -2285,6 +2383,12 @@ export class InMemoryAllChecksOutDatabase {
     return stakeholder;
   }
 
+  private requireAgent(agentId: AgentId) {
+    const agent = this.getAgent(agentId);
+    if (!agent) throw new Error(`Agent ${agentId} was not found.`);
+    return agent;
+  }
+
   private requireUserAccount(userAccountId: UserAccountId) {
     const userAccount = this.userAccounts.find((account) => account.id === userAccountId)?.toDto();
     if (!userAccount) throw new Error(`User account ${userAccountId} was not found.`);
@@ -2447,7 +2551,7 @@ export const consoleApps: ConsoleApp[] = [
     path: "/cases",
     accent: "bg-[#0078d4]",
     Icon: FolderKanban,
-    audience: ["participant"],
+    audience: ["participant", "agent"],
   },
   {
     id: "stakeholder-portal",
@@ -2458,16 +2562,6 @@ export const consoleApps: ConsoleApp[] = [
     accent: "bg-[#00703c]",
     Icon: BadgeCheck,
     audience: ["stakeholder"],
-  },
-  {
-    id: "helper-workspace",
-    name: "Service Provider Workspace",
-    shortName: "Service",
-    description: "Assist participant workspaces where delegated helper access is active.",
-    path: "/helper",
-    accent: "bg-[#4c2c92]",
-    Icon: Handshake,
-    audience: ["helper"],
   },
 ];
 
@@ -2662,6 +2756,20 @@ function buildStakeholders(): Stakeholder[] {
   });
 }
 
+function buildAgents(): Agent[] {
+  return db.agents.map((agent) => {
+    const dto = agent.toDto();
+    return {
+      id: dto.id,
+      authorityId: dto.authorityId,
+      name: dto.displayName,
+      type: dto.agentType === "ORGANISATION" ? "Organisation" : "Person",
+      status: dto.status,
+      grantedParticipants: db.getActiveHelperAccessGrants(dto.id).length,
+    };
+  });
+}
+
 function accessGrantPermissionLabel(permissionLevel: AccessGrantPermissionLevel) {
   const labels: Record<AccessGrantPermissionLevel, string> = {
     READ_ONLY: "Read only",
@@ -2690,6 +2798,7 @@ function buildAccessGrants(): AccessGrant[] {
     const dto = grant.toDto();
     const participant = getParticipant(dto.participantId);
     const stakeholder = dto.granteeStakeholderId ? getStakeholder(dto.granteeStakeholderId) : null;
+    const agent = dto.granteeAgentId ? getAgent(dto.granteeAgentId) : null;
     const user = dto.granteeUserId ? db.userAccounts.find((account) => account.id === dto.granteeUserId)?.toDto() : null;
     const createdBy = db.userAccounts.find((account) => account.id === dto.createdByUserId)?.toDto();
     return {
@@ -2698,8 +2807,9 @@ function buildAccessGrants(): AccessGrant[] {
       participantId: dto.participantId,
       participantName: participant?.name ?? "Unknown participant",
       granteeType: dto.granteeType,
-      granteeName: stakeholder?.name ?? user?.displayName ?? "Unknown grantee",
+      granteeName: stakeholder?.name ?? agent?.name ?? user?.displayName ?? "Unknown grantee",
       granteeStakeholderId: dto.granteeStakeholderId,
+      granteeAgentId: dto.granteeAgentId,
       permissionLevel: dto.permissionLevel,
       permissionLabel: accessGrantPermissionLabel(dto.permissionLevel),
       dataScopeType: dto.dataScopeType,
@@ -2850,6 +2960,18 @@ function buildAuthenticatableUsers(): AuthenticatableUser[] {
         membershipRole: dto.role,
       };
     }),
+    ...db.agentUsers.map((membership) => {
+      const dto = membership.toDto();
+      const user = db.userAccounts.find((account) => account.id === dto.userAccountId)?.toDto();
+      return {
+        id: dto.userAccountId,
+        name: user?.displayName ?? "Unknown user",
+        email: user?.email ?? "",
+        userKind: "AGENT" as const,
+        membership: { entityType: "agent" as const, entityId: dto.entityId },
+        membershipRole: dto.role,
+      };
+    }),
   ];
 }
 
@@ -2917,6 +3039,28 @@ function buildAccountContexts(): AccountContext[] {
       }];
     }
 
+    if (membership.membership.entityType === "agent") {
+      const agent = getAgent(membership.membership.entityId);
+      const authority = getAuthority(agent?.authorityId);
+      if (!agent || !authority) return [];
+      return [{
+        id: `${membership.id}:agent:${agent.id}`,
+        authenticatableUserId: membership.id,
+        name: membership.name,
+        email: membership.email,
+        authorityId: authority.id,
+        authorityName: authority.name,
+        role,
+        entityType: membership.membership.entityType,
+        entityId: agent.id,
+        entityName: agent.name,
+        membershipRole: membership.membershipRole,
+        participantId: null,
+        stakeholderId: null,
+        description: "Assist participant workspaces where agent access has been granted.",
+      }];
+    }
+
     const stakeholder = getStakeholder(membership.membership.entityId);
     const authority = getAuthority(stakeholder?.authorityId);
     if (!stakeholder || !authority) return [];
@@ -2936,18 +3080,7 @@ function buildAccountContexts(): AccountContext[] {
       stakeholderId: stakeholder.id,
       description: "Review participant case that has been granted to this stakeholder account.",
     };
-    const helperGrantCount = db.getActiveHelperAccessGrants(stakeholder.id).length;
-    if (helperGrantCount === 0) return [stakeholderContext];
-    return [
-      stakeholderContext,
-      {
-        ...stakeholderContext,
-        id: `${membership.id}:helper:${stakeholder.id}`,
-        role: "helper",
-        entityType: "helper",
-        description: `Assist ${helperGrantCount} participant workspace${helperGrantCount === 1 ? "" : "s"} through active service-provider grants.`,
-      },
-    ];
+    return [stakeholderContext];
   });
 }
 
@@ -2979,13 +3112,6 @@ function buildSearchItems(): SearchItem[] {
       group: "Participants",
       audience: ["authority-admin", "stakeholder"] as UserRole[],
     })),
-    ...participants.map((participant) => ({
-      title: participant.name,
-      description: `${participant.type} service-provider client workspace`,
-      path: `/helper/participants/${participant.id}`,
-      group: "Participants",
-      audience: ["helper"] as UserRole[],
-    })),
     ...stakeholders.map((stakeholder) => ({
       title: stakeholder.name,
       description: `${stakeholder.visibleParticipants} active participant access record`,
@@ -3007,7 +3133,7 @@ function buildSearchItems(): SearchItem[] {
         description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} case tasks complete`,
         path: `/cases/${caseRecord.id}`,
         group: "Cases",
-        audience: ["participant", "helper"] as UserRole[],
+        audience: ["participant", "agent"] as UserRole[],
       };
     }),
     ...cases.flatMap((caseRecord) => caseRecord.tasks.map((task) => ({
@@ -3015,7 +3141,7 @@ function buildSearchItems(): SearchItem[] {
       description: task.type,
       path: `/cases/${caseRecord.id}/tasks/${task.id}`,
       group: "Case tasks",
-      audience: ["participant", "helper"] as UserRole[],
+      audience: ["participant", "agent"] as UserRole[],
     }))),
   ];
 }
@@ -3026,6 +3152,7 @@ export let taskTypes: TaskType[] = [];
 export let caseTemplates: CaseTemplate[] = [];
 export let cases: CaseRecord[] = [];
 export let stakeholders: Stakeholder[] = [];
+export let agents: Agent[] = [];
 export let participants: Participant[] = [];
 export let accessGrants: AccessGrant[] = [];
 export let stakeholderReviews: StakeholderReview[] = [];
@@ -3045,6 +3172,7 @@ export function refreshConsoleViewModels() {
   cases = buildCaseRecords();
   participantSuppliers = buildParticipantSuppliers();
   stakeholders = buildStakeholders();
+  agents = buildAgents();
   participants = buildParticipants(cases);
   accessGrants = buildAccessGrants();
   stakeholderReviews = buildStakeholderReviews();
@@ -3063,7 +3191,6 @@ export function getConsoleAppsForRole(role: UserRole) {
 }
 
 export function getDefaultConsolePath(role: UserRole) {
-  if (role === "helper") return "/helper";
   if (role === "stakeholder") return "/stakeholder";
   if (role === "authority-admin") return "/admin/participants";
   return "/cases";
@@ -3138,6 +3265,10 @@ export function getStakeholder(id: string | undefined) {
   return stakeholders.find((stakeholder) => stakeholder.id === id);
 }
 
+export function getAgent(id: string | undefined) {
+  return agents.find((agent) => agent.id === id);
+}
+
 export function getAuthenticatableUsersForEntity(membership: AuthenticatableUserMembership | null) {
   if (!membership) return [];
   return authenticatableUsers.filter(
@@ -3155,6 +3286,10 @@ export function getStakeholdersForAuthority(authorityId: string | undefined) {
   return stakeholders.filter((stakeholder) => stakeholder.authorityId === authorityId);
 }
 
+export function getAgentsForAuthority(authorityId: string | undefined) {
+  return agents.filter((agent) => agent.authorityId === authorityId);
+}
+
 export function getAccessGrantsForParticipant(participantId: string | undefined) {
   if (!participantId) return [];
   return accessGrants.filter((grant) => grant.participantId === participantId);
@@ -3165,10 +3300,18 @@ export function getParticipantSuppliersForParticipant(participantId: string | un
   return participantSuppliers.filter((relationship) => relationship.participantId === participantId);
 }
 
-export function getGrantableStakeholdersForParticipant(participantId: string | undefined) {
+export function getGrantableStakeholdersForParticipant(
+  participantId: string | undefined,
+) {
   const participant = getParticipant(participantId);
   if (!participant) return [];
   return stakeholders.filter((stakeholder) => stakeholder.authorityId === participant.authorityId);
+}
+
+export function getGrantableAgentsForParticipant(participantId: string | undefined) {
+  const participant = getParticipant(participantId);
+  if (!participant) return [];
+  return agents.filter((agent) => agent.authorityId === participant.authorityId);
 }
 
 export function grantAllowsHelperEdit(grant: AccessGrant | undefined) {
@@ -3180,15 +3323,14 @@ export function grantAllowsGrantAdministration(grant: AccessGrant | undefined) {
 }
 
 export function getActiveHelperGrantsForUser(user: AuthenticatedUser) {
-  const helperStakeholderId =
-    user.stakeholderId ??
-    (user.accountContextType === "helper" ? user.accountContextEntityId : null) ??
+  const agentId =
+    (user.accountContextType === "agent" ? user.accountContextEntityId : null) ??
     undefined;
-  if (!helperStakeholderId) return [];
+  if (!agentId) return [];
   return accessGrants.filter(
     (grant) =>
-      grant.granteeType === "HELPER" &&
-      grant.granteeStakeholderId === helperStakeholderId &&
+      grant.granteeType === "AGENT" &&
+      grant.granteeAgentId === agentId &&
       grant.status === "ACTIVE",
   );
 }
@@ -3213,12 +3355,12 @@ function grantAllowsParticipantSupplierVisibility(grant: AccessGrant, relationsh
 }
 
 export function getHelperGrantForParticipant(user: AuthenticatedUser, participantId: string | undefined) {
-  if (!participantId || user.role !== "helper") return undefined;
+  if (!participantId || user.role !== "agent") return undefined;
   return getActiveHelperGrantsForUser(user).find((grant) => grant.participantId === participantId);
 }
 
 export function getHelperClientWorkspaces(user: AuthenticatedUser): HelperClientWorkspace[] {
-  if (user.role !== "helper") return [];
+  if (user.role !== "agent") return [];
   return getActiveHelperGrantsForUser(user)
     .map((grant) => {
       const participant = getParticipant(grant.participantId);
@@ -3269,7 +3411,7 @@ export function getRequestsForCase(caseId: string | undefined, user?: Authentica
       undefined;
     return caseRequests.filter((request) => request.stakeholderId === stakeholderId);
   }
-  if (user.role === "helper") {
+  if (user.role === "agent") {
     const scopedCaseIds = new Set(getScopedCases(user).map((caseRecord) => caseRecord.id));
     return caseRequests.filter((request) => request.caseId ? scopedCaseIds.has(request.caseId) : false);
   }
@@ -3290,7 +3432,7 @@ export function getRequestsForTask(taskId: string | undefined, user?: Authentica
           undefined;
         return request.stakeholderId === stakeholderId;
       }
-      if (user.role === "helper") {
+      if (user.role === "agent") {
         const scopedCaseIds = new Set(getScopedCases(user).map((caseRecord) => caseRecord.id));
         return request.caseId ? scopedCaseIds.has(request.caseId) : false;
       }
@@ -3310,7 +3452,7 @@ export function getRequestsForParticipant(participantId: string | undefined, use
       undefined;
     return participantRequests.filter((request) => request.stakeholderId === stakeholderId);
   }
-  if (user.role === "helper") {
+  if (user.role === "agent") {
     const scopedCaseIds = new Set(getScopedCases(user).map((caseRecord) => caseRecord.id));
     return participantRequests.filter((request) => request.caseId ? scopedCaseIds.has(request.caseId) : false);
   }
@@ -3379,7 +3521,7 @@ export function getScopedParticipants(user: AuthenticatedUser) {
   if (user.role === "participant") {
     return authorityParticipants.filter((participant) => participant.id === user.participantId);
   }
-  if (user.role === "helper") {
+  if (user.role === "agent") {
     const helperParticipantIds = new Set(getActiveHelperGrantsForUser(user).map((grant) => grant.participantId));
     return authorityParticipants.filter((participant) => helperParticipantIds.has(participant.id));
   }
@@ -3407,7 +3549,7 @@ export function getScopedCases(user: AuthenticatedUser) {
     const scopedParticipantIds = new Set(getScopedParticipants(user).map((participant) => participant.id));
     return cases.filter((caseRecord) => scopedParticipantIds.has(caseRecord.participantId));
   }
-  if (user.role === "helper") {
+  if (user.role === "agent") {
     const grants = getActiveHelperGrantsForUser(user);
     return cases.filter((caseRecord) => grants.some((grant) => grantAllowsCaseVisibility(grant, caseRecord)));
   }
@@ -3429,7 +3571,7 @@ export function getScopedParticipantSuppliers(user: AuthenticatedUser) {
   if (user.role === "participant") {
     return getParticipantSuppliersForParticipant(user.participantId ?? undefined);
   }
-  if (user.role === "helper") {
+  if (user.role === "agent") {
     const grants = getActiveHelperGrantsForUser(user);
     return participantSuppliers.filter((relationship) => grants.some((grant) => grantAllowsParticipantSupplierVisibility(grant, relationship)));
   }

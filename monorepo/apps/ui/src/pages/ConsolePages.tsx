@@ -17,6 +17,8 @@ import {
   getCaseTemplatesForAuthority,
   getAccessGrantsForParticipant,
   getAuthorityTerminology,
+  getAgentsForAuthority,
+  getGrantableAgentsForParticipant,
   getGrantableStakeholdersForParticipant,
   getHelperClientWorkspaces,
   getHelperGrantForParticipant,
@@ -277,10 +279,16 @@ function AdministrationResourceNav({ actions }: { actions?: ReactNode }) {
 
 function ParticipantWorkspaceNav({ actions }: { actions?: ReactNode }) {
   const location = useLocation();
+  const { user } = useAuth();
   const resources = [
     { name: "Cases", path: "/cases" },
     { name: "Suppliers", path: "/cases/suppliers" },
-    { name: "Access grants", path: "/cases/access-grants" },
+    ...(user.role === "participant"
+      ? [
+          { name: "Access grants", path: "/cases/access-grants" },
+          { name: "Users", path: "/cases/users" },
+        ]
+      : []),
   ];
 
   return (
@@ -312,7 +320,7 @@ function ParticipantWorkspaceNav({ actions }: { actions?: ReactNode }) {
 
 export function HelperWorkspacePage() {
   const { user } = useAuth();
-  if (user.role !== "helper") return <Navigate to="/" replace />;
+  if (user.role !== "agent") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
   const workspaces = getHelperClientWorkspaces(user);
   const scopedCases = getScopedCases(user);
@@ -321,7 +329,7 @@ export function HelperWorkspacePage() {
 
   return (
     <ConsoleLayout
-      breadcrumbs={[{ label: "Service provider workspace" }]}
+      breadcrumbs={[{ label: "Agent workspace" }]}
       readOnly
     >
       <PageTitle
@@ -341,7 +349,7 @@ export function HelperWorkspacePage() {
           {workspaces.map((workspace) => (
             <tr key={workspace.grant.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
-                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/helper/participants/${workspace.participant.id}`}>
+                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/agent/participants/${workspace.participant.id}`}>
                   {workspace.participant.name}
                 </Link>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
@@ -354,7 +362,7 @@ export function HelperWorkspacePage() {
               <td className="px-4 py-3">{workspace.openRequests}</td>
               <td className="px-4 py-3">
                 <Button asChild variant="outline">
-                  <Link to={`/helper/participants/${workspace.participant.id}`}>Open workspace</Link>
+                  <Link to={`/agent/participants/${workspace.participant.id}`}>Open workspace</Link>
                 </Button>
               </td>
             </tr>
@@ -420,17 +428,17 @@ export function HelperWorkspacePage() {
 export function HelperParticipantPage() {
   const { user } = useAuth();
   const { participantId } = useParams();
-  if (user.role !== "helper") return <Navigate to="/" replace />;
+  if (user.role !== "agent") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
   const workspace = getHelperClientWorkspaces(user).find((item) => item.participant.id === participantId);
-  if (!workspace) return <Navigate to="/helper" replace />;
+  if (!workspace) return <Navigate to="/agent" replace />;
   const requests = getRequestsForParticipant(workspace.participant.id, user);
   const activeRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS");
 
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: "Service provider workspace", path: "/helper" },
+        { label: "Agent workspace", path: "/agent" },
         { label: workspace.participant.name },
       ]}
       readOnly
@@ -1874,6 +1882,9 @@ export function ParticipantsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [participantType, setParticipantType] = useState<PartyType>("ORGANISATION");
   const [displayName, setDisplayName] = useState("");
+  const [initialUserName, setInitialUserName] = useState("");
+  const [initialUserEmail, setInitialUserEmail] = useState("");
+  const [initialUserRole, setInitialUserRole] = useState<MembershipRole>("ADMIN");
   const [error, setError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
@@ -1889,16 +1900,32 @@ export function ParticipantsPage() {
       setError("Enter a participant name.");
       return;
     }
+    if (!initialUserName.trim()) {
+      setError("Enter the first user name.");
+      return;
+    }
+    if (!initialUserEmail.trim()) {
+      setError("Enter the first user email address.");
+      return;
+    }
     try {
       db.createParticipant({
         authorityId: user.authorityId,
         participantType,
         displayName: displayName.trim(),
         status: "ACTIVE",
+        initialUser: {
+          displayName: initialUserName.trim(),
+          email: initialUserEmail.trim(),
+          role: initialUserRole,
+        },
       });
       refresh();
       setDisplayName("");
       setParticipantType("ORGANISATION");
+      setInitialUserName("");
+      setInitialUserEmail("");
+      setInitialUserRole("ADMIN");
       setShowCreate(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participant")} could not be created.`);
@@ -1920,7 +1947,7 @@ export function ParticipantsPage() {
       <ResourceActionPanel
         open={showCreate}
         title={`Create ${terminologyLabel(terminology, "participant")}`}
-        description={`Create a ${terminologyLabel(terminology, "participant")} inside the current ${terminologyLabel(terminology, "authority")}.`}
+        description={`Create a ${terminologyLabel(terminology, "participant")} inside the current ${terminologyLabel(terminology, "authority")} and add its first user.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createParticipant}>
@@ -1938,6 +1965,18 @@ export function ParticipantsPage() {
           </FormField>
           <FormField label="Display name">
             <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </FormField>
+          <FormField label="First user name">
+            <Input value={initialUserName} onChange={(event) => setInitialUserName(event.target.value)} />
+          </FormField>
+          <FormField label="First user email">
+            <Input type="email" value={initialUserEmail} onChange={(event) => setInitialUserEmail(event.target.value)} />
+          </FormField>
+          <FormField label="First user role">
+            <SelectField value={initialUserRole} onChange={(value) => setInitialUserRole(value as MembershipRole)}>
+              <option value="ADMIN">Admin</option>
+              <option value="MEMBER">Member</option>
+            </SelectField>
           </FormField>
         </div>
         <div className="mt-3"><FormError message={error} /></div>
@@ -2031,10 +2070,17 @@ export function ParticipantDetailPage() {
   );
 }
 
-export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
+export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "users" }) {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
   const [showCreateSupplier, setShowCreateSupplier] = useState(false);
+  const [showCreateWorkspaceUser, setShowCreateWorkspaceUser] = useState(false);
+  const [workspaceUserType, setWorkspaceUserType] = useState<"PARTICIPANT" | "AGENT">("PARTICIPANT");
+  const [workspaceUserName, setWorkspaceUserName] = useState("");
+  const [workspaceUserEmail, setWorkspaceUserEmail] = useState("");
+  const [workspaceUserRole, setWorkspaceUserRole] = useState<MembershipRole>("MEMBER");
+  const [agentName, setAgentName] = useState("");
+  const [workspaceUserError, setWorkspaceUserError] = useState<string | null>(null);
   const [supplierName, setSupplierName] = useState("");
   const [relationshipType, setRelationshipType] = useState("");
   const [criticality, setCriticality] = useState<ParticipantSupplierCriticality>("HIGH");
@@ -2045,12 +2091,74 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
   const [supplierCaseId, setSupplierCaseId] = useState("");
   const [supplierLinkError, setSupplierLinkError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
-  if (user.role === "helper") return <Navigate to="/helper" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin/participants" replace />;
+  if (user.role === "agent" && mode === "users") return <Navigate to="/cases" replace />;
   const terminology = getTerminologyForUser(user);
   const participant = getParticipant(user.participantId ?? undefined);
   const scopedCases = getScopedCases(user);
-  const participantSuppliersForParticipant = getParticipantSuppliersForParticipant(user.participantId ?? undefined);
+  const participantSuppliersForParticipant = user.role === "agent"
+    ? getScopedParticipantSuppliers(user)
+    : getParticipantSuppliersForParticipant(user.participantId ?? undefined);
+  const participantUsers = authenticatableUsers.filter(
+    (account) =>
+      account.membership.entityType === "participant" &&
+      account.membership.entityId === user.participantId,
+  );
+  const scopedAgents = getAgentsForAuthority(user.authorityId ?? undefined);
+
+  function createWorkspaceUser() {
+    setWorkspaceUserError(null);
+    if (!workspaceUserName.trim()) {
+      setWorkspaceUserError("Enter a user name.");
+      return;
+    }
+    if (!workspaceUserEmail.trim()) {
+      setWorkspaceUserError("Enter an email address.");
+      return;
+    }
+    try {
+      if (workspaceUserType === "PARTICIPANT") {
+        if (!user.participantId) {
+          setWorkspaceUserError("No participant workspace is selected.");
+          return;
+        }
+        db.createParticipantUser(user.participantId, {
+          displayName: workspaceUserName.trim(),
+          email: workspaceUserEmail.trim(),
+          role: workspaceUserRole,
+        });
+      } else {
+        if (!user.authorityId) {
+          setWorkspaceUserError("No authority is selected for this session.");
+          return;
+        }
+        if (!agentName.trim()) {
+          setWorkspaceUserError("Enter an agent organisation.");
+          return;
+        }
+        const agent = db.createAgent({
+          authorityId: user.authorityId,
+          agentType: "ORGANISATION",
+          displayName: agentName.trim(),
+          status: "ACTIVE",
+        });
+        db.createAgentUser(agent.id, {
+          displayName: workspaceUserName.trim(),
+          email: workspaceUserEmail.trim(),
+          role: workspaceUserRole,
+        });
+      }
+      refresh();
+      setWorkspaceUserName("");
+      setWorkspaceUserEmail("");
+      setWorkspaceUserRole("MEMBER");
+      setAgentName("");
+      setWorkspaceUserType("PARTICIPANT");
+      setShowCreateWorkspaceUser(false);
+    } catch (caught) {
+      setWorkspaceUserError(caught instanceof Error ? caught.message : "User could not be created.");
+    }
+  }
 
   function createParticipantSupplier() {
     setSupplierError(null);
@@ -2130,20 +2238,64 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
     <ConsoleLayout
       breadcrumbs={[
         { label: participant?.name ?? "Participant workspace" },
-        { label: mode === "cases" ? terminologyTitle(terminology, "case", true) : "Suppliers" },
+        { label: mode === "cases" ? terminologyTitle(terminology, "case", true) : mode === "suppliers" ? "Suppliers" : "Users" },
       ]}
       readOnly
     >
       <ParticipantWorkspaceNav
         actions={
-          mode === "suppliers" && (
+          mode === "suppliers" && user.role === "participant" ? (
             <Button type="button" onClick={() => setShowCreateSupplier((current) => !current)}>
               <Plus />
               Add supplier
             </Button>
-          )
+          ) : mode === "users" ? (
+            <Button type="button" onClick={() => setShowCreateWorkspaceUser((current) => !current)}>
+              <UserPlus />
+              Add user
+            </Button>
+          ) : undefined
         }
       />
+      <ResourceActionPanel
+        open={mode === "users" && showCreateWorkspaceUser}
+        title="Add user"
+        description={`Create either a ${terminologyLabel(terminology, "participant")} user or an agent user.`}
+        onClose={() => setShowCreateWorkspaceUser(false)}
+        footer={
+          <Button type="button" onClick={createWorkspaceUser}>
+            <CheckCircle2 />
+            Save
+          </Button>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-[12rem_1fr_1fr_10rem]">
+          <FormField label="User type">
+            <SelectField value={workspaceUserType} onChange={(value) => setWorkspaceUserType(value as "PARTICIPANT" | "AGENT")}>
+              <option value="PARTICIPANT">{terminologyTitle(terminology, "participant")}</option>
+              <option value="AGENT">Agent</option>
+            </SelectField>
+          </FormField>
+          <FormField label="Display name">
+            <Input value={workspaceUserName} onChange={(event) => setWorkspaceUserName(event.target.value)} />
+          </FormField>
+          <FormField label="Email">
+            <Input type="email" value={workspaceUserEmail} onChange={(event) => setWorkspaceUserEmail(event.target.value)} />
+          </FormField>
+          <FormField label="Role">
+            <SelectField value={workspaceUserRole} onChange={(value) => setWorkspaceUserRole(value as MembershipRole)}>
+              <option value="MEMBER">Member</option>
+              <option value="ADMIN">Admin</option>
+            </SelectField>
+          </FormField>
+          {workspaceUserType === "AGENT" && (
+            <FormField label="Agent organisation">
+              <Input value={agentName} onChange={(event) => setAgentName(event.target.value)} />
+            </FormField>
+          )}
+        </div>
+        <div className="mt-3"><FormError message={workspaceUserError} /></div>
+      </ResourceActionPanel>
       <ResourceActionPanel
         open={mode === "suppliers" && showCreateSupplier}
         title="Add supplier"
@@ -2292,6 +2444,34 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
         </ResourceTable>
       </section>
       )}
+      {mode === "users" && (
+      <section className="grid gap-8 lg:grid-cols-2">
+        <div>
+          <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participant")} users</h3>
+          <ResourceTable headings={["User", "Email", "Role"]}>
+            {participantUsers.map((account) => (
+              <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
+                <td className="px-4 py-3">{account.email}</td>
+                <td className="px-4 py-3">{account.membershipRole}</td>
+              </tr>
+            ))}
+          </ResourceTable>
+        </div>
+        <div>
+          <h3 className="mb-3 text-xl font-bold">Agents</h3>
+          <ResourceTable headings={["Agent", "Type", "Granted workspaces"]}>
+            {scopedAgents.map((agent) => (
+              <tr key={agent.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3 font-bold text-[#1d70b8]">{agent.name}</td>
+                <td className="px-4 py-3">{agent.type}</td>
+                <td className="px-4 py-3">{agent.grantedParticipants}</td>
+              </tr>
+            ))}
+          </ResourceTable>
+        </div>
+      </section>
+      )}
     </ConsoleLayout>
   );
 }
@@ -2301,7 +2481,7 @@ export function AccessGrantsPage() {
   const { db, refresh } = useDomainData();
   const [showCreate, setShowCreate] = useState(false);
   const [granteeType, setGranteeType] = useState<AccessGrantGranteeType>("STAKEHOLDER");
-  const [granteeStakeholderId, setGranteeStakeholderId] = useState("");
+  const [granteeEntityId, setGranteeEntityId] = useState("");
   const [permissionLevel, setPermissionLevel] = useState<AccessGrantPermissionLevel>("REQUEST_INFORMATION");
   const [dataScopeType, setDataScopeType] = useState<AccessGrantDataScopeType>("PARTICIPANT_WORKSPACE");
   const [dataScopeId, setDataScopeId] = useState("");
@@ -2309,7 +2489,7 @@ export function AccessGrantsPage() {
   const [error, setError] = useState<string | null>(null);
 
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
-  if (user.role === "helper") return <Navigate to="/helper" replace />;
+  if (user.role === "agent") return <Navigate to="/cases" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin/participants" replace />;
   const terminology = getTerminologyForUser(user);
 
@@ -2317,13 +2497,21 @@ export function AccessGrantsPage() {
   if (!participant || !user.authorityId || !user.authenticatableUserId) return <Navigate to="/cases" replace />;
 
   const grants = getAccessGrantsForParticipant(participant.id);
-  const grantableStakeholders = getGrantableStakeholdersForParticipant(participant.id);
+  const grantableGrantees = granteeType === "AGENT"
+    ? getGrantableAgentsForParticipant(participant.id)
+    : getGrantableStakeholdersForParticipant(participant.id);
   const participantSuppliersForParticipant = getParticipantSuppliersForParticipant(participant.id);
+  const stakeholderLabel = terminologyLabel(terminology, "stakeholder");
+  const stakeholderTitle = terminologyTitle(terminology, "stakeholder");
+  const agentLabel = "agent";
+  const agentTitle = "Agent";
+  const granteeTypeLabel = granteeType === "AGENT" ? agentLabel : stakeholderLabel;
+  const granteeTypeTitle = granteeType === "AGENT" ? agentTitle : stakeholderTitle;
 
   function createGrant() {
     setError(null);
-    if (!granteeStakeholderId) {
-      setError("Select a stakeholder or service provider.");
+    if (!granteeEntityId) {
+      setError(`Select a ${granteeTypeLabel}.`);
       return;
     }
     try {
@@ -2331,7 +2519,8 @@ export function AccessGrantsPage() {
         authorityId: user.authorityId ?? "",
         participantId: participant?.id ?? "",
         granteeType,
-        granteeStakeholderId,
+        granteeStakeholderId: granteeType === "STAKEHOLDER" ? granteeEntityId : null,
+        granteeAgentId: granteeType === "AGENT" ? granteeEntityId : null,
         permissionLevel,
         dataScopeType,
         dataScopeId: dataScopeType === "PARTICIPANT_SUPPLIER" ? dataScopeId : null,
@@ -2339,7 +2528,7 @@ export function AccessGrantsPage() {
         createdByUserId: user.authenticatableUserId ?? "",
       });
       refresh();
-      setGranteeStakeholderId("");
+      setGranteeEntityId("");
       setPermissionLevel("REQUEST_INFORMATION");
       setDataScopeType("PARTICIPANT_WORKSPACE");
       setDataScopeId("");
@@ -2378,7 +2567,7 @@ export function AccessGrantsPage() {
       <ResourceActionPanel
         open={showCreate}
         title="Add access grant"
-        description={`Grant a ${terminologyLabel(terminology, "stakeholder")} or helper scoped access to this ${terminologyLabel(terminology, "participant")} workspace.`}
+        description={`Grant scoped access to this ${terminologyLabel(terminology, "participant")} workspace.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createGrant}>
@@ -2389,17 +2578,23 @@ export function AccessGrantsPage() {
       >
         <div className="grid gap-4 md:grid-cols-[12rem_1fr_14rem_14rem_14rem_10rem]">
           <FormField label="Grantee type">
-            <SelectField value={granteeType} onChange={(value) => setGranteeType(value as AccessGrantGranteeType)}>
-              <option value="STAKEHOLDER">{terminologyTitle(terminology, "stakeholder")}</option>
-              <option value="HELPER">Service provider</option>
+            <SelectField
+              value={granteeType}
+              onChange={(value) => {
+                setGranteeType(value as AccessGrantGranteeType);
+                setGranteeEntityId("");
+              }}
+            >
+              <option value="STAKEHOLDER">{stakeholderTitle}</option>
+              <option value="AGENT">{agentTitle}</option>
             </SelectField>
           </FormField>
-          <FormField label="Grantee">
-            <SelectField value={granteeStakeholderId} onChange={setGranteeStakeholderId}>
-              <option value="">Select organisation</option>
-              {grantableStakeholders.map((stakeholder) => (
-                <option key={stakeholder.id} value={stakeholder.id}>
-                  {stakeholder.name}
+          <FormField label={granteeTypeTitle}>
+            <SelectField value={granteeEntityId} onChange={setGranteeEntityId}>
+              <option value="">Select {granteeTypeLabel}</option>
+              {grantableGrantees.map((grantee) => (
+                <option key={grantee.id} value={grantee.id}>
+                  {grantee.name}
                 </option>
               ))}
             </SelectField>
@@ -2457,7 +2652,7 @@ export function AccessGrantsPage() {
                   Created by {grant.createdByName}
                 </span>
               </td>
-              <td className="px-4 py-3">{grant.granteeType === "HELPER" ? "Helper" : terminologyTitle(terminology, "stakeholder")}</td>
+              <td className="px-4 py-3">{grant.granteeType === "AGENT" ? agentTitle : stakeholderTitle}</td>
               <td className="px-4 py-3">{grant.permissionLabel}</td>
               <td className="px-4 py-3">{grant.scopeLabel}</td>
               <td className="px-4 py-3"><GrantStatusBadge status={grant.status} /></td>

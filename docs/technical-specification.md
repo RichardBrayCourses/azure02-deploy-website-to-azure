@@ -103,6 +103,8 @@ It is based on:
   - `/admin/task-types`
   - `/admin/users`
   - `/cases`
+  - `/cases/suppliers`
+  - `/cases/users`
   - `/cases/:caseId`
   - `/cases/:caseId/tasks/:taskId`
   - `/stakeholder`
@@ -135,6 +137,8 @@ It is based on:
 - `ParticipantUser`
 - `Stakeholder`
 - `StakeholderUser`
+- `Agent`
+- `AgentUser`
 - `StakeholderParticipantAccess`
 - `UserAccount`
 - `TaskType`
@@ -151,8 +155,8 @@ It is based on:
   - Participants, stakeholders, templates, cases, and assignments belong to exactly one authority.
 - User kind:
   - Every user belongs to exactly one user kind.
-  - Valid user kinds are `SYSTEM_OWNER`, `AUTHORITY`, `PARTICIPANT`, and `STAKEHOLDER`.
-  - The current UI exposes only Authority, Participant, and Stakeholder sign-in.
+  - Valid user kinds are `SYSTEM_OWNER`, `AUTHORITY`, `PARTICIPANT`, `STAKEHOLDER`, and `AGENT`.
+  - The current UI exposes Authority, Participant, Stakeholder, and Agent sign-in.
 - Permission level:
   - `ADMIN`
   - `MEMBER`
@@ -172,6 +176,8 @@ It is based on:
 
 - `createParticipant`
 - `createParticipantUser`
+- `createAgent`
+- `createAgentUser`
 - `createStakeholder`
 - `createStakeholderUser`
 - `grantStakeholderAccess`
@@ -199,6 +205,8 @@ It is based on:
 - List users for an authority
 - List users for a participant
 - List users for a stakeholder
+- List agents for an authority
+- List users for an agent
 
 ## Azure Infrastructure
 

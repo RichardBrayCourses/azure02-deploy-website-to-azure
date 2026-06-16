@@ -14,14 +14,14 @@
   - Participants receive or create case instances from those templates.
   - Participants complete and control their own due diligence case data.
   - Stakeholders review participant data only when access has been granted.
-  - Third-party helpers can assist participants only when delegated access has been granted.
+  - Agents can assist participants only when delegated access has been granted.
 - Primary scenario:
   - A trade association represents IT platform vendors.
   - The association defines due diligence expectations for its member vendors.
   - Vendors complete due diligence packs and make them available to subscribers.
   - Subscribers are companies that buy, use, or are considering buying the vendors' platforms.
   - Subscribers can request additional information.
-  - External helpers such as lawyers or compliance firms can be invited to help vendors manage due diligence.
+  - External agents such as lawyers or compliance firms can be invited to help vendors manage due diligence.
 
 ## Business Model
 
@@ -35,16 +35,16 @@
   - A member organisation inside an authority.
   - For the primary scenario, a participant is a vendor or IT platform supplier.
   - The participant is the operational owner of its own due diligence case data.
-  - The participant completes DDQs, uploads evidence, grants stakeholder access, grants helper access, and responds to information requests.
+  - The participant completes DDQs, uploads evidence, grants stakeholder access, grants agent access, and responds to information requests.
 - Stakeholder:
   - An organisation that needs assurance about one or more participants.
   - For the primary scenario, a stakeholder is a subscriber or customer of a vendor.
   - The stakeholder reviews due diligence data that participants have granted it access to.
   - The stakeholder can request additional information.
-- Third-party helper:
+- Agent:
   - An organisation or user invited to help a participant.
   - Examples include lawyers, compliance consultants, outsourced compliance firms, and security advisers.
-  - Helpers may review, create, or modify participant data only when granted permission.
+  - Agents may review, create, or modify participant data only when granted permission.
 - Platform operator:
   - Operates the SaaS platform above individual authorities.
   - Can manage authorities and platform configuration.
@@ -61,7 +61,7 @@
 | Authority | Association |
 | Participant | Vendor |
 | Stakeholder | Subscriber |
-| Third-party helper | Service provider |
+| Agent | Agent |
 | Case template | DDQ template |
 | Case | Due diligence pack |
 | Case task | Due diligence item |
@@ -94,9 +94,10 @@
 - Stakeholder context:
   - User acts for a stakeholder/subscriber.
   - Can review granted participant data and request more information.
-- Helper context:
-  - User acts for a third-party helper/service provider.
-  - Can access participant workspaces where helper access has been granted.
+- Agent context:
+  - User acts for an agent.
+  - Can access participant workspaces where agent access has been granted.
+  - Is presented with the Cases and Suppliers tabs, but not Access grants.
 - Platform operator context:
   - User acts for the SaaS operator.
   - Future scope; not required in the current UI.
@@ -120,12 +121,12 @@
 
 - Authority:
   - Tenant partition and scheme owner.
-  - Owns terminology, templates, participant membership, stakeholder records, helper records, and authority-scoped configuration.
+  - Owns terminology, templates, participant membership, stakeholder records, agent records, and authority-scoped configuration.
 - Authority terminology:
   - Stores authority-specific display labels for generic concepts.
 - Party account:
   - Organisation or person inside an authority.
-  - Can represent participant, stakeholder, helper, or authority-owned account.
+  - Can represent participant, stakeholder, agent, or authority-owned account.
 - User account:
   - Authenticatable identity.
   - Can have many memberships.
@@ -162,7 +163,7 @@
   - Participant-controlled permission granting another party or user access to participant due diligence data.
 - Information request:
   - Request from a stakeholder or reviewer for additional information.
-  - Can be answered by the participant or an authorised helper.
+  - Can be answered by the participant or an authorised agent.
 - Vendor relationship:
   - Participant-owned relationship to one of its own suppliers/vendors.
   - Supports vendor-of-vendor due diligence.
@@ -231,7 +232,7 @@
   - Can view active authority and account context.
   - Can switch account context where multiple memberships or grants exist.
   - Can open app launcher.
-  - Can search accessible apps, participants, stakeholders, helpers, cases, tasks, grants, and requests.
+  - Can search accessible apps, participants, stakeholders, agents, cases, tasks, grants, and requests.
   - Can toggle dark mode.
   - Can sign out.
 - App launcher:
@@ -245,7 +246,7 @@
   - Scheme Administration.
   - Participants.
   - Stakeholders.
-  - Helpers.
+  - Agents.
   - DDQ Templates.
   - Users.
 - Participant context:
@@ -259,7 +260,7 @@
   - Vendors.
   - Reviews.
   - Requests.
-- Helper context:
+- Agent context:
   - Client Workspaces.
   - Assigned Due Diligence Packs.
   - Requests.
@@ -277,7 +278,7 @@
   - Authority: scheme administration.
   - Participant/vendor: due diligence packs.
   - Stakeholder/subscriber: subscriber portal.
-  - Helper/service provider: client workspaces.
+  - Agent: granted participant workspaces.
 - User can switch context without signing out.
 
 ## Authority Administration Functions
@@ -287,7 +288,7 @@
   - Shows terminology configuration summary.
   - Shows participant count.
   - Shows stakeholder count.
-  - Shows helper count.
+  - Shows agent count.
   - Shows DDQ template count.
   - Shows aggregate due diligence progress where permitted.
 - Manage terminology:
@@ -303,13 +304,13 @@
   - Create stakeholder/subscriber records.
   - Manage stakeholder users.
   - View which participants have granted access where permitted.
-- Manage helpers:
-  - Create helper/service-provider records.
-  - Manage helper users.
-  - View helper relationships where permitted.
+- Manage agents:
+  - Create agent records.
+  - Manage agent users.
+  - View agent relationships where permitted.
 - Manage users:
   - Create or invite users.
-  - Assign users to authority, participant, stakeholder, or helper contexts.
+  - Assign users to authority, participant, stakeholder, or agent contexts.
   - Allow one user to hold multiple memberships.
 
 ## DDQ Template Administration
@@ -372,7 +373,7 @@
   - Shows due diligence pack summary.
   - Shows open requests.
   - Shows subscriber access count.
-  - Shows helper access count.
+  - Shows agent access count.
   - Shows vendor-of-vendor records.
 - View due diligence packs:
   - Shows participant-owned cases.
@@ -394,16 +395,17 @@
   - Makes submitted content available to active grants according to scope.
 - Manage participant users:
   - Add users to participant account.
+  - Add agent organisations and agent users from the participant workspace Users tab.
   - Assign roles.
   - Allow users who already exist in other accounts to be added.
 - Manage access grants:
   - Grant subscriber access.
-  - Grant helper access.
+  - Grant agent access.
   - Grant explicit authority-review access if required.
   - Set permission level, data scope, status, and expiry.
 - Manage requests:
   - View open requests for information.
-  - Assign request to participant user or helper where permitted.
+  - Assign request to participant user or agent where permitted.
   - Respond to request.
   - Mark request as answered.
 
@@ -411,7 +413,7 @@
 
 - Grant target types:
   - Stakeholder/subscriber organisation.
-  - Third-party helper/service-provider organisation.
+  - Agent organisation.
   - Specific user where narrower access is needed.
   - Authority user only where explicit authority review is required.
 - Permission levels:
@@ -470,12 +472,14 @@
   - Cannot access ungranted participant data.
   - Cannot access cross-authority data.
 
-## Third-Party Helper Functions
+## Agent Functions
 
-- Helper home:
-  - Shows participant workspaces where helper access is active.
+- Agent home:
+  - Shows participant workspaces where agent access is active.
+  - Uses the participant-style Cases and Suppliers tabs.
+  - Does not show the Access grants screen.
   - Shows assigned due diligence packs.
-  - Shows open requests where helper is allowed to assist.
+  - Shows open requests where the agent is allowed to assist.
 - Client workspace:
   - Shows granted participant data.
   - Shows permission level and scope.
@@ -500,9 +504,9 @@
 - View request:
   - Participant sees requests against its data.
   - Stakeholder sees requests it created.
-  - Helper sees requests only where grant permits.
+  - Agent sees requests only where grant permits.
 - Respond to request:
-  - Participant or authorised helper enters response.
+  - Participant or authorised agent enters response.
   - May link response to updated task, new evidence metadata, or comment.
   - Request status moves to in progress or answered.
 - Accept or close request:

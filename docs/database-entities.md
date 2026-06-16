@@ -37,6 +37,13 @@ Common fields on all entities:
 - `displayName: string`
 - `status: InviteStatus`
 
+## Agent
+
+- `authorityId: AuthorityId`
+- `agentType: PartyType`
+- `displayName: string`
+- `status: InviteStatus`
+
 ## UserAccount
 
 - `entraObjectId: string`
@@ -69,6 +76,12 @@ Common fields on all entities:
 - `userAccountId: UserAccountId`
 - `role: MembershipRole`
 
+## AgentUser
+
+- `entityId: AgentId`
+- `userAccountId: UserAccountId`
+- `role: MembershipRole`
+
 ## StakeholderParticipantAccess
 
 - `stakeholderId: StakeholderId`
@@ -83,6 +96,7 @@ Common fields on all entities:
 - `participantId: ParticipantId`
 - `granteeType: AccessGrantGranteeType`
 - `granteeStakeholderId: StakeholderId | null`
+- `granteeAgentId: AgentId | null`
 - `granteeUserId: UserAccountId | null`
 - `permissionLevel: AccessGrantPermissionLevel`
 - `dataScopeType: AccessGrantDataScopeType`

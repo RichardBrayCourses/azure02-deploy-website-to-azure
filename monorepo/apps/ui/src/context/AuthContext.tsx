@@ -26,10 +26,10 @@ export type AuthenticatedUser = {
   stakeholderId: string | null;
 };
 
-export type UserRole = "authority-admin" | "participant" | "stakeholder" | "helper";
-export type AccountContextType = "authority" | "participant" | "stakeholder" | "helper";
+export type UserRole = "authority-admin" | "participant" | "stakeholder" | "agent";
+export type AccountContextType = "authority" | "participant" | "stakeholder" | "agent";
 export type MembershipRole = "ADMIN" | "MEMBER";
-type StoredUserRole = UserRole | "authority-admin";
+type StoredUserRole = UserRole | "authority-admin" | "helper";
 type StoredUser = Partial<Omit<AuthenticatedUser, "role">> & {
   role?: StoredUserRole;
   authorityId?: string | null;
@@ -52,8 +52,8 @@ export const USER_ROLES: Array<{ id: UserRole; label: string; description: strin
     description: "Review granted participant cases and request information",
   },
   {
-    id: "helper",
-    label: "Service provider",
+    id: "agent",
+    label: "Agent",
     description: "Assist participant workspaces where delegated access has been granted",
   },
 ];
@@ -129,7 +129,7 @@ interface AuthContextValue extends AuthContextData {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 /////////////
-// HELPER
+// AGENT
 /////////////
 
 export function useAuth() {
@@ -140,12 +140,15 @@ export function useAuth() {
 
 function normalizeRole(role: StoredUserRole | undefined): UserRole {
   if (role === "authority-admin") return "authority-admin";
+  if (role === "helper") return "agent";
   return role ?? "authority-admin";
 }
 
 function normalizeContextType(value: unknown): AccountContextType | null {
-  return value === "authority" || value === "participant" || value === "stakeholder" || value === "helper"
-    ? value
+  return value === "helper"
+    ? "agent"
+    : value === "authority" || value === "participant" || value === "stakeholder" || value === "agent"
+      ? value
     : null;
 }
 
