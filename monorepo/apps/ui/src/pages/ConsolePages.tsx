@@ -221,12 +221,15 @@ function stakeholderCanSeeEvidence(task: Task) {
 }
 
 function EvidenceMetadataList({ task }: { task: Task }) {
+  const { user } = useAuth();
+  const terminology = getTerminologyForUser(user);
+
   if (!stakeholderCanSeeEvidence(task)) {
     return <span className="text-sm text-[#505a5f] dark:text-muted-foreground">Visible after submission</span>;
   }
 
   if (task.evidenceFiles.length === 0) {
-    return <span className="text-sm text-[#505a5f] dark:text-muted-foreground">No evidence metadata</span>;
+    return <span className="text-sm text-[#505a5f] dark:text-muted-foreground">No {terminologyLabel(terminology, "evidence")} metadata</span>;
   }
 
   return (
@@ -288,12 +291,13 @@ function AdministrationResourceNav({ actions }: { actions?: ReactNode }) {
 function ParticipantNav({ actions }: { actions?: ReactNode }) {
   const location = useLocation();
   const { user } = useAuth();
+  const terminology = getTerminologyForUser(user);
   const resources = [
-    { name: "Cases", path: "/cases" },
-    { name: "Suppliers", path: "/cases/suppliers" },
+    { name: terminologyTitle(terminology, "case", true), path: "/cases" },
+    { name: terminologyTitle(terminology, "participantSupplier", true), path: "/cases/suppliers" },
     ...(user.role === "participant"
       ? [
-          { name: "Access grants", path: "/cases/access-grants" },
+          { name: terminologyTitle(terminology, "accessGrant", true), path: "/cases/access-grants" },
           { name: "Users", path: "/cases/users" },
         ]
       : []),
@@ -355,7 +359,7 @@ export function AgentParticipantAccessPage() {
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Granted client access</h3>
+        <h3 className="mb-3 text-xl font-bold">Granted {terminologyLabel(terminology, "participant")} access</h3>
         <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Permission", "Scope", terminologyTitle(terminology, "case", true), "Open requests", "Actions"]}>
           {accessViews.map((accessView) => (
             <tr key={accessView.grant.id} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -364,7 +368,7 @@ export function AgentParticipantAccessPage() {
                   {accessView.participant.name}
                 </Link>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                  Access granted by participant
+                  Access granted by {terminologyLabel(terminology, "participant")}
                 </span>
               </td>
               <td className="px-4 py-3">{accessView.grant.permissionLabel}</td>
@@ -373,7 +377,7 @@ export function AgentParticipantAccessPage() {
               <td className="px-4 py-3">{accessView.openRequests}</td>
               <td className="px-4 py-3">
                 <Button asChild variant="outline">
-                  <Link to={`/agent/participants/${accessView.participant.id}`}>Open participant</Link>
+                  <Link to={`/agent/participants/${accessView.participant.id}`}>Open {terminologyLabel(terminology, "participant")}</Link>
                 </Button>
               </td>
             </tr>
@@ -2147,7 +2151,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       setDataExposure("");
       setShowCreateSupplier(false);
     } catch (caught) {
-      setSupplierError(caught instanceof Error ? caught.message : "Supplier record could not be created.");
+      setSupplierError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participantSupplier")} record could not be created.`);
     }
   }
 
@@ -2166,7 +2170,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
   function linkSupplierToCase() {
     setSupplierLinkError(null);
     if (!linkingSupplierId) {
-      setSupplierLinkError("Select a supplier.");
+      setSupplierLinkError(`Select a ${terminologyLabel(terminology, "participantSupplier")}.`);
       return;
     }
     if (!supplierCaseId) {
@@ -2178,7 +2182,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       refresh();
       closeLinkSupplier();
     } catch (caught) {
-      setSupplierLinkError(caught instanceof Error ? caught.message : `Supplier could not be linked to this ${terminologyLabel(terminology, "case")}.`);
+      setSupplierLinkError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participantSupplier")} could not be linked to this ${terminologyLabel(terminology, "case")}.`);
     }
   }
 
@@ -2193,7 +2197,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       refresh();
       closeLinkSupplier();
     } catch (caught) {
-      setSupplierLinkError(caught instanceof Error ? caught.message : `Supplier could not be unlinked from this ${terminologyLabel(terminology, "case")}.`);
+      setSupplierLinkError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participantSupplier")} could not be unlinked from this ${terminologyLabel(terminology, "case")}.`);
     }
   }
 
@@ -2201,7 +2205,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
     <ConsoleLayout
       breadcrumbs={[
         { label: participant?.name ?? terminologyTitle(terminology, "participant") },
-        { label: mode === "cases" ? terminologyTitle(terminology, "case", true) : mode === "suppliers" ? "Suppliers" : "Users" },
+        { label: mode === "cases" ? terminologyTitle(terminology, "case", true) : mode === "suppliers" ? terminologyTitle(terminology, "participantSupplier", true) : "Users" },
       ]}
       readOnly
     >
@@ -2210,7 +2214,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           mode === "suppliers" && user.role === "participant" ? (
             <Button type="button" onClick={() => setShowCreateSupplier((current) => !current)}>
               <Plus />
-              Add supplier
+              Add {terminologyLabel(terminology, "participantSupplier")}
             </Button>
           ) : mode === "users" ? (
             <Button type="button" onClick={() => setShowCreateUser((current) => !current)}>
@@ -2283,8 +2287,8 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       </ResourceActionPanel>
       <ResourceActionPanel
         open={mode === "suppliers" && showCreateSupplier}
-        title="Add supplier"
-        description={`Record a supplier controlled by this ${terminologyLabel(terminology, "participant")}.`}
+        title={`Add ${terminologyLabel(terminology, "participantSupplier")}`}
+        description={`Record a ${terminologyLabel(terminology, "participantSupplier")} controlled by this ${terminologyLabel(terminology, "participant")}.`}
         onClose={() => setShowCreateSupplier(false)}
         footer={
           <Button type="button" onClick={createParticipantSupplier}>
@@ -2294,7 +2298,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
         }
       >
         <div className="grid gap-4 lg:grid-cols-2">
-          <FormField label="Supplier">
+          <FormField label={terminologyTitle(terminology, "participantSupplier")}>
             <Input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
           </FormField>
           <FormField label="Relationship">
@@ -2338,7 +2342,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       <section>
         <ResourceTable
           columnWidths={["w-[22%]", "w-[16%]", "w-[24%]", "w-[22%]", "w-[12rem]"]}
-          headings={["Supplier", "Relationship", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`, "Actions"]}
+          headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`, "Actions"]}
         >
           {participantSuppliersForParticipant.map((relationship) => {
             const linkableCases = scopedCases.filter((caseRecord) => !caseRecord.participantSupplierId);
@@ -2588,7 +2592,7 @@ export function AccessGrantsPage() {
       />
       <ResourceActionPanel
         open={showCreate}
-        title="Add access grant"
+        title={`Add ${terminologyLabel(terminology, "accessGrant")}`}
         description={`Grant scoped access to this ${terminologyLabel(terminology, "participant")}.`}
         onClose={() => setShowCreate(false)}
         footer={
@@ -2638,11 +2642,11 @@ export function AccessGrantsPage() {
                 setDataScopeId("");
               }}
             >
-              <option value="PARTICIPANT">Entire participant</option>
-              <option value="PARTICIPANT_SUPPLIER">Supplier</option>
+              <option value="PARTICIPANT">Entire {terminologyLabel(terminology, "participant")}</option>
+              <option value="PARTICIPANT_SUPPLIER">{terminologyTitle(terminology, "participantSupplier")}</option>
             </SelectField>
           </FormField>
-          <FormField label="Supplier">
+          <FormField label={terminologyTitle(terminology, "participantSupplier")}>
             <SelectField
               value={dataScopeId}
               onChange={setDataScopeId}
@@ -2983,7 +2987,7 @@ export function TaskDetailPage() {
       });
       refresh();
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Evidence metadata could not be uploaded.");
+      setError(uploadError instanceof Error ? uploadError.message : `${terminologyTitle(terminology, "evidence")} metadata could not be uploaded.`);
     }
   }
 
@@ -3109,9 +3113,9 @@ export function TaskDetailPage() {
               </Button>
             </div>
             <div>
-              <h4 className="mb-2 text-base font-bold">Evidence</h4>
+              <h4 className="mb-2 text-base font-bold">{terminologyTitle(terminology, "evidence")}</h4>
               {task.evidenceFiles.length === 0 ? (
-                <p className="text-sm text-[#505a5f] dark:text-muted-foreground">No evidence metadata has been uploaded.</p>
+                <p className="text-sm text-[#505a5f] dark:text-muted-foreground">No {terminologyLabel(terminology, "evidence")} metadata has been uploaded.</p>
               ) : (
                 <ResourceTable headings={["File", "Size", "Uploaded"]}>
                   {task.evidenceFiles.map((file) => (

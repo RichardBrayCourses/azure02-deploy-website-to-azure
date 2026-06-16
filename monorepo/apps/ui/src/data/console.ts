@@ -2620,12 +2620,13 @@ function buildParticipantSuppliers(): ParticipantSupplier[] {
   return db.participantSuppliers.map((relationship) => {
     const dto = relationship.toDto();
     const participant = getParticipant(dto.participantId);
+    const terminology = getAuthorityTerminology(participant?.authorityId ?? dto.authorityId);
     const linkedCases = cases.filter((caseRecord) => caseRecord.participantSupplierId === dto.id);
     return {
       id: dto.id,
       authorityId: dto.authorityId,
       participantId: dto.participantId,
-      participantName: participant?.name ?? "Unknown participant",
+      participantName: participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`,
       supplierName: dto.supplierName,
       relationshipType: dto.relationshipType,
       servicesProvided: dto.servicesProvided,
@@ -2670,14 +2671,14 @@ function accessGrantPermissionLabel(permissionLevel: AccessGrantPermissionLevel)
   return labels[permissionLevel];
 }
 
-function accessGrantScopeLabel(dataScopeType: AccessGrantDataScopeType, dataScopeId: string | null) {
-  if (dataScopeType === "PARTICIPANT") return "Entire participant";
-  if (dataScopeType === "EVIDENCE_METADATA") return "Evidence metadata";
-  if (dataScopeType === "PARTICIPANT_SUPPLIER") return participantSuppliers.find((relationship) => relationship.id === dataScopeId)?.supplierName ?? "Specific participant supplier record";
-  if (dataScopeType === "CASE") return cases.find((caseRecord) => caseRecord.id === dataScopeId)?.title ?? "Specific case";
+function accessGrantScopeLabel(dataScopeType: AccessGrantDataScopeType, dataScopeId: string | null, terminology: AuthorityTerminology | undefined) {
+  if (dataScopeType === "PARTICIPANT") return `Entire ${terminologyLabel(terminology, "participant")}`;
+  if (dataScopeType === "EVIDENCE_METADATA") return `${terminologyTitle(terminology, "evidence")} metadata`;
+  if (dataScopeType === "PARTICIPANT_SUPPLIER") return participantSuppliers.find((relationship) => relationship.id === dataScopeId)?.supplierName ?? `Specific ${terminologyLabel(terminology, "participantSupplier")} record`;
+  if (dataScopeType === "CASE") return cases.find((caseRecord) => caseRecord.id === dataScopeId)?.title ?? `Specific ${terminologyLabel(terminology, "case")}`;
   if (dataScopeType === "TASK") {
     const task = cases.flatMap((caseRecord) => caseRecord.tasks).find((candidate) => candidate.id === dataScopeId);
-    return task?.title ?? "Specific task";
+    return task?.title ?? `Specific ${terminologyLabel(terminology, "task")}`;
   }
   return "Configured scope";
 }
@@ -2686,6 +2687,7 @@ function buildAccessGrants(): AccessGrant[] {
   return db.accessGrants.map((grant) => {
     const dto = grant.toDto();
     const participant = getParticipant(dto.participantId);
+    const terminology = getAuthorityTerminology(participant?.authorityId ?? dto.authorityId);
     const stakeholder = dto.granteeStakeholderId ? getStakeholder(dto.granteeStakeholderId) : null;
     const agent = dto.granteeAgentId ? getAgent(dto.granteeAgentId) : null;
     const user = dto.granteeUserId ? db.userAccounts.find((account) => account.id === dto.granteeUserId)?.toDto() : null;
@@ -2694,7 +2696,7 @@ function buildAccessGrants(): AccessGrant[] {
       id: dto.id,
       authorityId: dto.authorityId,
       participantId: dto.participantId,
-      participantName: participant?.name ?? "Unknown participant",
+      participantName: participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`,
       granteeType: dto.granteeType,
       granteeName: stakeholder?.name ?? agent?.name ?? user?.displayName ?? "Unknown grantee",
       granteeStakeholderId: dto.granteeStakeholderId,
@@ -2703,7 +2705,7 @@ function buildAccessGrants(): AccessGrant[] {
       permissionLabel: accessGrantPermissionLabel(dto.permissionLevel),
       dataScopeType: dto.dataScopeType,
       dataScopeId: dto.dataScopeId,
-      scopeLabel: accessGrantScopeLabel(dto.dataScopeType, dto.dataScopeId),
+      scopeLabel: accessGrantScopeLabel(dto.dataScopeType, dto.dataScopeId, terminology),
       status: dto.status,
       createdByUserId: dto.createdByUserId,
       createdByName: createdBy?.displayName ?? "Unknown user",
@@ -2743,6 +2745,7 @@ function buildRequestsForInformation(): RequestForInformation[] {
   return db.requestsForInformation.map((request) => {
     const dto = request.toDto();
     const participant = getParticipant(dto.participantId);
+    const terminology = getAuthorityTerminology(participant?.authorityId ?? dto.authorityId);
     const stakeholder = getStakeholder(dto.stakeholderId);
     const caseRecord = cases.find((item) => item.id === dto.caseId);
     const task = cases.flatMap((item) => item.tasks).find((candidate) => candidate.id === dto.taskId);
@@ -2753,14 +2756,14 @@ function buildRequestsForInformation(): RequestForInformation[] {
       id: dto.id,
       authorityId: dto.authorityId,
       participantId: dto.participantId,
-      participantName: participant?.name ?? "Unknown participant",
+      participantName: participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`,
       stakeholderId: dto.stakeholderId,
-      stakeholderName: stakeholder?.name ?? "Unknown stakeholder",
+      stakeholderName: stakeholder?.name ?? `Unknown ${terminologyLabel(terminology, "stakeholder")}`,
       caseId: dto.caseId,
-      caseTitle: caseRecord?.title ?? "Case",
+      caseTitle: caseRecord?.title ?? terminologyTitle(terminology, "case"),
       taskId: dto.taskId,
       taskTitle: task?.title ?? null,
-      scopeLabel: task?.title ?? caseRecord?.title ?? "Participant",
+      scopeLabel: task?.title ?? caseRecord?.title ?? terminologyTitle(terminology, "participant"),
       requestText: dto.requestText,
       responseText: dto.responseText,
       status: dto.status,
@@ -3361,12 +3364,13 @@ export function getCaseTemplateParticipants(caseTemplateId: string | undefined):
     .filter((assignment) => assignment.caseTemplateId === caseTemplateId)
     .map((assignment) => {
       const participant = getParticipant(assignment.participantId);
+      const terminology = getAuthorityTerminology(participant?.authorityId);
       const caseRecord = assignment.caseId ? db.cases.find((item) => item.id === assignment.caseId)?.toDto() : null;
       return {
         id: assignment.id,
         caseTemplateId: assignment.caseTemplateId,
         participantId: assignment.participantId,
-        participantName: participant?.name ?? "Unknown participant",
+        participantName: participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`,
         caseId: assignment.caseId,
         caseStatus: caseRecord?.status ?? null,
         exemptionReason: assignment.exemptionReason,

@@ -39,7 +39,7 @@ export default function SignInPage() {
     }
     return agents.find((agent) => agent.id === selectedEntityId)?.authorityId;
   }, [selectedContextType, selectedEntityId]);
-  const terminology = getAuthorityTerminology(selectedAuthorityId);
+  const terminology = getAuthorityTerminology(selectedAuthorityId ?? authorities[0]?.id);
   const contextTypeOptions: Array<{ value: PrimaryContextType; label: string }> = [
     { value: "authority", label: terminologyTitle(terminology, "authority") },
     { value: "participant", label: terminologyTitle(terminology, "participant") },
@@ -138,7 +138,11 @@ export default function SignInPage() {
             </label>
 
             <label className="grid gap-1 text-sm font-bold" htmlFor="entity-id">
-              {selectedContextType === "agent" ? `${terminologyTitle(terminology, "agent")} or organization` : "Organisation"}
+              {selectedContextType
+                ? selectedContextType === "agent"
+                  ? `${terminologyTitle(terminology, "agent")} or organization`
+                  : terminologyTitle(terminology, selectedContextType)
+                : "Account"}
               <select
                 id="entity-id"
                 required
@@ -181,12 +185,12 @@ export default function SignInPage() {
               );
             }) : (
               <div className="border border-dashed border-[#b1b4b6] p-4 text-sm text-[#505a5f] dark:text-muted-foreground">
-                Select an account type and organisation to show matching users.
+                Select an account type and account to show matching users.
               </div>
             )}
             {selectedMembership && filteredUsers.length === 0 && (
               <div className="border border-dashed border-[#b1b4b6] p-4 text-sm text-[#505a5f] dark:text-muted-foreground">
-                No active users belong to this organisation.
+                No active users belong to this {terminologyLabel(terminology, selectedMembership.entityType)}.
               </div>
             )}
           </div>

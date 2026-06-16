@@ -54,6 +54,39 @@ function GlobalSearch() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
+  function searchGroupLabel(group: string) {
+    if (group === "Participants") return terminologyTitle(terminology, "participant", true);
+    if (group === "Stakeholders") return terminologyTitle(terminology, "stakeholder", true);
+    if (group === "Case templates") return terminologyTitle(terminology, "caseTemplate", true);
+    if (group === "Cases") return terminologyTitle(terminology, "case", true);
+    if (group === "Tasks") return terminologyTitle(terminology, "task", true);
+    return group;
+  }
+
+  function searchDescription(item: ReturnType<typeof getSearchItemsForUser>[number]) {
+    if (item.group === "Apps") {
+      if (item.path === "/admin/participants") {
+        return `Manage ${terminologyLabel(terminology, "authority")} settings, ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, ${terminologyLabel(terminology, "task")} types, and users.`;
+      }
+      if (item.path === "/cases") {
+        return `View ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)}, complete ${terminologyLabel(terminology, "task", true)}, upload ${terminologyLabel(terminology, "evidence")} metadata, and track progress.`;
+      }
+      if (item.path === "/stakeholder") {
+        return `Review granted ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)}, submitted ${terminologyLabel(terminology, "task", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and outcomes.`;
+      }
+    }
+    if (item.group === "Participants") {
+      return item.description.replace("open case", `open ${terminologyLabel(terminology, "case")}`);
+    }
+    if (item.group === "Case templates") {
+      return item.description.replace("Case template", terminologyTitle(terminology, "caseTemplate"));
+    }
+    if (item.group === "Cases") {
+      return item.description.replace("tasks complete", `${terminologyLabel(terminology, "task", true)} complete`);
+    }
+    return item.description;
+  }
+
   const matches = useMemo(() => {
     const searchItems = getSearchItemsForUser(user);
     const normalized = query.trim().toLowerCase();
@@ -61,12 +94,12 @@ function GlobalSearch() {
 
     return searchItems
       .filter((item) =>
-        `${item.title} ${item.description} ${item.group}`
+        `${item.title} ${item.description} ${searchDescription(item)} ${item.group} ${searchGroupLabel(item.group)}`
           .toLowerCase()
           .includes(normalized),
       )
       .slice(0, 7);
-  }, [query, user]);
+  }, [query, user, terminology]);
 
   function go(path: string) {
     navigate(path);
@@ -106,11 +139,11 @@ function GlobalSearch() {
                 onClick={() => go(item.path)}
               >
                 <span className="mt-1 rounded-sm bg-[#1d70b8] px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
-                  {item.group}
+                  {searchGroupLabel(item.group)}
                 </span>
                 <span>
                   <span className="block text-sm font-bold">{item.title}</span>
-                  <span className="block text-xs text-[#505a5f]">{item.description}</span>
+                  <span className="block text-xs text-[#505a5f]">{searchDescription(item)}</span>
                 </span>
               </button>
             ))
@@ -154,6 +187,26 @@ const Header = () => {
     if (role === "participant") return terminologyTitle(terminology, "participant");
     if (role === "stakeholder") return terminologyTitle(terminology, "stakeholder");
     return terminologyTitle(terminology, "agent");
+  }
+
+  function appLabel(app: (typeof availableApps)[number]) {
+    if (app.id === "case-management") return terminologyTitle(terminology, "case", true);
+    if (app.id === "stakeholder-portal") return `${terminologyTitle(terminology, "stakeholder")} Portal`;
+    if (app.id === "administration") return "Admin";
+    return app.shortName;
+  }
+
+  function appDescription(app: (typeof availableApps)[number]) {
+    if (app.id === "administration") {
+      return `Manage ${terminologyLabel(terminology, "authority")} settings, ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, ${terminologyLabel(terminology, "task")} types, and users.`;
+    }
+    if (app.id === "case-management") {
+      return `View ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)}, complete ${terminologyLabel(terminology, "task", true)}, upload ${terminologyLabel(terminology, "evidence")} metadata, and track progress.`;
+    }
+    if (app.id === "stakeholder-portal") {
+      return `Review granted ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)}, submitted ${terminologyLabel(terminology, "task", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and outcomes.`;
+    }
+    return app.description;
   }
 
   function switchContext(context: AccountContext) {
@@ -205,9 +258,9 @@ const Header = () => {
                         <span className={cn("mb-2 flex size-8 items-center justify-center rounded-sm text-white", app.accent)}>
                           <Icon className="size-4" />
                         </span>
-                        <span className="block text-sm font-bold">{app.shortName}</span>
+                        <span className="block text-sm font-bold">{appLabel(app)}</span>
                         <span className="mt-1 block text-xs leading-4 text-[#505a5f]">
-                          {app.description}
+                          {appDescription(app)}
                         </span>
                       </Link>
                     </DropdownMenuItem>
@@ -263,7 +316,7 @@ const Header = () => {
               <DropdownMenuLabel className="space-y-2">
                 <span className="block text-xs font-bold uppercase text-muted-foreground">Active context</span>
                 <span className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 text-sm font-normal">
-                  <span className="text-muted-foreground">Authority</span>
+                  <span className="text-muted-foreground">{terminologyTitle(terminology, "authority")}</span>
                   <span className="font-medium text-foreground">{authority?.name ?? "Not selected"}</span>
                   <span className="text-muted-foreground">Type</span>
                   <span className="font-medium text-foreground">{currentRoleLabel}</span>
