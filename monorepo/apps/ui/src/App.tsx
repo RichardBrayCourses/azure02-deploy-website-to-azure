@@ -56,7 +56,8 @@ const AppContent = () => {
         <Route path="/admin/users" element={<AdminReferencePage />} />
         <Route path="/admin/parameters" element={<ParametersPage />} />
 
-        <Route path="/cases" element={<CaseManagementHome />} />
+        <Route path="/cases" element={<CaseManagementHome mode="cases" />} />
+        <Route path="/cases/suppliers" element={<CaseManagementHome mode="suppliers" />} />
         <Route path="/cases/access-grants" element={<AccessGrantsPage />} />
         <Route path="/cases/:caseId" element={<CaseDetailPage />} />
         <Route path="/cases/:caseId/tasks/:taskId" element={<TaskDetailPage />} />

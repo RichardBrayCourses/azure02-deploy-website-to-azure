@@ -11,7 +11,6 @@ import {
   getTask,
   getStakeholder,
   getParticipant,
-  getAuthority,
   getCaseTemplate,
   getCaseTemplateParticipants,
   getCaseTemplateTasks,
@@ -246,6 +245,40 @@ function AdministrationResourceNav({ actions }: { actions?: ReactNode }) {
             const isCurrent =
               location.pathname === resource.path ||
               (resource.path !== "/admin" && location.pathname.startsWith(`${resource.path}/`));
+            return (
+              <Button
+                key={resource.path}
+                asChild
+                variant="ghost"
+                className={cn(
+                  "h-11 rounded-none border-b-4 border-transparent px-4 font-bold",
+                  isCurrent && "border-[#1d70b8] bg-white dark:bg-card",
+                )}
+              >
+                <Link to={resource.path}>{resource.name}</Link>
+              </Button>
+            );
+          })}
+        </div>
+      </nav>
+      {actions && <div className="flex shrink-0 flex-wrap gap-2 pb-2">{actions}</div>}
+    </div>
+  );
+}
+
+function ParticipantWorkspaceNav({ actions }: { actions?: ReactNode }) {
+  const location = useLocation();
+  const resources = [
+    { name: "Cases", path: "/cases" },
+    { name: "Suppliers", path: "/cases/suppliers" },
+  ];
+
+  return (
+    <div className="mb-6 flex flex-col gap-3 border-b border-[#b1b4b6] md:flex-row md:items-end md:justify-between">
+      <nav aria-label="Participant workspace" className="min-w-0">
+        <div className="flex gap-1 overflow-x-auto">
+          {resources.map((resource) => {
+            const isCurrent = location.pathname === resource.path;
             return (
               <Button
                 key={resource.path}
@@ -1988,7 +2021,7 @@ export function ParticipantDetailPage() {
   );
 }
 
-export function CaseManagementHome() {
+export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
   const [showCreateSupplier, setShowCreateSupplier] = useState(false);
@@ -2002,14 +2035,9 @@ export function CaseManagementHome() {
   if (user.role === "helper") return <Navigate to="/helper" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin/participants" replace />;
   const terminology = getTerminologyForUser(user);
-  const authority = getAuthority(user.authorityId ?? undefined);
   const participant = getParticipant(user.participantId ?? undefined);
   const scopedCases = getScopedCases(user);
   const participantSuppliersForParticipant = getParticipantSuppliersForParticipant(user.participantId ?? undefined);
-  const totalTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
-  const completedTasks = scopedCases.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
-  const openRequests = getRequestsForParticipant(user.participantId ?? undefined, user)
-    .filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS").length;
 
   function createParticipantSupplier() {
     setSupplierError(null);
@@ -2035,38 +2063,38 @@ export function CaseManagementHome() {
       setDataExposure("");
       setShowCreateSupplier(false);
     } catch (caught) {
-      setSupplierError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participantSupplier")} record could not be created.`);
+      setSupplierError(caught instanceof Error ? caught.message : "Supplier record could not be created.");
     }
   }
 
   return (
     <ConsoleLayout
-      breadcrumbs={[{ label: terminologyTitle(terminology, "case", true) }]}
+      breadcrumbs={[
+        { label: participant?.name ?? "Participant workspace" },
+        { label: mode === "cases" ? terminologyTitle(terminology, "case", true) : "Suppliers" },
+      ]}
       readOnly
     >
-      <PageTitle
-        title={terminologyTitle(terminology, "case", true)}
+      <ParticipantWorkspaceNav
         actions={
-          <Button asChild>
-            <Link to="/cases/access-grants">
-              <UserPlus />
-              Access grants
-            </Link>
-          </Button>
+          mode === "cases" ? (
+            <Button asChild>
+              <Link to="/cases/access-grants">
+                <UserPlus />
+                Access grants
+              </Link>
+            </Button>
+          ) : (
+            <Button type="button" onClick={() => setShowCreateSupplier((current) => !current)}>
+              <Plus />
+              Add supplier
+            </Button>
+          )
         }
       />
-      <MetricStrip
-        items={[
-          { label: terminologyTitle(terminology, "authority"), value: authority?.name ?? "None", tone: "blue" },
-          { label: terminologyTitle(terminology, "case", true), value: String(scopedCases.length), tone: "blue" },
-          { label: terminologyTitle(terminology, "participantSupplier", true), value: String(participantSuppliersForParticipant.length), tone: "yellow" },
-          { label: "Completed items", value: `${completedTasks} / ${totalTasks}`, tone: "green" },
-          { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
-        ]}
-      />
       <ResourceActionPanel
-        open={showCreateSupplier}
-        title={`Create ${terminologyLabel(terminology, "participantSupplier")} record`}
+        open={mode === "suppliers" && showCreateSupplier}
+        title="Create supplier"
         description={`Record a supplier controlled by this ${terminologyLabel(terminology, "participant")} workspace.`}
         onClose={() => setShowCreateSupplier(false)}
         footer={
@@ -2077,7 +2105,7 @@ export function CaseManagementHome() {
         }
       >
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr_12rem]">
-          <FormField label={terminologyTitle(terminology, "participantSupplier")}>
+          <FormField label="Supplier">
             <Input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
           </FormField>
           <FormField label="Relationship">
@@ -2100,9 +2128,10 @@ export function CaseManagementHome() {
         </div>
         <div className="mt-3"><FormError message={supplierError} /></div>
       </ResourceActionPanel>
-      <section className="mt-8">
+      {mode === "cases" && (
+      <section>
         <ResourceTable
-          headings={[terminologyTitle(terminology, "case"), "Type", "Status", "Progress", "Risk", "Last activity"]}
+          headings={[terminologyTitle(terminology, "case"), "Type", "Status", "Progress", "Risk", "Outcome", "Last activity"]}
         >
           {scopedCases.map((caseRecord) => {
             return (
@@ -2116,31 +2145,26 @@ export function CaseManagementHome() {
                 <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
                 <td className="px-4 py-3 capitalize">{caseRecord.risk}</td>
+                <td className="px-4 py-3">{caseRecord.outcome}</td>
                 <td className="px-4 py-3">{caseRecord.lastActivity}</td>
               </tr>
             );
           })}
         </ResourceTable>
       </section>
-      <section className="mt-8">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-bold">{terminologyTitle(terminology, "participantSupplier", true)}</h3>
-          <Button type="button" variant="outline" onClick={() => setShowCreateSupplier((current) => !current)}>
-            <Plus />
-            Add participant
-          </Button>
-        </div>
-        <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Criticality", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
+      )}
+      {mode === "suppliers" && (
+      <section>
+        <ResourceTable headings={["Supplier", "Relationship", "Criticality", "Status", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
           {participantSuppliersForParticipant.map((relationship) => (
             <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
-                <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
-                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                  {relationship.status.replace("_", " ").toLowerCase()}
-                </span>
+                <span className="block font-bold text-[#0b0c0c] dark:text-white">{relationship.supplierName}</span>
+                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{relationship.servicesProvided}</span>
               </td>
               <td className="px-4 py-3">{relationship.relationshipType}</td>
               <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
+              <td className="px-4 py-3">{relationship.status.replace("_", " ").toLowerCase()}</td>
               <td className="px-4 py-3">{relationship.dataExposure}</td>
               <td className="px-4 py-3">
                 {relationship.linkedCases.length > 0
@@ -2155,6 +2179,7 @@ export function CaseManagementHome() {
           ))}
         </ResourceTable>
       </section>
+      )}
     </ConsoleLayout>
   );
 }

@@ -139,15 +139,15 @@
   - Authority-owned reusable definition of a due diligence process.
   - Built from configured template tasks.
   - Displayed as DDQ template for the primary scenario.
-  - Can be draft, published, or archived.
+  - Can be draft or finalized.
+  - Finalization is a one-way lifecycle transition.
 - Case template task:
   - Configured use of a task type inside a case template.
   - Has title, description, due metadata, sort order, parameters, and status.
-  - Can be withdrawn after publication.
+  - Can be added to or removed from draft templates.
 - Case template participant:
-  - Participant assignment to a published or draft template.
-  - Can be required or exempt.
-  - Links to generated case instances where applicable.
+  - Participant assignment to a finalized template.
+  - Links to a generated case instance.
 - Case:
   - Participant-specific instance of a case template.
   - Displayed as due diligence pack for the primary scenario.
@@ -316,41 +316,54 @@
 
 - List case templates:
   - Displayed as DDQ templates for the primary scenario.
-  - Shows status, active task count, assigned participant count, and publication state.
+  - Shows template name, finalized state, active task count, assigned participant count, and actions.
+  - Shows finalized state as `Yes` or `No`.
+  - Draft templates display their name as plain text, not as a navigation hyperlink.
+  - Draft templates expose an edit action.
+  - Finalized templates expose an assign action.
+  - The edit action is disabled for finalized templates.
+  - The assign action is disabled for draft templates.
 - Create template:
   - Enter name.
   - Enter description.
   - Save draft template to current authority.
-- Add task to template:
+  - After save, navigate directly to the new template edit form.
+- Edit draft template:
+  - Available only before finalization.
   - Select task type from finite task library.
   - Enter display title.
   - Enter due text.
   - Enter description.
   - Configure task parameters where supported.
   - Automatically assign sort order.
-- Assign participant to template:
+  - Remove draft template tasks before finalization.
+  - Delete the template when no participants are assigned.
+- Finalize template:
+  - Available only from the edit form for draft templates.
+  - Warns that finalization cannot be undone.
+  - Updates template status to finalized.
+  - Once finalized, the template cannot be edited.
+  - Finalized templates can be assigned to participants.
+- Assign participant to finalized template:
+  - Available only from the assign form for finalized templates.
   - Select participant/vendor.
-  - Select required or exempt.
-  - Enter exemption reason when exempt.
   - Blocks duplicate assignment.
   - Blocks cross-authority assignment.
-- Publish template:
-  - Requires at least one active task.
-  - Requires at least one required participant.
-  - Updates template status to published.
-  - Records published timestamp and user.
-  - Creates one participant-owned case instance per required participant.
+  - Creates one participant-owned case instance for the assignment.
   - Creates one case task per active template task.
   - Links assignment rows to generated cases.
-- Add task after publication:
-  - Marks task as added after publish.
-  - Creates corresponding case tasks for existing active case instances.
-  - Recalculates affected case status.
-- Withdraw published task:
+- Withdraw assigned case:
   - Requires withdrawal reason.
-  - Marks template task as withdrawn.
-  - Withdraws incomplete generated case tasks.
-  - Preserves submitted, accepted, rejected, or completed task history.
+  - Marks the participant-specific case as withdrawn.
+  - Preserves the assignment row and generated case history.
+  - Prevents withdrawn cases from being completed while withdrawn.
+- Reinstate withdrawn case:
+  - Available only for withdrawn assigned cases.
+  - Clears withdrawal metadata.
+  - Recalculates affected case status from its active tasks.
+- Withdraw draft template task:
+  - Available only before template finalization.
+  - Marks the template task as withdrawn.
   - Recalculates affected case status.
 
 ## Participant Vendor Workspace Functions
@@ -538,7 +551,7 @@
 - Participant completion:
   - Required active tasks must be submitted or withdrawn before case submission.
   - Withdrawn tasks do not block submission.
-  - Added-after-publication tasks may reopen or update participant progress according to template rules.
+  - Finalized template tasks cannot be edited after participant cases are assigned.
 - Subscriber review:
   - Review status belongs to the reviewing stakeholder.
   - One stakeholder's review status does not automatically become another stakeholder's status.
