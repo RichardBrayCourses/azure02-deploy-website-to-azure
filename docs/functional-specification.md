@@ -47,11 +47,11 @@ The business model is documented separately and is not repeated in this function
 - `SystemOwner` stores the platform owner name and entity status.
 - `Authority` stores the system owner, name, description, and entity status.
 - `AuthorityTerminology` stores singular and plural labels for configurable internal concepts.
-- `Participant` stores the authority, party type, display name, and invite status.
-- `Stakeholder` stores the authority, party type, display name, and invite status.
-- `Agent` stores the authority, party type, display name, and invite status.
+- `Participant` stores the authority and display name.
+- `Stakeholder` stores the authority and display name.
+- `Agent` stores the authority and display name.
 - `UserAccount` stores the Entra object id, email, display name, user kind, and account status.
-- `AuthorityUser`, `ParticipantUser`, `StakeholderUser`, and `AgentUser` connect a user account to an entity with a membership role.
+- `AuthorityUser`, `ParticipantUser`, `StakeholderUser`, and `AgentUser` connect a user account to an entity.
 - `StakeholderParticipantAccess` records an approved stakeholder-to-participant access relationship.
 - `AccessGrant` records participant-controlled access for a stakeholder, agent, user, or authority target, including permission level, data scope, status, creator, and expiry.
 - `TaskType` defines a reusable task capability with a code, name, description, parameter schema, and status.
@@ -60,32 +60,22 @@ The business model is documented separately and is not repeated in this function
 - `CaseTemplateParticipant` records assignment of a finalized case template to a participant and links to the generated case.
 - `Case` stores the participant-specific instance of a case template, including status, submitted and closed dates, optional participant supplier link, and withdrawal metadata.
 - `CaseTask` stores the participant-specific instance of a case template task, including response JSON, evidence JSON, status, and withdrawal date.
-- `StakeholderReview` stores a stakeholder's review status, note, reviewer, and review date for a case.
+- `StakeholderReview` stores a stakeholder's review note, reviewer, and review date for a case.
 - `RequestForInformation` stores a stakeholder request and participant or agent response, including scope, status, assigned/responding users, timestamps, and status history.
-- `ParticipantSupplier` stores a participant-owned supplier record, including relationship type, criticality, services provided, data exposure, and status.
+- `ParticipantSupplier` stores a participant-owned supplier record, including relationship type, services provided, and data exposure.
 
 ## Status And Access Values
 
-- Entity status: `ACTIVE`, `INACTIVE`.
-- Invite status: `ACTIVE`, `INACTIVE`, `INVITED`.
-- User kind: `SYSTEM_OWNER`, `AUTHORITY`, `PARTICIPANT`, `STAKEHOLDER`, `AGENT`.
 - User account status: `ACTIVE`, `DISABLED`.
-- Membership role: `ADMIN`, `MEMBER`.
-- Stakeholder participant access status: `APPROVED`, `SUSPENDED`, `REVOKED`.
 - Access grant status: `INVITED`, `ACTIVE`, `SUSPENDED`, `REVOKED`, `EXPIRED`.
 - Access grant grantee type: `STAKEHOLDER`, `AGENT`, `USER`, `AUTHORITY`.
 - Access grant permission level: `READ_ONLY`, `REQUEST_INFORMATION`, `REVIEW_AND_COMMENT`, `CREATE_AND_EDIT`, `ADMINISTER_GRANTS`.
 - Access grant data scope type: `PARTICIPANT`, `CASE`, `CASE_TASK`, `EVIDENCE_METADATA`, `PARTICIPANT_SUPPLIER`.
 - Task type status: `ACTIVE`, `DEPRECATED`.
 - Case template status: `DRAFT`, `FINALIZED`.
-- Template participant status: `ASSIGNED`.
 - Case status: `INCOMPLETE`, `COMPLETE`, `WITHDRAWN`.
 - Case task status: `NOT_STARTED`, `IN_PROGRESS`, `SUBMITTED`, `PASSED`, `FAILED`, `WITHDRAWN`.
-- Stakeholder review status: `NOT_REVIEWED`, `IN_REVIEW`, `APPROVED`, `MORE_INFO_REQUESTED`.
 - Request for information status: `OPEN`, `IN_PROGRESS`, `ANSWERED`, `ACCEPTED`, `WITHDRAWN`.
-- Request for information scope type: `PARTICIPANT`, `CASE`, `CASE_TASK`, `EVIDENCE_METADATA`.
-- Participant supplier criticality: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
-- Participant supplier status: `ACTIVE`, `UNDER_REVIEW`, `SUSPENDED`, `EXITING`.
 
 ## Task Types
 
@@ -123,17 +113,16 @@ The system routes each context to its default page:
 
 ### Data Stored About The User
 
-An authority user has a `UserAccount` containing `entraObjectId`, `email`, `displayName`, `userKind`, and `status`. The authority membership is stored in `AuthorityUser` with `entityId`, `userAccountId`, and `role`.
+An authority user has a `UserAccount` containing `entraObjectId`, `email`, `displayName`, and `status`. The authority membership is stored in `AuthorityUser` with `entityId` and `userAccountId`.
 
 Access status values for this user type:
 
 - User account status: `ACTIVE`, `DISABLED`.
-- Membership role: `ADMIN`, `MEMBER`.
 
 ### Stories
 
 - As an authority user, I start in Authority Administration and work with the participants, stakeholders, case templates, task types, users, and terminology that belong to my active authority.
-- As an authority user, I create participant records with a party type, display name, invite status, and initial participant user.
+- As an authority user, I create participant records with a display name and initial participant user.
 - As an authority user, I create stakeholder records and add stakeholder users.
 - As an authority user, I create authority users.
 - As an authority user, I view task types as a reference list.
@@ -150,12 +139,11 @@ Access status values for this user type:
 
 ### Data Stored About The User
 
-A participant user has a `UserAccount` containing `entraObjectId`, `email`, `displayName`, `userKind`, and `status`. The participant membership is stored in `ParticipantUser` with `entityId`, `userAccountId`, and `role`.
+A participant user has a `UserAccount` containing `entraObjectId`, `email`, `displayName`, and `status`. The participant membership is stored in `ParticipantUser` with `entityId` and `userAccountId`.
 
 Access status values for this user type:
 
 - User account status: `ACTIVE`, `DISABLED`.
-- Membership role: `ADMIN`, `MEMBER`.
 - Access grant status controlled by the participant: `INVITED`, `ACTIVE`, `SUSPENDED`, `REVOKED`, `EXPIRED`.
 - Access grant permission levels available when granting access: `READ_ONLY`, `REQUEST_INFORMATION`, `REVIEW_AND_COMMENT`, `CREATE_AND_EDIT`, `ADMINISTER_GRANTS`.
 
@@ -168,9 +156,9 @@ Access status values for this user type:
 - As a participant user, I submit a case task. The task moves to `SUBMITTED`.
 - As a participant user, I submit a case only after every active case task is no longer `NOT_STARTED` or `IN_PROGRESS`. The case moves to `COMPLETE` and records submitted and closed timestamps.
 - As a participant user, I respond to requests for information for my participant account. I can save a response as `IN_PROGRESS` or `ANSWERED`.
-- As a participant user, I create participant supplier records with supplier name, relationship type, criticality, services provided, and data exposure.
+- As a participant user, I create participant supplier records with supplier name, relationship type, services provided, and data exposure.
 - As a participant user, I link one participant supplier record to one case and unlink it later if needed.
-- As a participant user, I create participant users with `ADMIN` or `MEMBER` membership role.
+- As a participant user, I create participant users.
 - As a participant user, I create agent records, add agent users, and assign agent users to agent organisations.
 - As a participant user, I create access grants for stakeholders, agents, specific users, or authority grantees.
 - As a participant user, I set each access grant's permission level, data scope, status, and optional expiry.
@@ -180,22 +168,20 @@ Access status values for this user type:
 
 ### Data Stored About The User
 
-A stakeholder user has a `UserAccount` containing `entraObjectId`, `email`, `displayName`, `userKind`, and `status`. The stakeholder membership is stored in `StakeholderUser` with `entityId`, `userAccountId`, and `role`.
+A stakeholder user has a `UserAccount` containing `entraObjectId`, `email`, `displayName`, and `status`. The stakeholder membership is stored in `StakeholderUser` with `entityId` and `userAccountId`.
 
 Access status values for this user type:
 
 - User account status: `ACTIVE`, `DISABLED`.
-- Membership role: `ADMIN`, `MEMBER`.
-- Stakeholder participant access status: `APPROVED`, `SUSPENDED`, `REVOKED`.
 - Access grant status: `INVITED`, `ACTIVE`, `SUSPENDED`, `REVOKED`, `EXPIRED`.
 - Access grant permission levels: `READ_ONLY`, `REQUEST_INFORMATION`, `REVIEW_AND_COMMENT`, `CREATE_AND_EDIT`, `ADMINISTER_GRANTS`.
 
 ### Stories
 
 - As a stakeholder user, I start in the Stakeholder Portal and see only participants, cases, case tasks, evidence metadata, and participant suppliers made visible by active access grants.
-- As a stakeholder user, I open a participant page to see visible cases, visible participant suppliers, task progress, and stakeholder review status.
+- As a stakeholder user, I open a participant page to see visible cases, visible participant suppliers, and task progress.
 - As a stakeholder user, I open a case page to review submitted case task outcomes and visible evidence metadata.
-- As a stakeholder user, I save a stakeholder review status and note for a case.
+- As a stakeholder user, I save a stakeholder review note for a case.
 - As a stakeholder user, I create a request for information against a whole case or a specific case task when my active grant is not `READ_ONLY`.
 - As a stakeholder user, I track request status and participant responses.
 - As a stakeholder user, I mark a request for information as `ACCEPTED` or `WITHDRAWN`.
@@ -205,12 +191,11 @@ Access status values for this user type:
 
 ### Data Stored About The User
 
-An agent user has a `UserAccount` containing `entraObjectId`, `email`, `displayName`, `userKind`, and `status`. The agent membership is stored in `AgentUser` with `entityId`, `userAccountId`, and `role`.
+An agent user has a `UserAccount` containing `entraObjectId`, `email`, `displayName`, and `status`. The agent membership is stored in `AgentUser` with `entityId` and `userAccountId`.
 
 Access status values for this user type:
 
 - User account status: `ACTIVE`, `DISABLED`.
-- Membership role: `ADMIN`, `MEMBER`.
 - Access grant status: `INVITED`, `ACTIVE`, `SUSPENDED`, `REVOKED`, `EXPIRED`.
 - Access grant permission levels: `READ_ONLY`, `REQUEST_INFORMATION`, `REVIEW_AND_COMMENT`, `CREATE_AND_EDIT`, `ADMINISTER_GRANTS`.
 
@@ -274,7 +259,6 @@ Access status values for this user type:
 ## Participant Supplier Behaviour
 
 - Participant suppliers are owned by a participant inside an authority.
-- A participant supplier is created with status `UNDER_REVIEW`.
 - A participant supplier can be linked to a case only when both records belong to the same participant and authority.
 - A participant supplier can be linked to only one case at a time.
 - Access grant scope can expose participant supplier records to stakeholders or agents.

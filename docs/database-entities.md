@@ -9,14 +9,12 @@ Common fields on all entities:
 ## SystemOwner
 
 - `name: string`
-- `status: EntityStatus`
 
 ## Authority
 
 - `systemOwnerId: SystemOwnerId`
 - `name: string`
 - `description: string`
-- `status: EntityStatus`
 
 ## AuthorityTerminology
 
@@ -26,67 +24,54 @@ Common fields on all entities:
 ## Participant
 
 - `authorityId: AuthorityId`
-- `participantType: PartyType`
 - `displayName: string`
-- `status: InviteStatus`
 
 ## Stakeholder
 
 - `authorityId: AuthorityId`
-- `stakeholderType: PartyType`
 - `displayName: string`
-- `status: InviteStatus`
 
 ## Agent
 
 - `authorityId: AuthorityId`
-- `agentType: PartyType`
 - `displayName: string`
-- `status: InviteStatus`
 
 ## UserAccount
 
 - `entraObjectId: string`
 - `email: string`
 - `displayName: string`
-- `userKind: UserKind`
 - `status: UserAccountStatus`
 
 ## SystemOwnerUser
 
 - `entityId: SystemOwnerId`
 - `userAccountId: UserAccountId`
-- `role: MembershipRole`
 
 ## AuthorityUser
 
 - `entityId: AuthorityId`
 - `userAccountId: UserAccountId`
-- `role: MembershipRole`
 
 ## ParticipantUser
 
 - `entityId: ParticipantId`
 - `userAccountId: UserAccountId`
-- `role: MembershipRole`
 
 ## StakeholderUser
 
 - `entityId: StakeholderId`
 - `userAccountId: UserAccountId`
-- `role: MembershipRole`
 
 ## AgentUser
 
 - `entityId: AgentId`
 - `userAccountId: UserAccountId`
-- `role: MembershipRole`
 
 ## StakeholderParticipantAccess
 
 - `stakeholderId: StakeholderId`
 - `participantId: ParticipantId`
-- `status: AccessStatus`
 - `approvedByUserId: UserAccountId`
 - `approvedAt: string`
 
@@ -137,7 +122,6 @@ Common fields on all entities:
 
 - `caseTemplateId: CaseTemplateId`
 - `participantId: ParticipantId`
-- `status: TemplateParticipantStatus`
 - `caseId: CaseRecordId | null`
 - `exemptionReason: string | null`
 - `decidedByUserId: UserAccountId | null`
@@ -169,7 +153,6 @@ Common fields on all entities:
 
 - `stakeholderId: StakeholderId`
 - `caseId: CaseRecordId`
-- `status: StakeholderReviewStatus`
 - `note: string`
 - `reviewedByUserId: UserAccountId`
 - `reviewedAt: string`
@@ -181,7 +164,6 @@ Common fields on all entities:
 - `stakeholderId: StakeholderId`
 - `caseId: CaseRecordId | null`
 - `caseTaskId: CaseTaskId | null`
-- `scopeType: RequestForInformationScopeType`
 - `requestText: string`
 - `responseText: string`
 - `status: RequestForInformationStatus`
@@ -198,7 +180,5 @@ Common fields on all entities:
 - `participantId: ParticipantId`
 - `supplierName: string`
 - `relationshipType: string`
-- `criticality: ParticipantSupplierCriticality`
 - `servicesProvided: string`
 - `dataExposure: string`
-- `status: ParticipantSupplierStatus`

@@ -38,12 +38,8 @@ import {
   AccessGrantStatus,
   AccessGrantDataScopeType,
   AccessGrantGranteeType,
-  MembershipRole,
-  PartyType,
   RequestForInformationStatus,
-  StakeholderReviewStatus,
   Status,
-  ParticipantSupplierCriticality,
   terminologyLabel,
   terminologyTitle,
   TerminologyKey,
@@ -375,7 +371,7 @@ export function AgentParticipantAccessPage() {
       </section>
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participantSupplier", true)}</h3>
-        <ResourceTable headings={[`Client ${terminologyLabel(terminology, "participant")}`, terminologyTitle(terminology, "participantSupplier"), "Criticality", "Status", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
+        <ResourceTable headings={[`Client ${terminologyLabel(terminology, "participant")}`, terminologyTitle(terminology, "participantSupplier"), `Linked ${terminologyLabel(terminology, "case", true)}`]}>
           {accessViews.flatMap((accessView) =>
             accessView.participantSuppliers.map((relationship) => (
               <tr key={`${accessView.grant.id}-${relationship.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -386,8 +382,6 @@ export function AgentParticipantAccessPage() {
                     {relationship.relationshipType}
                   </span>
                 </td>
-                <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
-                <td className="px-4 py-3">{relationship.status.replace("_", " ").toLowerCase()}</td>
                 <td className="px-4 py-3">
                   {relationship.linkedCases.length > 0
                     ? relationship.linkedCases.map((caseRecord) => (
@@ -483,17 +477,13 @@ export function HelperParticipantPage() {
       </section>
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participantSupplier", true)}</h3>
-        <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Criticality", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
           {accessView.participantSuppliers.map((relationship) => (
             <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
                 <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
-                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                  {relationship.status.replace("_", " ").toLowerCase()}
-                </span>
               </td>
               <td className="px-4 py-3">{relationship.relationshipType}</td>
-              <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
               <td className="px-4 py-3">{relationship.dataExposure}</td>
               <td className="px-4 py-3">
                 {relationship.linkedCases.length > 0
@@ -558,15 +548,14 @@ export function StakeholderPortalPage() {
           { label: `Granted ${terminologyLabel(terminology, "participant", true)}`, value: String(scopedParticipants.length), tone: "blue" },
           { label: `Visible ${terminologyLabel(terminology, "case", true)}`, value: String(scopedCases.length), tone: "blue" },
           { label: terminologyTitle(terminology, "participantSupplier", true), value: String(scopedParticipantSuppliers.length), tone: "yellow" },
-          { label: "Approved by stakeholder", value: String(reviewSummaries.filter((review) => review?.status === "APPROVED").length), tone: "green" },
+          { label: `${terminologyTitle(terminology, "stakeholder")} reviews`, value: String(reviewSummaries.filter(Boolean).length), tone: "green" },
         ]}
       />
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Visible {terminologyLabel(terminology, "case")} status</h3>
-        <ResourceTable headings={[terminologyTitle(terminology, "participant"), `Visible ${terminologyLabel(terminology, "case")}`, `${terminologyTitle(terminology, "participant")} status`, "Progress", `${terminologyTitle(terminology, "stakeholder")} review`]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), `Visible ${terminologyLabel(terminology, "case")}`, `${terminologyTitle(terminology, "participant")} status`, "Progress"]}>
           {scopedParticipants.map((participant) => {
             const visibleCase = scopedCases.find((caseRecord) => caseRecord.participantId === participant.id);
-            const review = getStakeholderReviewForCase(user, visibleCase?.id);
             const visibleCasesForParticipant = scopedCases.filter((caseRecord) => caseRecord.participantId === participant.id);
             const visibleCompletedTasks = visibleCasesForParticipant.reduce((sum, caseRecord) => sum + caseRecord.completedTasks, 0);
             const visibleTotalTasks = visibleCasesForParticipant.reduce((sum, caseRecord) => sum + caseRecord.totalTasks, 0);
@@ -596,7 +585,6 @@ export function StakeholderPortalPage() {
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={visibleCase?.status ?? "not-started"} /></td>
                 <td className="px-4 py-3"><ProgressBar value={visibleCompletedTasks} total={visibleTotalTasks} /></td>
-                <td className="px-4 py-3">{review?.statusLabel ?? "Not reviewed"}</td>
               </tr>
             );
           })}
@@ -644,17 +632,13 @@ export function StakeholderParticipantDetailPage() {
       />
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Visible {terminologyLabel(terminology, "participantSupplier", true)}</h3>
-        <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Criticality", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
           {visibleParticipantSuppliers.map((relationship) => (
             <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
                 <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
-                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                  {relationship.status.replace("_", " ").toLowerCase()}
-                </span>
               </td>
               <td className="px-4 py-3">{relationship.relationshipType}</td>
-              <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
               <td className="px-4 py-3">{relationship.dataExposure}</td>
               <td className="px-4 py-3">
                 {relationship.linkedCases.length > 0
@@ -671,10 +655,8 @@ export function StakeholderParticipantDetailPage() {
       </section>
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Visible {terminologyLabel(terminology, "case", true)}</h3>
-        <ResourceTable headings={[terminologyTitle(terminology, "case"), `${terminologyTitle(terminology, "participant")} status`, "Progress", `${terminologyTitle(terminology, "stakeholder")} review`, "Last activity"]}>
-          {participantCases.map((caseRecord) => {
-            const review = getStakeholderReviewForCase(user, caseRecord.id);
-            return (
+        <ResourceTable headings={[terminologyTitle(terminology, "case"), `${terminologyTitle(terminology, "participant")} status`, "Progress", "Last activity"]}>
+          {participantCases.map((caseRecord) => (
               <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3">
                   <Link className="font-bold text-[#1d70b8] hover:underline" to={`/stakeholder/${caseRecord.id}`}>
@@ -686,11 +668,9 @@ export function StakeholderParticipantDetailPage() {
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
-                <td className="px-4 py-3">{review?.statusLabel ?? "Not reviewed"}</td>
                 <td className="px-4 py-3">{caseRecord.lastActivity}</td>
               </tr>
-            );
-          })}
+          ))}
         </ResourceTable>
       </section>
       <section className="mt-8">
@@ -728,7 +708,6 @@ export function StakeholderCaseDetailPage() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
   const { caseId } = useParams();
-  const [reviewStatus, setReviewStatus] = useState<StakeholderReviewStatus>("IN_REVIEW");
   const [reviewNote, setReviewNote] = useState("");
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [requestTaskId, setRequestTaskId] = useState("");
@@ -738,10 +717,9 @@ export function StakeholderCaseDetailPage() {
   const stakeholderReview = getStakeholderReviewForCase(user, caseRecord?.id);
 
   useEffect(() => {
-    setReviewStatus(stakeholderReview?.status ?? "IN_REVIEW");
     setReviewNote(stakeholderReview?.note ?? "");
     setReviewError(null);
-  }, [stakeholderReview?.id, stakeholderReview?.note, stakeholderReview?.status]);
+  }, [stakeholderReview?.id, stakeholderReview?.note]);
 
   if (user.role !== "stakeholder") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
@@ -763,7 +741,6 @@ export function StakeholderCaseDetailPage() {
       db.upsertStakeholderReview({
         stakeholderId: user.stakeholderId,
         caseId: caseRecord?.id ?? "",
-        status: reviewStatus,
         note: reviewNote.trim(),
         reviewedByUserId: user.authenticatableUserId,
       });
@@ -904,15 +881,7 @@ export function StakeholderCaseDetailPage() {
       <section className="mt-8 border border-[#b1b4b6] bg-white p-5 dark:bg-card">
         <h3 className="text-xl font-bold">{terminologyTitle(terminology, "stakeholder")} review</h3>
         <FormError message={reviewError} />
-        <div className="mt-4 grid gap-4 lg:grid-cols-[16rem_1fr_auto] lg:items-end">
-          <FormField label="Review status">
-            <SelectField value={reviewStatus} onChange={(value) => setReviewStatus(value as StakeholderReviewStatus)}>
-              <option value="NOT_REVIEWED">Not reviewed</option>
-              <option value="IN_REVIEW">In review</option>
-              <option value="APPROVED">Approved</option>
-              <option value="MORE_INFO_REQUESTED">More information requested</option>
-            </SelectField>
-          </FormField>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
           <FormField label={`${terminologyTitle(terminology, "stakeholder")} note`}>
             <Input value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} />
           </FormField>
@@ -980,7 +949,6 @@ export function StakeholdersPage() {
   const { db, refresh } = useDomainData();
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
-  const [stakeholderType, setStakeholderType] = useState<PartyType>("ORGANISATION");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
@@ -1000,13 +968,10 @@ export function StakeholdersPage() {
     try {
       const stakeholder = db.createStakeholder({
         authorityId: user.authorityId,
-        stakeholderType,
         displayName: displayName.trim(),
-        status: "ACTIVE",
       });
       refresh();
       setDisplayName("");
-      setStakeholderType("ORGANISATION");
       setShowCreate(false);
       navigate(`/admin/stakeholders/${stakeholder.id}`);
     } catch (caught) {
@@ -1038,20 +1003,14 @@ export function StakeholdersPage() {
           </Button>
         }
       >
-        <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
-          <FormField label="Type">
-            <SelectField value={stakeholderType} onChange={(value) => setStakeholderType(value as PartyType)}>
-              <option value="ORGANISATION">Organisation</option>
-              <option value="PERSON">Person</option>
-            </SelectField>
-          </FormField>
+        <div className="grid gap-4">
           <FormField label="Display name">
             <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </FormField>
         </div>
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
-      <ResourceTable headings={[terminologyTitle(terminology, "stakeholder"), "Type", "Status", `${terminologyTitle(terminology, "participant")} access`]}>
+      <ResourceTable headings={[terminologyTitle(terminology, "stakeholder"), `${terminologyTitle(terminology, "participant")} access`]}>
         {scopedStakeholders.map((stakeholder) => (
           <tr key={stakeholder.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -1059,8 +1018,6 @@ export function StakeholdersPage() {
                 {stakeholder.name}
               </Link>
             </td>
-            <td className="px-4 py-3">{stakeholder.type}</td>
-            <td className="px-4 py-3">{stakeholder.status}</td>
             <td className="px-4 py-3">{stakeholder.visibleParticipants} approved</td>
           </tr>
         ))}
@@ -1076,7 +1033,6 @@ export function StakeholderDetailPage() {
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserRole, setNewUserRole] = useState<MembershipRole>("MEMBER");
   const [userError, setUserError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
@@ -1110,12 +1066,10 @@ export function StakeholderDetailPage() {
       db.createStakeholderUser(stakeholderRecord.id, {
         displayName: newUserName.trim(),
         email: newUserEmail.trim(),
-        role: newUserRole,
       });
       refresh();
       setNewUserName("");
       setNewUserEmail("");
-      setNewUserRole("MEMBER");
       setShowCreateUser(false);
     } catch (caught) {
       setUserError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "stakeholder")} user could not be created.`);
@@ -1132,8 +1086,6 @@ export function StakeholderDetailPage() {
     >
       <MetricStrip
         items={[
-          { label: "Current status", value: stakeholder.status.toLowerCase(), tone: "blue" },
-          { label: "Type", value: stakeholder.type, tone: "blue" },
           { label: "Users", value: String(stakeholderUsers.length), tone: "green" },
           { label: `${terminologyTitle(terminology, "participant")} access`, value: String(accessibleParticipants.length), tone: "yellow" },
         ]}
@@ -1158,29 +1110,21 @@ export function StakeholderDetailPage() {
             </Button>
           }
         >
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
+          <div className="grid gap-4 md:grid-cols-2">
             <FormField label="Display name">
               <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
             </FormField>
             <FormField label="Email">
               <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
             </FormField>
-            <FormField label="Role">
-              <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
-                <option value="MEMBER">Member</option>
-                <option value="ADMIN">Admin</option>
-              </SelectField>
-            </FormField>
           </div>
           <div className="mt-3"><FormError message={userError} /></div>
         </ResourceActionPanel>
-        <ResourceTable headings={["User", "Email", "Kind", "Role"]}>
+        <ResourceTable headings={["User", "Email"]}>
           {stakeholderUsers.map((account) => (
             <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
               <td className="px-4 py-3">{account.email}</td>
-              <td className="px-4 py-3">{account.userKind}</td>
-              <td className="px-4 py-3">{account.membershipRole}</td>
             </tr>
           ))}
         </ResourceTable>
@@ -1192,7 +1136,7 @@ export function StakeholderDetailPage() {
         <p className="mb-3 max-w-3xl text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
           {terminologyTitle(terminology, "participant")} {terminologyLabel(terminology, "case")} access is granted by the {terminologyLabel(terminology, "participant")} account, not by the {terminologyLabel(terminology, "authority")}. This view only shows existing access relationships.
         </p>
-        <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", "Status", "Progress"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Status", "Progress"]}>
           {accessibleParticipants.map((participant) => (
             <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
@@ -1200,7 +1144,6 @@ export function StakeholderDetailPage() {
                   {participant.name}
                 </Link>
               </td>
-              <td className="px-4 py-3">{participant.type}</td>
               <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
               <td className="px-4 py-3"><ProgressBar value={participant.completedTasks} total={participant.totalTasks} /></td>
             </tr>
@@ -1479,7 +1422,6 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
       db.assignParticipantToTemplate({
         caseTemplateId: templateRecord.id,
         participantId,
-        status: "ASSIGNED",
         decidedByUserId: user.authenticatableUserId,
       });
       refresh();
@@ -1702,12 +1644,11 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
           </div>
           <div className="mt-3"><FormError message={assignmentError} /></div>
         </ResourceActionPanel>
-        <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", terminologyTitle(terminology, "case"), "Actions"]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), terminologyTitle(terminology, "case"), "Actions"]}>
           {templateParticipants.map((assignment) => (
             <Fragment key={assignment.id}>
               <tr className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3 font-bold text-[#1d70b8]">{assignment.participantName}</td>
-                <td className="px-4 py-3">{assignment.participantType}</td>
                 <td className="px-4 py-3">{assignment.caseStatus?.toLowerCase() ?? "created"}</td>
                 <td className="px-4 py-3">
                   {assignment.caseStatus === "WITHDRAWN" ? (
@@ -1886,11 +1827,9 @@ export function ParticipantsPage() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
   const [showCreate, setShowCreate] = useState(false);
-  const [participantType, setParticipantType] = useState<PartyType>("ORGANISATION");
   const [displayName, setDisplayName] = useState("");
   const [initialUserName, setInitialUserName] = useState("");
   const [initialUserEmail, setInitialUserEmail] = useState("");
-  const [initialUserRole, setInitialUserRole] = useState<MembershipRole>("ADMIN");
   const [error, setError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
@@ -1917,21 +1856,16 @@ export function ParticipantsPage() {
     try {
       db.createParticipant({
         authorityId: user.authorityId,
-        participantType,
         displayName: displayName.trim(),
-        status: "ACTIVE",
         initialUser: {
           displayName: initialUserName.trim(),
           email: initialUserEmail.trim(),
-          role: initialUserRole,
         },
       });
       refresh();
       setDisplayName("");
-      setParticipantType("ORGANISATION");
       setInitialUserName("");
       setInitialUserEmail("");
-      setInitialUserRole("ADMIN");
       setShowCreate(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participant")} could not be created.`);
@@ -1962,13 +1896,7 @@ export function ParticipantsPage() {
           </Button>
         }
       >
-        <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
-          <FormField label="Type">
-            <SelectField value={participantType} onChange={(value) => setParticipantType(value as PartyType)}>
-              <option value="ORGANISATION">Organisation</option>
-              <option value="PERSON">Person</option>
-            </SelectField>
-          </FormField>
+        <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Display name">
             <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </FormField>
@@ -1978,16 +1906,10 @@ export function ParticipantsPage() {
           <FormField label="First user email">
             <Input type="email" value={initialUserEmail} onChange={(event) => setInitialUserEmail(event.target.value)} />
           </FormField>
-          <FormField label="First user role">
-            <SelectField value={initialUserRole} onChange={(value) => setInitialUserRole(value as MembershipRole)}>
-              <option value="ADMIN">Admin</option>
-              <option value="MEMBER">Member</option>
-            </SelectField>
-          </FormField>
         </div>
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
-      <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", "Status", `Incomplete ${terminologyLabel(terminology, "case", true)}`, "Progress", "Last activity"]}>
+      <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Status", `Incomplete ${terminologyLabel(terminology, "case", true)}`, "Progress", "Last activity"]}>
         {scopedParticipants.map((participant) => (
           <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -1995,7 +1917,6 @@ export function ParticipantsPage() {
                 {participant.name}
               </Link>
             </td>
-            <td className="px-4 py-3">{participant.type}</td>
             <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
             <td className="px-4 py-3">{participant.openCases}</td>
             <td className="px-4 py-3"><ProgressBar value={participant.completedTasks} total={participant.totalTasks} /></td>
@@ -2048,16 +1969,15 @@ export function ParticipantDetailPage() {
       />
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participant")}</h3>
-        <ResourceTable headings={["Type", "Status"]}>
+        <ResourceTable headings={["Status"]}>
           <tr className="border-b border-[#b1b4b6] last:border-b-0">
-            <td className="px-4 py-3">{participant.type}</td>
             <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
           </tr>
         </ResourceTable>
       </section>
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "caseTemplate", true)}</h3>
-        <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Status", terminologyTitle(terminology, "participant"), terminologyTitle(terminology, "case")]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Status", terminologyTitle(terminology, "case")]}>
           {assignedCaseTemplates.map(({ caseTemplate, assignment }) => (
             <tr key={assignment.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
@@ -2066,7 +1986,6 @@ export function ParticipantDetailPage() {
                 </Link>
               </td>
               <td className="px-4 py-3">{caseTemplate.status.toLowerCase()}</td>
-              <td className="px-4 py-3">{assignment.status.toLowerCase()}{assignment.exemptionReason ? ` - ${assignment.exemptionReason}` : ""}</td>
               <td className="px-4 py-3">{assignment.caseId ? "Created" : "Not created"}</td>
             </tr>
           ))}
@@ -2084,14 +2003,12 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
   const [usersTab, setUsersTab] = useState<UserManagementTab>("participants");
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
-  const [userRole, setUserRole] = useState<MembershipRole>("MEMBER");
   const [agentOrganizationId, setAgentOrganizationId] = useState("");
   const [agentOrganizationName, setAgentOrganizationName] = useState("");
   const [agentOrganizationError, setAgentOrganizationError] = useState<string | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
   const [supplierName, setSupplierName] = useState("");
   const [relationshipType, setRelationshipType] = useState("");
-  const [criticality, setCriticality] = useState<ParticipantSupplierCriticality>("HIGH");
   const [servicesProvided, setServicesProvided] = useState("");
   const [dataExposure, setDataExposure] = useState("");
   const [supplierError, setSupplierError] = useState<string | null>(null);
@@ -2113,7 +2030,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       account.membership.entityId === user.participantId,
   );
   const scopedAgents = getAgentsForAuthority(user.authorityId ?? undefined);
-  const agentOrganizations = scopedAgents.filter((agent) => agent.type === "Organisation");
+  const agentOrganizations = scopedAgents;
   const agentUsers = authenticatableUsers.filter(
     (account) =>
       account.membership.entityType === "agent" &&
@@ -2143,7 +2060,6 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
         db.createParticipantUser(user.participantId, {
           displayName: userName.trim(),
           email: userEmail.trim(),
-          role: userRole,
         });
       } else {
         if (!user.authorityId) {
@@ -2154,9 +2070,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           ? getAgent(agentOrganizationId)
           : db.createAgent({
               authorityId: user.authorityId,
-              agentType: "PERSON",
               displayName: userName.trim(),
-              status: "ACTIVE",
             });
         if (!agent) {
           setUserError(`Select a valid ${terminologyLabel(terminology, "agent")} organization.`);
@@ -2165,13 +2079,11 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
         db.createAgentUser(agent.id, {
           displayName: userName.trim(),
           email: userEmail.trim(),
-          role: userRole,
         });
       }
       refresh();
       setUserName("");
       setUserEmail("");
-      setUserRole("MEMBER");
       setAgentOrganizationId("");
       setShowCreateUser(false);
     } catch (caught) {
@@ -2192,9 +2104,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
     try {
       db.createAgent({
         authorityId: user.authorityId,
-        agentType: "ORGANISATION",
         displayName: agentOrganizationName.trim(),
-        status: "ACTIVE",
       });
       refresh();
       setAgentOrganizationName("");
@@ -2216,14 +2126,12 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
         participantId: participant.id,
         supplierName,
         relationshipType,
-        criticality,
         servicesProvided,
         dataExposure,
       });
       refresh();
       setSupplierName("");
       setRelationshipType("");
-      setCriticality("HIGH");
       setServicesProvided("");
       setDataExposure("");
       setShowCreateSupplier(false);
@@ -2321,18 +2229,12 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           </Button>
         }
       >
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
+        <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Display name">
             <Input value={userName} onChange={(event) => setUserName(event.target.value)} />
           </FormField>
           <FormField label="Email">
             <Input type="email" value={userEmail} onChange={(event) => setUserEmail(event.target.value)} />
-          </FormField>
-          <FormField label="Role">
-            <SelectField value={userRole} onChange={(value) => setUserRole(value as MembershipRole)}>
-              <option value="MEMBER">Member</option>
-              <option value="ADMIN">Admin</option>
-            </SelectField>
           </FormField>
           {createUserType === "AGENT" && (
             <FormField label={`${terminologyTitle(terminology, "agent")} organization`}>
@@ -2361,14 +2263,9 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           </Button>
         }
       >
-        <div className="grid gap-4 md:grid-cols-[1fr_12rem]">
+        <div className="grid gap-4">
           <FormField label="Organisation name">
             <Input value={agentOrganizationName} onChange={(event) => setAgentOrganizationName(event.target.value)} />
-          </FormField>
-          <FormField label="Status">
-            <SelectField value="ACTIVE" onChange={() => undefined} disabled>
-              <option value="ACTIVE">Active</option>
-            </SelectField>
           </FormField>
         </div>
         <div className="mt-3"><FormError message={agentOrganizationError} /></div>
@@ -2385,20 +2282,12 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           </Button>
         }
       >
-        <div className="grid gap-4 lg:grid-cols-[1fr_1fr_12rem]">
+        <div className="grid gap-4 lg:grid-cols-2">
           <FormField label="Supplier">
             <Input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
           </FormField>
           <FormField label="Relationship">
             <Input value={relationshipType} onChange={(event) => setRelationshipType(event.target.value)} />
-          </FormField>
-          <FormField label="Criticality">
-            <SelectField value={criticality} onChange={(value) => setCriticality(value as ParticipantSupplierCriticality)}>
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="CRITICAL">Critical</option>
-            </SelectField>
           </FormField>
           <FormField label="Services provided">
             <Input value={servicesProvided} onChange={(event) => setServicesProvided(event.target.value)} />
@@ -2437,8 +2326,8 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       {mode === "suppliers" && (
       <section>
         <ResourceTable
-          columnWidths={["w-[18%]", "w-[14%]", "w-[10%]", "w-[12%]", "w-[16%]", "w-[18%]", "w-[12rem]"]}
-          headings={["Supplier", "Relationship", "Criticality", "Status", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`, "Actions"]}
+          columnWidths={["w-[22%]", "w-[16%]", "w-[24%]", "w-[22%]", "w-[12rem]"]}
+          headings={["Supplier", "Relationship", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`, "Actions"]}
         >
           {participantSuppliersForParticipant.map((relationship) => {
             const linkableCases = scopedCases.filter((caseRecord) => !caseRecord.participantSupplierId);
@@ -2452,8 +2341,6 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{relationship.servicesProvided}</span>
               </td>
               <td className="px-4 py-3">{relationship.relationshipType}</td>
-              <td className="whitespace-nowrap px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
-              <td className="whitespace-nowrap px-4 py-3">{relationship.status.replace("_", " ").toLowerCase()}</td>
               <td className="px-4 py-3">{relationship.dataExposure}</td>
               <td className="px-4 py-3">
                 {relationship.linkedCases.length > 0
@@ -2491,7 +2378,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
             </tr>
             {linkingSupplierId === relationship.id && (
               <tr className="border-b border-[#b1b4b6] bg-white dark:bg-card">
-                <td className="px-4 py-4" colSpan={7}>
+                <td className="px-4 py-4" colSpan={5}>
                   <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
                     <FormField label={terminologyTitle(terminology, "case")}>
                       <SelectField value={supplierCaseId} onChange={setSupplierCaseId}>
@@ -2555,27 +2442,25 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
         </div>
 
         {usersTab === "participants" && (
-          <ResourceTable headings={["User", "Email", "Role"]}>
+          <ResourceTable headings={["User", "Email"]}>
             {participantUsers.map((account) => (
               <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
                 <td className="px-4 py-3">{account.email}</td>
-                <td className="px-4 py-3">{account.membershipRole}</td>
               </tr>
             ))}
           </ResourceTable>
         )}
 
         {usersTab === "agents" && (
-          <ResourceTable headings={[terminologyTitle(terminology, "agent"), "Email", "Organisation", "Role"]}>
+          <ResourceTable headings={[terminologyTitle(terminology, "agent"), "Email", "Organisation"]}>
             {agentUsers.map((account) => {
               const agent = scopedAgents.find((item) => item.id === account.membership.entityId);
               return (
                 <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
                   <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
                   <td className="px-4 py-3">{account.email}</td>
-                  <td className="px-4 py-3">{agent?.type === "Organisation" ? agent.name : "No organisation"}</td>
-                  <td className="px-4 py-3">{account.membershipRole}</td>
+                  <td className="px-4 py-3">{agent?.name ?? "No organisation"}</td>
                 </tr>
               );
             })}
@@ -2583,13 +2468,12 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
         )}
 
         {usersTab === "agent-organizations" && (
-          <ResourceTable headings={["Organisation", "Status", "Assigned agents", "Granted access"]}>
+          <ResourceTable headings={["Organisation", "Assigned agents", "Granted access"]}>
             {agentOrganizations.map((agent) => {
               const assignedAgents = agentUsers.filter((account) => account.membership.entityId === agent.id).length;
               return (
                 <tr key={agent.id} className="border-b border-[#b1b4b6] last:border-b-0">
                   <td className="px-4 py-3 font-bold text-[#1d70b8]">{agent.name}</td>
-                  <td className="px-4 py-3">{agent.status.toLowerCase()}</td>
                   <td className="px-4 py-3">{assignedAgents}</td>
                   <td className="px-4 py-3">{agent.grantedParticipants}</td>
                 </tr>
@@ -3332,7 +3216,6 @@ export function AdminReferencePage() {
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserRole, setNewUserRole] = useState<MembershipRole>("MEMBER");
   const [userError, setUserError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const authorityId = user.authorityId ?? undefined;
@@ -3365,12 +3248,10 @@ export function AdminReferencePage() {
       db.createAuthorityUser(authorityId, {
         displayName: newUserName.trim(),
         email: newUserEmail.trim(),
-        role: newUserRole,
       });
       refresh();
       setNewUserName("");
       setNewUserEmail("");
-      setNewUserRole("MEMBER");
       setShowCreateUser(false);
     } catch (caught) {
       setUserError(caught instanceof Error ? caught.message : "Authority user could not be created.");
@@ -3420,28 +3301,21 @@ export function AdminReferencePage() {
               </Button>
             }
           >
-            <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
+            <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Display name">
                 <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
               </FormField>
               <FormField label="Email">
                 <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
               </FormField>
-              <FormField label="Role">
-                <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
-                  <option value="MEMBER">Member</option>
-                  <option value="ADMIN">Admin</option>
-                </SelectField>
-              </FormField>
             </div>
             <div className="mt-3"><FormError message={userError} /></div>
           </ResourceActionPanel>
-          <ResourceTable headings={["User", "Email", "Role"]}>
+          <ResourceTable headings={["User", "Email"]}>
             {authorityUsers.map((account) => (
               <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
                 <td className="px-4 py-3">{account.email}</td>
-                <td className="px-4 py-3">{account.membershipRole}</td>
               </tr>
             ))}
           </ResourceTable>

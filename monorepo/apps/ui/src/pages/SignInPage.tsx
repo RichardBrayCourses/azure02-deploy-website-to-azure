@@ -96,7 +96,6 @@ export default function SignInPage() {
       accountContextType: context.entityType,
       accountContextEntityId: context.entityId,
       accountContextName: context.entityName,
-      membershipRole: context.membershipRole,
       participantId: context.participantId,
       stakeholderId: context.stakeholderId,
     });

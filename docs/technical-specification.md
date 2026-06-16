@@ -153,13 +153,8 @@ It is based on:
 - Tenant boundary:
   - `Authority`
   - Participants, stakeholders, templates, cases, and assignments belong to exactly one authority.
-- User kind:
-  - Every user belongs to exactly one user kind.
-  - Valid user kinds are `SYSTEM_OWNER`, `AUTHORITY`, `PARTICIPANT`, `STAKEHOLDER`, and `AGENT`.
-  - The current UI exposes Authority, Participant, Stakeholder, and Agent sign-in.
-- Permission level:
-  - `ADMIN`
-  - `MEMBER`
+- Sign-in context:
+  - The current UI exposes Authority, Participant, Stakeholder, and Agent sign-in contexts.
 - Task types:
   - Global software capabilities.
   - Not owned by an authority.

@@ -15,12 +15,6 @@ import {
 } from "lucide-react";
 import type { AccountContextType, AuthenticatedUser, UserRole } from "@/context/AuthContext";
 
-export type EntityStatus = "ACTIVE" | "INACTIVE";
-export type InviteStatus = EntityStatus | "INVITED";
-export type UserKind = "SYSTEM_OWNER" | "AUTHORITY" | "PARTICIPANT" | "STAKEHOLDER" | "AGENT";
-export type MembershipRole = "ADMIN" | "MEMBER";
-export type PartyType = "ORGANISATION" | "PERSON";
-export type AccessStatus = "APPROVED" | "SUSPENDED" | "REVOKED";
 export type AccessGrantStatus = "INVITED" | "ACTIVE" | "SUSPENDED" | "REVOKED" | "EXPIRED";
 export type AccessGrantGranteeType = "STAKEHOLDER" | "AGENT" | "USER" | "AUTHORITY";
 export type AccessGrantPermissionLevel =
@@ -32,14 +26,9 @@ export type AccessGrantPermissionLevel =
 export type AccessGrantDataScopeType = "PARTICIPANT" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "PARTICIPANT_SUPPLIER";
 export type TaskTypeStatus = "ACTIVE" | "DEPRECATED";
 export type CaseTemplateStatus = "DRAFT" | "FINALIZED";
-export type TemplateParticipantStatus = "ASSIGNED";
 export type CaseStatus = "INCOMPLETE" | "COMPLETE" | "WITHDRAWN";
 export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
-export type StakeholderReviewStatus = "NOT_REVIEWED" | "IN_REVIEW" | "APPROVED" | "MORE_INFO_REQUESTED";
 export type RequestForInformationStatus = "OPEN" | "IN_PROGRESS" | "ANSWERED" | "ACCEPTED" | "WITHDRAWN";
-export type RequestForInformationScopeType = "PARTICIPANT" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA";
-export type ParticipantSupplierCriticality = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-export type ParticipantSupplierStatus = "ACTIVE" | "UNDER_REVIEW" | "SUSPENDED" | "EXITING";
 export type UserAccountStatus = "ACTIVE" | "DISABLED";
 export type Status = "complete" | "in-progress" | "attention" | "not-started" | "withdrawn";
 
@@ -71,14 +60,12 @@ type BaseDto = {
 
 export type SystemOwnerDto = BaseDto & {
   name: string;
-  status: EntityStatus;
 };
 
 export type AuthorityDto = BaseDto & {
   systemOwnerId: SystemOwnerId;
   name: string;
   description: string;
-  status: EntityStatus;
 };
 
 export type TerminologyKey =
@@ -103,43 +90,34 @@ export type AuthorityTerminologyDto = BaseDto & {
 
 export type ParticipantDto = BaseDto & {
   authorityId: AuthorityId;
-  participantType: PartyType;
   displayName: string;
-  status: InviteStatus;
 };
 
 export type StakeholderDto = BaseDto & {
   authorityId: AuthorityId;
-  stakeholderType: PartyType;
   displayName: string;
-  status: InviteStatus;
 };
 
 export type AgentDto = BaseDto & {
   authorityId: AuthorityId;
-  agentType: PartyType;
   displayName: string;
-  status: InviteStatus;
 };
 
 export type UserAccountDto = BaseDto & {
   entraObjectId: string;
   email: string;
   displayName: string;
-  userKind: UserKind;
   status: UserAccountStatus;
 };
 
 export type MembershipDto = BaseDto & {
   entityId: SystemOwnerId | AuthorityId | ParticipantId | StakeholderId | AgentId;
   userAccountId: UserAccountId;
-  role: MembershipRole;
 };
 
 export type StakeholderParticipantAccessDto = BaseDto & {
   stakeholderId: StakeholderId;
   participantId: ParticipantId;
-  status: AccessStatus;
   approvedByUserId: UserAccountId;
   approvedAt: string;
 };
@@ -190,7 +168,6 @@ export type CaseTemplateTaskDto = BaseDto & {
 export type CaseTemplateParticipantDto = BaseDto & {
   caseTemplateId: CaseTemplateId;
   participantId: ParticipantId;
-  status: TemplateParticipantStatus;
   caseId: CaseRecordId | null;
   exemptionReason: string | null;
   decidedByUserId: UserAccountId | null;
@@ -222,7 +199,6 @@ export type CaseTaskDto = BaseDto & {
 export type StakeholderReviewDto = BaseDto & {
   stakeholderId: StakeholderId;
   caseId: CaseRecordId;
-  status: StakeholderReviewStatus;
   note: string;
   reviewedByUserId: UserAccountId;
   reviewedAt: string;
@@ -234,7 +210,6 @@ export type RequestForInformationDto = BaseDto & {
   stakeholderId: StakeholderId;
   caseId: CaseRecordId | null;
   caseTaskId: CaseTaskId | null;
-  scopeType: RequestForInformationScopeType;
   requestText: string;
   responseText: string;
   status: RequestForInformationStatus;
@@ -251,32 +226,24 @@ export type ParticipantSupplierDto = BaseDto & {
   participantId: ParticipantId;
   supplierName: string;
   relationshipType: string;
-  criticality: ParticipantSupplierCriticality;
   servicesProvided: string;
   dataExposure: string;
-  status: ParticipantSupplierStatus;
 };
 
 export type CreateParticipantCommand = {
   authorityId: AuthorityId;
-  participantType: PartyType;
   displayName: string;
-  status?: InviteStatus;
   initialUser?: CreateEntityUserCommand;
 };
 
 export type CreateStakeholderCommand = {
   authorityId: AuthorityId;
-  stakeholderType: PartyType;
   displayName: string;
-  status?: InviteStatus;
 };
 
 export type CreateAgentCommand = {
   authorityId: AuthorityId;
-  agentType: PartyType;
   displayName: string;
-  status?: InviteStatus;
 };
 
 export type UpdateAuthorityTerminologyCommand = {
@@ -287,7 +254,6 @@ export type UpdateAuthorityTerminologyCommand = {
 export type CreateEntityUserCommand = {
   displayName: string;
   email: string;
-  role: MembershipRole;
 };
 
 export type GrantStakeholderAccessCommand = {
@@ -328,7 +294,6 @@ export type AddTaskToTemplateCommand = {
 export type AssignParticipantToTemplateCommand = {
   caseTemplateId: CaseTemplateId;
   participantId: ParticipantId;
-  status: TemplateParticipantStatus;
   exemptionReason?: string | null;
   decidedByUserId?: UserAccountId | null;
 };
@@ -346,7 +311,6 @@ export type UploadEvidenceCommand = {
 export type UpsertStakeholderReviewCommand = {
   stakeholderId: StakeholderId;
   caseId: CaseRecordId;
-  status: StakeholderReviewStatus;
   note: string;
   reviewedByUserId: UserAccountId;
 };
@@ -378,7 +342,6 @@ export type CreateParticipantSupplierCommand = {
   participantId: ParticipantId;
   supplierName: string;
   relationshipType: string;
-  criticality: ParticipantSupplierCriticality;
   servicesProvided: string;
   dataExposure: string;
 };
@@ -446,7 +409,6 @@ export type Authority = {
   id: AuthorityId;
   name: string;
   description: string;
-  status: EntityStatus;
 };
 
 export type AuthorityTerminology = {
@@ -459,9 +421,7 @@ export type Participant = {
   name: string;
   authorityId: AuthorityId;
   stakeholderId: StakeholderId;
-  type: string;
   status: Status;
-  domainStatus: InviteStatus;
   openCases: number;
   completedTasks: number;
   totalTasks: number;
@@ -472,8 +432,6 @@ export type Stakeholder = {
   id: StakeholderId;
   authorityId: AuthorityId;
   name: string;
-  type: string;
-  status: InviteStatus;
   visibleParticipants: number;
 };
 
@@ -481,8 +439,6 @@ export type Agent = {
   id: AgentId;
   authorityId: AuthorityId;
   name: string;
-  type: string;
-  status: InviteStatus;
   grantedParticipants: number;
 };
 
@@ -514,10 +470,8 @@ export type ParticipantSupplier = {
   participantName: string;
   supplierName: string;
   relationshipType: string;
-  criticality: ParticipantSupplierCriticality;
   servicesProvided: string;
   dataExposure: string;
-  status: ParticipantSupplierStatus;
   linkedCases: CaseRecord[];
 };
 
@@ -535,9 +489,7 @@ export type AuthenticatableUser = {
   id: UserAccountId;
   name: string;
   email: string;
-  userKind: UserKind;
   membership: AuthenticatableUserMembership;
-  membershipRole: MembershipRole;
 };
 
 export type UserIdentity = {
@@ -558,7 +510,6 @@ export type AccountContext = {
   entityType: AccountContextType;
   entityId: AuthorityId | ParticipantId | StakeholderId;
   entityName: string;
-  membershipRole: MembershipRole;
   participantId: ParticipantId | null;
   stakeholderId: StakeholderId | null;
   description: string;
@@ -602,8 +553,6 @@ export type StakeholderReview = {
   id: StakeholderReviewId;
   stakeholderId: StakeholderId;
   caseId: CaseRecordId;
-  status: StakeholderReviewStatus;
-  statusLabel: string;
   note: string;
   reviewedByName: string;
   reviewedAt: string;
@@ -620,7 +569,6 @@ export type RequestForInformation = {
   caseTitle: string;
   caseTaskId: CaseTaskId | null;
   taskTitle: string | null;
-  scopeType: RequestForInformationScopeType;
   scopeLabel: string;
   requestText: string;
   responseText: string;
@@ -671,8 +619,6 @@ export type CaseTemplateParticipant = {
   caseTemplateId: CaseTemplateId;
   participantId: ParticipantId;
   participantName: string;
-  participantType: string;
-  status: TemplateParticipantStatus;
   caseId: CaseRecordId | null;
   caseStatus: CaseStatus | null;
   exemptionReason: string | null;
@@ -814,7 +760,7 @@ function uiParticipantStatus(casesForParticipant: CaseRecord[]): Status {
 
 export class InMemoryAllChecksOutDatabase {
   readonly systemOwners = [
-    new SystemOwnerEntity({ ...base("all-checks-out"), name: "All Checks Out Ltd", status: "ACTIVE" }),
+    new SystemOwnerEntity({ ...base("all-checks-out"), name: "All Checks Out Ltd" }),
   ];
 
   readonly authorities = [
@@ -823,7 +769,6 @@ export class InMemoryAllChecksOutDatabase {
       systemOwnerId: "all-checks-out",
       name: "Digital Platform Assurance Association",
       description: "An authority defining case expectations for member participants.",
-      status: "ACTIVE",
     }),
   ];
 
@@ -839,30 +784,22 @@ export class InMemoryAllChecksOutDatabase {
     new ParticipantEntity({
       ...base("northstar-cloud"),
       authorityId: "northstar-association",
-      participantType: "ORGANISATION",
       displayName: "Northstar Cloud Platforms",
-      status: "ACTIVE",
     }),
     new ParticipantEntity({
       ...base("cobalt-workflow"),
       authorityId: "northstar-association",
-      participantType: "ORGANISATION",
       displayName: "Cobalt Workflow Systems",
-      status: "ACTIVE",
     }),
     new ParticipantEntity({
       ...base("pinebridge-data"),
       authorityId: "northstar-association",
-      participantType: "ORGANISATION",
       displayName: "Pinebridge Data Exchange",
-      status: "ACTIVE",
     }),
     new ParticipantEntity({
       ...base("asteria-identity"),
       authorityId: "northstar-association",
-      participantType: "ORGANISATION",
       displayName: "Asteria Identity Services",
-      status: "ACTIVE",
     }),
   ];
 
@@ -870,16 +807,12 @@ export class InMemoryAllChecksOutDatabase {
     new StakeholderEntity({
       ...base("harrington-financial"),
       authorityId: "northstar-association",
-      stakeholderType: "ORGANISATION",
       displayName: "Harrington Financial Group",
-      status: "ACTIVE",
     }),
     new StakeholderEntity({
       ...base("mercury-retail"),
       authorityId: "northstar-association",
-      stakeholderType: "ORGANISATION",
       displayName: "Mercury Retail PLC",
-      status: "ACTIVE",
     }),
   ];
 
@@ -887,64 +820,60 @@ export class InMemoryAllChecksOutDatabase {
     new AgentEntity({
       ...base("sentinel-grc"),
       authorityId: "northstar-association",
-      agentType: "ORGANISATION",
       displayName: "Sentinel GRC Advisory",
-      status: "ACTIVE",
     }),
     new AgentEntity({
       ...base("ledgerfield-legal"),
       authorityId: "northstar-association",
-      agentType: "ORGANISATION",
       displayName: "Ledgerfield Legal LLP",
-      status: "ACTIVE",
     }),
   ];
 
   readonly userAccounts = [
-    this.user("user-jonathan-price", "Jonathan Price", "jonathan.price@dpaa.example", "AUTHORITY"),
-    this.user("user-amara-singh", "Amara Singh", "amara.singh@dpaa.example", "AUTHORITY"),
-    this.user("user-aisha-khan", "Aisha Khan", "aisha.khan@northstar-cloud.example", "PARTICIPANT"),
-    this.user("user-michael-reeves", "Michael Reeves", "michael.reeves@northstar-cloud.example", "PARTICIPANT"),
-    this.user("user-lewis-green", "Lewis Green", "lewis.green@cobalt-workflow.example", "PARTICIPANT"),
-    this.user("user-amelia-wright", "Amelia Wright", "amelia.wright@cobalt-workflow.example", "PARTICIPANT"),
-    this.user("user-maya-patel", "Maya Patel", "maya.patel@pinebridge-data.example", "PARTICIPANT"),
-    this.user("user-owen-clarke", "Owen Clarke", "owen.clarke@asteria-identity.example", "PARTICIPANT"),
-    this.user("user-rachel-morgan", "Rachel Morgan", "rachel.morgan@harrington.example", "STAKEHOLDER"),
-    this.user("user-peter-walsh", "Peter Walsh", "peter.walsh@harrington.example", "STAKEHOLDER"),
-    this.user("user-sophie-turner", "Sophie Turner", "sophie.turner@mercury-retail.example", "STAKEHOLDER"),
-    this.user("user-benjamin-foster", "Benjamin Foster", "benjamin.foster@mercury-retail.example", "STAKEHOLDER"),
-    this.user("user-priya-shah", "Priya Shah", "priya.shah@sentinel-grc.example", "AGENT"),
-    this.user("user-george-evans", "George Evans", "george.evans@sentinel-grc.example", "AGENT"),
-    this.user("user-ellen-brooks", "Ellen Brooks", "ellen.brooks@ledgerfield.example", "AGENT"),
-    this.user("user-nadia-cole", "Nadia Cole", "nadia.cole@portfolio.example", "PARTICIPANT"),
+    this.user("user-jonathan-price", "Jonathan Price", "jonathan.price@dpaa.example"),
+    this.user("user-amara-singh", "Amara Singh", "amara.singh@dpaa.example"),
+    this.user("user-aisha-khan", "Aisha Khan", "aisha.khan@northstar-cloud.example"),
+    this.user("user-michael-reeves", "Michael Reeves", "michael.reeves@northstar-cloud.example"),
+    this.user("user-lewis-green", "Lewis Green", "lewis.green@cobalt-workflow.example"),
+    this.user("user-amelia-wright", "Amelia Wright", "amelia.wright@cobalt-workflow.example"),
+    this.user("user-maya-patel", "Maya Patel", "maya.patel@pinebridge-data.example"),
+    this.user("user-owen-clarke", "Owen Clarke", "owen.clarke@asteria-identity.example"),
+    this.user("user-rachel-morgan", "Rachel Morgan", "rachel.morgan@harrington.example"),
+    this.user("user-peter-walsh", "Peter Walsh", "peter.walsh@harrington.example"),
+    this.user("user-sophie-turner", "Sophie Turner", "sophie.turner@mercury-retail.example"),
+    this.user("user-benjamin-foster", "Benjamin Foster", "benjamin.foster@mercury-retail.example"),
+    this.user("user-priya-shah", "Priya Shah", "priya.shah@sentinel-grc.example"),
+    this.user("user-george-evans", "George Evans", "george.evans@sentinel-grc.example"),
+    this.user("user-ellen-brooks", "Ellen Brooks", "ellen.brooks@ledgerfield.example"),
+    this.user("user-nadia-cole", "Nadia Cole", "nadia.cole@portfolio.example"),
   ];
 
   readonly authorityUsers = [
-    this.membership("authority-user-jonathan-price", "northstar-association", "user-jonathan-price", "ADMIN", AuthorityUserEntity),
-    this.membership("authority-user-amara-singh", "northstar-association", "user-amara-singh", "MEMBER", AuthorityUserEntity),
+    this.membership("authority-user-jonathan-price", "northstar-association", "user-jonathan-price", AuthorityUserEntity),
+    this.membership("authority-user-amara-singh", "northstar-association", "user-amara-singh", AuthorityUserEntity),
   ];
 
   readonly participantUsers = [
-    this.membership("participant-user-aisha-khan", "northstar-cloud", "user-aisha-khan", "ADMIN", ParticipantUserEntity),
-    this.membership("participant-user-michael-reeves", "northstar-cloud", "user-michael-reeves", "MEMBER", ParticipantUserEntity),
-    this.membership("participant-user-lewis-green", "cobalt-workflow", "user-lewis-green", "ADMIN", ParticipantUserEntity),
-    this.membership("participant-user-amelia-wright", "cobalt-workflow", "user-amelia-wright", "MEMBER", ParticipantUserEntity),
-    this.membership("participant-user-nadia-cole", "cobalt-workflow", "user-nadia-cole", "ADMIN", ParticipantUserEntity),
-    this.membership("participant-user-maya-patel", "pinebridge-data", "user-maya-patel", "ADMIN", ParticipantUserEntity),
-    this.membership("participant-user-owen-clarke", "asteria-identity", "user-owen-clarke", "ADMIN", ParticipantUserEntity),
+    this.membership("participant-user-aisha-khan", "northstar-cloud", "user-aisha-khan", ParticipantUserEntity),
+    this.membership("participant-user-michael-reeves", "northstar-cloud", "user-michael-reeves", ParticipantUserEntity),
+    this.membership("participant-user-lewis-green", "cobalt-workflow", "user-lewis-green", ParticipantUserEntity),
+    this.membership("participant-user-amelia-wright", "cobalt-workflow", "user-amelia-wright", ParticipantUserEntity),
+    this.membership("participant-user-nadia-cole", "cobalt-workflow", "user-nadia-cole", ParticipantUserEntity),
+    this.membership("participant-user-maya-patel", "pinebridge-data", "user-maya-patel", ParticipantUserEntity),
+    this.membership("participant-user-owen-clarke", "asteria-identity", "user-owen-clarke", ParticipantUserEntity),
   ];
 
   readonly stakeholderUsers = [
-    this.membership("stakeholder-user-rachel-morgan", "harrington-financial", "user-rachel-morgan", "ADMIN", StakeholderUserEntity),
-    this.membership("stakeholder-user-peter-walsh", "harrington-financial", "user-peter-walsh", "MEMBER", StakeholderUserEntity),
-    this.membership("stakeholder-user-sophie-turner", "mercury-retail", "user-sophie-turner", "ADMIN", StakeholderUserEntity),
-    this.membership("stakeholder-user-benjamin-foster", "mercury-retail", "user-benjamin-foster", "MEMBER", StakeholderUserEntity),
+    this.membership("stakeholder-user-rachel-morgan", "harrington-financial", "user-rachel-morgan", StakeholderUserEntity),
+    this.membership("stakeholder-user-peter-walsh", "harrington-financial", "user-peter-walsh", StakeholderUserEntity),
+    this.membership("stakeholder-user-sophie-turner", "mercury-retail", "user-sophie-turner", StakeholderUserEntity),
+    this.membership("stakeholder-user-benjamin-foster", "mercury-retail", "user-benjamin-foster", StakeholderUserEntity),
   ];
 
   readonly agentUsers = [
-    this.membership("agent-user-priya-shah", "sentinel-grc", "user-priya-shah", "ADMIN", AgentUserEntity),
-    this.membership("agent-user-george-evans", "sentinel-grc", "user-george-evans", "MEMBER", AgentUserEntity),
-    this.membership("agent-user-ellen-brooks", "ledgerfield-legal", "user-ellen-brooks", "ADMIN", AgentUserEntity),
+    this.membership("agent-user-priya-shah", "sentinel-grc", "user-priya-shah", AgentUserEntity),
+    this.membership("agent-user-george-evans", "sentinel-grc", "user-george-evans", AgentUserEntity),
+    this.membership("agent-user-ellen-brooks", "ledgerfield-legal", "user-ellen-brooks", AgentUserEntity),
   ];
 
   readonly stakeholderParticipantAccess = [
@@ -970,40 +899,32 @@ export class InMemoryAllChecksOutDatabase {
       "northstar-cloud",
       "StratusPay Processing",
       "Payment processing subprocessor",
-      "CRITICAL",
       "Hosted payment processing, payment tokenisation, and transaction monitoring for regulated customers.",
       "Processes production customer identifiers and payment tokens in UK and EU regions.",
-      "UNDER_REVIEW",
     ),
     this.participantSupplier(
       "participant-supplier-northstar-observiq",
       "northstar-cloud",
       "ObservIQ Telemetry",
       "Monitoring and observability provider",
-      "HIGH",
       "Infrastructure monitoring, alerting, log aggregation, and incident diagnostics.",
       "Receives service telemetry and limited diagnostic logs with customer tenant references.",
-      "ACTIVE",
     ),
     this.participantSupplier(
       "participant-supplier-cobalt-docuhold",
       "cobalt-workflow",
       "DocuHold Archive Services",
       "Document retention provider",
-      "HIGH",
       "Long-term document retention and secure archive export for workflow records.",
       "Stores encrypted customer documents and retention metadata.",
-      "ACTIVE",
     ),
     this.participantSupplier(
       "participant-supplier-pinebridge-eu-host",
       "pinebridge-data",
       "Azure EU Hosting Operations",
       "Cloud hosting provider",
-      "CRITICAL",
       "Primary database hosting, backup replication, key management integration, and platform telemetry.",
       "Hosts production customer data and encrypted backups in EU regions.",
-      "UNDER_REVIEW",
     ),
   ];
 
@@ -1046,7 +967,7 @@ export class InMemoryAllChecksOutDatabase {
     this.templateTask("template-task-ai-disclosure", "template-annual-platform-ddq", "task-type-ai-disclosure", "AI usage and customer-data disclosure", "Declare whether AI services process customer data, which providers are used, and what controls apply.", 16, { due: "27 Jun 2026" }),
     this.templateTask("template-task-critical-supplier", "template-annual-platform-ddq", "task-type-participant-ddq", "Critical supplier and participant supplier Case", "Identify critical suppliers and complete case for material third-party dependencies.", 17, { due: "28 Jun 2026" }),
     this.templateTask("template-task-senior-attestation", "template-annual-platform-ddq", "task-type-signature", "Senior officer attestation and signature", "A senior officer confirms the submitted information is accurate and complete.", 18, { due: "30 Jun 2026" }),
-    this.templateTask("template-task-supplier-profile", "template-critical-supplier-ddq", "task-type-questionnaire", "Supplier profile", "Record the supplier relationship, criticality, services provided, and customer-data exposure.", 1, { due: "No due date" }),
+    this.templateTask("template-task-supplier-profile", "template-critical-supplier-ddq", "task-type-questionnaire", "Supplier profile", "Record the supplier relationship, services provided, and customer-data exposure.", 1, { due: "No due date" }),
     this.templateTask("template-task-supplier-controls", "template-critical-supplier-ddq", "task-type-control-attestation", "Supplier control attestation", "Confirm key security and resilience controls for the critical supplier.", 2, { due: "No due date" }),
     this.templateTask("template-task-supplier-risk", "template-critical-supplier-ddq", "task-type-risk-register", "Supplier risk and remediation", "Record known supplier risks, mitigation owners, and target remediation dates.", 3, { due: "No due date" }),
   ];
@@ -1146,10 +1067,10 @@ export class InMemoryAllChecksOutDatabase {
   ];
 
   readonly stakeholderReviews = [
-    this.stakeholderReview("review-harrington-northstar", "harrington-financial", "case-2026-northstar", "IN_REVIEW", "Security and subprocessor evidence is under procurement review.", "user-rachel-morgan"),
-    this.stakeholderReview("review-harrington-cobalt", "harrington-financial", "case-2026-cobalt", "NOT_REVIEWED", "Waiting for Cobalt to submit the full Case.", "user-rachel-morgan"),
-    this.stakeholderReview("review-mercury-cobalt", "mercury-retail", "case-2026-cobalt", "IN_REVIEW", "Review started after access grant was accepted.", "user-sophie-turner"),
-    this.stakeholderReview("review-mercury-pinebridge", "mercury-retail", "case-2026-pinebridge", "MORE_INFO_REQUESTED", "Restore-test evidence and certification evidence need clarification.", "user-sophie-turner"),
+    this.stakeholderReview("review-harrington-northstar", "harrington-financial", "case-2026-northstar", "Security and subprocessor evidence is under procurement review.", "user-rachel-morgan"),
+    this.stakeholderReview("review-harrington-cobalt", "harrington-financial", "case-2026-cobalt", "Waiting for Cobalt to submit the full Case.", "user-rachel-morgan"),
+    this.stakeholderReview("review-mercury-cobalt", "mercury-retail", "case-2026-cobalt", "Review started after access grant was accepted.", "user-sophie-turner"),
+    this.stakeholderReview("review-mercury-pinebridge", "mercury-retail", "case-2026-pinebridge", "Restore-test evidence and certification evidence need clarification.", "user-sophie-turner"),
   ];
 
   readonly requestsForInformation = [
@@ -1343,9 +1264,7 @@ export class InMemoryAllChecksOutDatabase {
     const participant = new ParticipantEntity({
       ...this.createBase(this.nextId("participant", this.participants)),
       authorityId: command.authorityId,
-      participantType: command.participantType,
       displayName: command.displayName,
-      status: command.status ?? "ACTIVE",
     });
     this.participants.push(participant);
     if (command.initialUser) {
@@ -1356,12 +1275,11 @@ export class InMemoryAllChecksOutDatabase {
 
   createParticipantUser(participantId: ParticipantId, command: CreateEntityUserCommand) {
     this.requireParticipant(participantId);
-    const userAccount = this.createUserAccount(command.displayName, command.email, "PARTICIPANT");
+    const userAccount = this.createUserAccount(command.displayName, command.email);
     const membership = new ParticipantUserEntity({
       ...this.createBase(this.nextId("participant-user", this.participantUsers)),
       entityId: participantId,
       userAccountId: userAccount.id,
-      role: command.role,
     });
     this.participantUsers.push(membership);
     return { userAccount, participantUser: membership.toDto() };
@@ -1369,12 +1287,11 @@ export class InMemoryAllChecksOutDatabase {
 
   createAuthorityUser(authorityId: AuthorityId, command: CreateEntityUserCommand) {
     this.requireAuthority(authorityId);
-    const userAccount = this.createUserAccount(command.displayName, command.email, "AUTHORITY");
+    const userAccount = this.createUserAccount(command.displayName, command.email);
     const membership = new AuthorityUserEntity({
       ...this.createBase(this.nextId("authority-user", this.authorityUsers)),
       entityId: authorityId,
       userAccountId: userAccount.id,
-      role: command.role,
     });
     this.authorityUsers.push(membership);
     return { userAccount, authorityUser: membership.toDto() };
@@ -1385,9 +1302,7 @@ export class InMemoryAllChecksOutDatabase {
     const stakeholder = new StakeholderEntity({
       ...this.createBase(this.nextId("stakeholder", this.stakeholders)),
       authorityId: command.authorityId,
-      stakeholderType: command.stakeholderType,
       displayName: command.displayName,
-      status: command.status ?? "ACTIVE",
     });
     this.stakeholders.push(stakeholder);
     return stakeholder.toDto();
@@ -1395,12 +1310,11 @@ export class InMemoryAllChecksOutDatabase {
 
   createStakeholderUser(stakeholderId: StakeholderId, command: CreateEntityUserCommand) {
     this.requireStakeholder(stakeholderId);
-    const userAccount = this.createUserAccount(command.displayName, command.email, "STAKEHOLDER");
+    const userAccount = this.createUserAccount(command.displayName, command.email);
     const membership = new StakeholderUserEntity({
       ...this.createBase(this.nextId("stakeholder-user", this.stakeholderUsers)),
       entityId: stakeholderId,
       userAccountId: userAccount.id,
-      role: command.role,
     });
     this.stakeholderUsers.push(membership);
     return { userAccount, stakeholderUser: membership.toDto() };
@@ -1411,9 +1325,7 @@ export class InMemoryAllChecksOutDatabase {
     const agent = new AgentEntity({
       ...this.createBase(this.nextId("agent", this.agents)),
       authorityId: command.authorityId,
-      agentType: command.agentType,
       displayName: command.displayName,
-      status: command.status ?? "ACTIVE",
     });
     this.agents.push(agent);
     return agent.toDto();
@@ -1421,12 +1333,11 @@ export class InMemoryAllChecksOutDatabase {
 
   createAgentUser(agentId: AgentId, command: CreateEntityUserCommand) {
     this.requireAgent(agentId);
-    const userAccount = this.createUserAccount(command.displayName, command.email, "AGENT");
+    const userAccount = this.createUserAccount(command.displayName, command.email);
     const membership = new AgentUserEntity({
       ...this.createBase(this.nextId("agent-user", this.agentUsers)),
       entityId: agentId,
       userAccountId: userAccount.id,
-      role: command.role,
     });
     this.agentUsers.push(membership);
     return { userAccount, agentUser: membership.toDto() };
@@ -1451,7 +1362,6 @@ export class InMemoryAllChecksOutDatabase {
       ...this.createBase(this.nextId("access", this.stakeholderParticipantAccess)),
       stakeholderId: command.stakeholderId,
       participantId: command.participantId,
-      status: "APPROVED",
       approvedByUserId: command.approvedByUserId,
       approvedAt: this.timestamp(),
     });
@@ -1565,10 +1475,8 @@ export class InMemoryAllChecksOutDatabase {
       participantId: command.participantId,
       supplierName,
       relationshipType: command.relationshipType.trim() || "Supplier",
-      criticality: command.criticality,
       servicesProvided: command.servicesProvided.trim(),
       dataExposure: command.dataExposure.trim(),
-      status: "UNDER_REVIEW",
     });
     this.participantSuppliers.push(relationship);
     return relationship.toDto();
@@ -1638,7 +1546,6 @@ export class InMemoryAllChecksOutDatabase {
       ...(existing ?? this.createBase(this.nextId("stakeholder-review", this.stakeholderReviews))),
       stakeholderId: command.stakeholderId,
       caseId: command.caseId,
-      status: command.status,
       note: command.note,
       reviewedByUserId: command.reviewedByUserId,
       reviewedAt,
@@ -1698,7 +1605,6 @@ export class InMemoryAllChecksOutDatabase {
       stakeholderId: stakeholder.id,
       caseId: caseRecord.id,
       caseTaskId: caseTask?.id ?? null,
-      scopeType: caseTask ? "CASE_TASK" : "CASE",
       requestText,
       responseText: "",
       status: "OPEN",
@@ -1861,7 +1767,6 @@ export class InMemoryAllChecksOutDatabase {
       ...this.createBase(this.nextId("template-participant", this.caseTemplateParticipants)),
       caseTemplateId: command.caseTemplateId,
       participantId: command.participantId,
-      status: "ASSIGNED",
       caseId,
       exemptionReason: command.exemptionReason ?? null,
       decidedByUserId: command.decidedByUserId ?? null,
@@ -2046,13 +1951,12 @@ export class InMemoryAllChecksOutDatabase {
     return template;
   }
 
-  private user(id: UserAccountId, displayName: string, email: string, userKind: UserKind) {
+  private user(id: UserAccountId, displayName: string, email: string) {
     return new UserAccountEntity({
       ...base(id),
       entraObjectId: `entra-${id}`,
       displayName,
       email,
-      userKind,
       status: "ACTIVE",
     });
   }
@@ -2061,10 +1965,9 @@ export class InMemoryAllChecksOutDatabase {
     id: string,
     entityId: MembershipDto["entityId"],
     userAccountId: UserAccountId,
-    role: MembershipRole,
     EntityClass: new (dto: MembershipDto) => T,
   ) {
-    return new EntityClass({ ...base(id), entityId, userAccountId, role });
+    return new EntityClass({ ...base(id), entityId, userAccountId });
   }
 
   private access(
@@ -2077,7 +1980,6 @@ export class InMemoryAllChecksOutDatabase {
       ...base(id),
       stakeholderId,
       participantId,
-      status: "APPROVED",
       approvedByUserId,
       approvedAt: "2026-01-20T10:00:00.000Z",
     });
@@ -2117,10 +2019,8 @@ export class InMemoryAllChecksOutDatabase {
     participantId: ParticipantId,
     supplierName: string,
     relationshipType: string,
-    criticality: ParticipantSupplierCriticality,
     servicesProvided: string,
     dataExposure: string,
-    status: ParticipantSupplierStatus,
   ) {
     const participant = this.participants.find((item) => item.id === participantId)?.toDto();
     return new ParticipantSupplierEntity({
@@ -2129,10 +2029,8 @@ export class InMemoryAllChecksOutDatabase {
       participantId,
       supplierName,
       relationshipType,
-      criticality,
       servicesProvided,
       dataExposure,
-      status,
     });
   }
 
@@ -2196,7 +2094,6 @@ export class InMemoryAllChecksOutDatabase {
       ...base(id),
       caseTemplateId,
       participantId,
-      status: "ASSIGNED",
       caseId,
       exemptionReason: null,
       decidedByUserId: null,
@@ -2245,7 +2142,6 @@ export class InMemoryAllChecksOutDatabase {
     id: StakeholderReviewId,
     stakeholderId: StakeholderId,
     caseId: CaseRecordId,
-    status: StakeholderReviewStatus,
     note: string,
     reviewedByUserId: UserAccountId,
   ) {
@@ -2253,7 +2149,6 @@ export class InMemoryAllChecksOutDatabase {
       ...base(id),
       stakeholderId,
       caseId,
-      status,
       note,
       reviewedByUserId,
       reviewedAt: now,
@@ -2281,7 +2176,6 @@ export class InMemoryAllChecksOutDatabase {
       stakeholderId,
       caseId,
       caseTaskId,
-      scopeType: caseTaskId ? "CASE_TASK" : "CASE",
       requestText,
       responseText,
       status,
@@ -2319,7 +2213,7 @@ export class InMemoryAllChecksOutDatabase {
     return id;
   }
 
-  private createUserAccount(displayName: string, email: string, userKind: UserKind) {
+  private createUserAccount(displayName: string, email: string) {
     const normalizedEmail = email.trim().toLowerCase();
     if (this.userAccounts.some((account) => account.toDto().email.toLowerCase() === normalizedEmail)) {
       throw new Error("A user account with this email already exists.");
@@ -2329,7 +2223,6 @@ export class InMemoryAllChecksOutDatabase {
       entraObjectId: `entra-${normalizedEmail}`,
       displayName,
       email: normalizedEmail,
-      userKind,
       status: "ACTIVE",
     });
     this.userAccounts.push(userAccount);
@@ -2572,7 +2465,6 @@ function buildAuthorities(): Authority[] {
       id: dto.id,
       name: dto.name,
       description: dto.description,
-      status: dto.status,
     };
   });
 }
@@ -2732,10 +2624,8 @@ function buildParticipantSuppliers(): ParticipantSupplier[] {
       participantName: participant?.name ?? "Unknown participant",
       supplierName: dto.supplierName,
       relationshipType: dto.relationshipType,
-      criticality: dto.criticality,
       servicesProvided: dto.servicesProvided,
       dataExposure: dto.dataExposure,
-      status: dto.status,
       linkedCases,
     };
   });
@@ -2748,8 +2638,6 @@ function buildStakeholders(): Stakeholder[] {
       id: dto.id,
       authorityId: dto.authorityId,
       name: dto.displayName,
-      type: dto.stakeholderType === "ORGANISATION" ? "Organisation" : "Person",
-      status: dto.status,
       visibleParticipants: db.getActiveAccessGrantsForStakeholder(dto.id).length,
     };
   });
@@ -2762,8 +2650,6 @@ function buildAgents(): Agent[] {
       id: dto.id,
       authorityId: dto.authorityId,
       name: dto.displayName,
-      type: dto.agentType === "ORGANISATION" ? "Organisation" : "Person",
-      status: dto.status,
       grantedParticipants: db.getActiveHelperAccessGrants(dto.id).length,
     };
   });
@@ -2823,16 +2709,6 @@ function buildAccessGrants(): AccessGrant[] {
   });
 }
 
-function stakeholderReviewStatusLabel(status: StakeholderReviewStatus) {
-  const labels: Record<StakeholderReviewStatus, string> = {
-    NOT_REVIEWED: "Not reviewed",
-    IN_REVIEW: "In review",
-    APPROVED: "Approved",
-    MORE_INFO_REQUESTED: "More information requested",
-  };
-  return labels[status];
-}
-
 function buildStakeholderReviews(): StakeholderReview[] {
   return db.stakeholderReviews.map((review) => {
     const dto = review.toDto();
@@ -2841,8 +2717,6 @@ function buildStakeholderReviews(): StakeholderReview[] {
       id: dto.id,
       stakeholderId: dto.stakeholderId,
       caseId: dto.caseId,
-      status: dto.status,
-      statusLabel: stakeholderReviewStatusLabel(dto.status),
       note: dto.note,
       reviewedByName: reviewedBy?.displayName ?? "Unknown user",
       reviewedAt: dto.reviewedAt,
@@ -2882,7 +2756,6 @@ function buildRequestsForInformation(): RequestForInformation[] {
       caseTitle: caseRecord?.title ?? "Case",
       caseTaskId: dto.caseTaskId,
       taskTitle: task?.title ?? null,
-      scopeType: dto.scopeType,
       scopeLabel: task?.title ?? caseRecord?.title ?? "Participant",
       requestText: dto.requestText,
       responseText: dto.responseText,
@@ -2909,9 +2782,7 @@ function buildParticipants(caseRecords: CaseRecord[]): Participant[] {
       authorityId: dto.authorityId,
       stakeholderId: access?.stakeholderId ?? "",
       name: dto.displayName,
-      type: dto.participantType === "ORGANISATION" ? "Organisation" : "Person",
       status: uiParticipantStatus(participantCases),
-      domainStatus: dto.status,
       openCases: participantCases.filter((caseRecord) => caseRecord.status !== "closed").length,
       completedTasks,
       totalTasks,
@@ -2929,9 +2800,7 @@ function buildAuthenticatableUsers(): AuthenticatableUser[] {
         id: dto.userAccountId,
         name: user?.displayName ?? "Unknown user",
         email: user?.email ?? "",
-        userKind: "AUTHORITY" as const,
         membership: { entityType: "authority" as const, entityId: dto.entityId },
-        membershipRole: dto.role,
       };
     }),
     ...db.participantUsers.map((membership) => {
@@ -2941,9 +2810,7 @@ function buildAuthenticatableUsers(): AuthenticatableUser[] {
         id: dto.userAccountId,
         name: user?.displayName ?? "Unknown user",
         email: user?.email ?? "",
-        userKind: "PARTICIPANT" as const,
         membership: { entityType: "participant" as const, entityId: dto.entityId },
-        membershipRole: dto.role,
       };
     }),
     ...db.stakeholderUsers.map((membership) => {
@@ -2953,9 +2820,7 @@ function buildAuthenticatableUsers(): AuthenticatableUser[] {
         id: dto.userAccountId,
         name: user?.displayName ?? "Unknown user",
         email: user?.email ?? "",
-        userKind: "STAKEHOLDER" as const,
         membership: { entityType: "stakeholder" as const, entityId: dto.entityId },
-        membershipRole: dto.role,
       };
     }),
     ...db.agentUsers.map((membership) => {
@@ -2965,9 +2830,7 @@ function buildAuthenticatableUsers(): AuthenticatableUser[] {
         id: dto.userAccountId,
         name: user?.displayName ?? "Unknown user",
         email: user?.email ?? "",
-        userKind: "AGENT" as const,
         membership: { entityType: "agent" as const, entityId: dto.entityId },
-        membershipRole: dto.role,
       };
     }),
   ];
@@ -3008,7 +2871,6 @@ function buildAccountContexts(): AccountContext[] {
         entityType: membership.membership.entityType,
         entityId: authority.id,
         entityName: authority.name,
-        membershipRole: membership.membershipRole,
         participantId: null,
         stakeholderId: null,
         description: "Configure case templates, participants, stakeholders, and users.",
@@ -3030,7 +2892,6 @@ function buildAccountContexts(): AccountContext[] {
         entityType: membership.membership.entityType,
         entityId: participant.id,
         entityName: participant.name,
-        membershipRole: membership.membershipRole,
         participantId: participant.id,
         stakeholderId: null,
         description: "Complete cases, manage evidence, and control stakeholder access.",
@@ -3053,7 +2914,6 @@ function buildAccountContexts(): AccountContext[] {
         entityType: membership.membership.entityType,
         entityId: agent.id,
         entityName: agent.name,
-        membershipRole: membership.membershipRole,
         participantId: null,
         stakeholderId: null,
         description: `Assist ${terminologyLabel(terminology, "participant", true)} where ${terminologyLabel(terminology, "agent")} access has been granted.`,
@@ -3074,7 +2934,6 @@ function buildAccountContexts(): AccountContext[] {
       entityType: membership.membership.entityType,
       entityId: stakeholder.id,
       entityName: stakeholder.name,
-      membershipRole: membership.membershipRole,
       participantId: null,
       stakeholderId: stakeholder.id,
       description: "Review participant case that has been granted to this stakeholder account.",
@@ -3106,7 +2965,7 @@ function buildSearchItems(): SearchItem[] {
     })),
     ...participants.map((participant) => ({
       title: participant.name,
-      description: `${participant.type} - ${participant.openCases} open case`,
+      description: `${participant.openCases} open case`,
       path: `/admin/participants/${participant.id}`,
       group: "Participants",
       audience: ["authority-admin", "stakeholder"] as UserRole[],
@@ -3504,8 +3363,6 @@ export function getCaseTemplateParticipants(caseTemplateId: string | undefined):
         caseTemplateId: assignment.caseTemplateId,
         participantId: assignment.participantId,
         participantName: participant?.name ?? "Unknown participant",
-        participantType: participant?.type ?? "Participant",
-        status: assignment.status,
         caseId: assignment.caseId,
         caseStatus: caseRecord?.status ?? null,
         exemptionReason: assignment.exemptionReason,

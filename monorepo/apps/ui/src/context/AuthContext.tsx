@@ -21,14 +21,12 @@ export type AuthenticatedUser = {
   accountContextType: AccountContextType | null;
   accountContextEntityId: string | null;
   accountContextName: string | null;
-  membershipRole: MembershipRole | null;
   participantId: string | null;
   stakeholderId: string | null;
 };
 
 export type UserRole = "authority-admin" | "participant" | "stakeholder" | "agent";
 export type AccountContextType = "authority" | "participant" | "stakeholder" | "agent";
-export type MembershipRole = "ADMIN" | "MEMBER";
 type StoredUserRole = UserRole | "authority-admin" | "helper";
 type StoredUser = Partial<Omit<AuthenticatedUser, "role">> & {
   role?: StoredUserRole;
@@ -77,7 +75,6 @@ const LOGGED_IN_USER = {
   accountContextType: null,
   accountContextEntityId: null,
   accountContextName: null,
-  membershipRole: null,
   participantId: null,
   stakeholderId: null,
 };
@@ -93,7 +90,6 @@ const LOGGED_OUT_USER = {
   accountContextType: null,
   accountContextEntityId: null,
   accountContextName: null,
-  membershipRole: null,
   participantId: null,
   stakeholderId: null,
 };
@@ -115,7 +111,6 @@ export type SignInSelection = {
   accountContextType: AccountContextType;
   accountContextEntityId: string;
   accountContextName: string;
-  membershipRole: MembershipRole;
   participantId: string | null;
   stakeholderId: string | null;
 };
@@ -152,10 +147,6 @@ function normalizeContextType(value: unknown): AccountContextType | null {
     : null;
 }
 
-function normalizeMembershipRole(value: unknown): MembershipRole | null {
-  return value === "ADMIN" || value === "MEMBER" ? value : null;
-}
-
 ////////////////////////
 // LOAD / SAVE CONTEXT
 ////////////////////////
@@ -185,7 +176,6 @@ function loadContext(): AuthContextData {
         accountContextType: isLoggedIn ? normalizeContextType(storedUser.accountContextType) : null,
         accountContextEntityId: isLoggedIn ? storedUser.accountContextEntityId ?? null : null,
         accountContextName: isLoggedIn ? storedUser.accountContextName ?? null : null,
-        membershipRole: isLoggedIn ? normalizeMembershipRole(storedUser.membershipRole) : null,
         participantId: isLoggedIn ? storedUser.participantId ?? null : null,
         stakeholderId: isLoggedIn ? storedUser.stakeholderId ?? null : null,
       },
@@ -220,7 +210,6 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       accountContextType: selection.accountContextType,
       accountContextEntityId: selection.accountContextEntityId,
       accountContextName: selection.accountContextName,
-      membershipRole: selection.membershipRole,
       participantId:
         selection.role === "authority-admin" ? null : selection.participantId,
       stakeholderId: selection.stakeholderId,

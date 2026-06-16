@@ -167,7 +167,6 @@ const Header = () => {
       accountContextType: context.entityType,
       accountContextEntityId: context.entityId,
       accountContextName: context.entityName,
-      membershipRole: context.membershipRole,
       participantId: context.participantId,
       stakeholderId: context.stakeholderId,
     });
