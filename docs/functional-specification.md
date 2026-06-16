@@ -5,7 +5,7 @@
 - Product name:
   - All Checks Out
 - Current UI name:
-  - CaseFlow Console
+  - All Checks Out
 - Product type:
   - Authority-partitioned due diligence and case management platform
 - Core concept:

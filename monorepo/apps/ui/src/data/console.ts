@@ -1305,6 +1305,19 @@ export class InMemoryAllChecksOutDatabase {
     return { userAccount, participantUser: membership.toDto() };
   }
 
+  createAuthorityUser(authorityId: AuthorityId, command: CreateEntityUserCommand) {
+    this.requireAuthority(authorityId);
+    const userAccount = this.createUserAccount(command.displayName, command.email, "AUTHORITY");
+    const membership = new AuthorityUserEntity({
+      ...this.createBase(this.nextId("authority-user", this.authorityUsers)),
+      entityId: authorityId,
+      userAccountId: userAccount.id,
+      role: command.role,
+    });
+    this.authorityUsers.push(membership);
+    return { userAccount, authorityUser: membership.toDto() };
+  }
+
   createStakeholder(command: CreateStakeholderCommand) {
     this.requireAuthority(command.authorityId);
     const stakeholder = new StakeholderEntity({
@@ -2353,7 +2366,7 @@ export const consoleApps: ConsoleApp[] = [
     name: "Authority Administration",
     shortName: "Admin",
     description: "Manage authority settings, participants, stakeholders, case templates, task types, and users.",
-    path: "/admin",
+    path: "/admin/participants",
     accent: "bg-[#1d70b8]",
     Icon: Landmark,
     audience: ["authority-admin"],
@@ -2985,7 +2998,7 @@ export function getConsoleAppsForRole(role: UserRole) {
 export function getDefaultConsolePath(role: UserRole) {
   if (role === "helper") return "/helper";
   if (role === "stakeholder") return "/stakeholder";
-  if (role === "authority-admin") return "/admin";
+  if (role === "authority-admin") return "/admin/participants";
   return "/cases";
 }
 

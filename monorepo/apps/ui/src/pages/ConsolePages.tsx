@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ConsoleLayout, MetricStrip, PageTitle, Tabs } from "@/components/ConsoleLayout";
+import { ConsoleLayout, MetricStrip, PageTitle } from "@/components/ConsoleLayout";
 import ResourceActionPanel from "@/components/ResourceActionPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useDomainData } from "@/context/DomainDataContext";
@@ -234,32 +234,35 @@ function EvidenceMetadataList({ task }: { task: Task }) {
   );
 }
 
-function AdministrationResourceNav() {
+function AdministrationResourceNav({ actions }: { actions?: ReactNode }) {
   const location = useLocation();
 
   return (
-    <nav aria-label="Administration resources" className="mb-6 border-b border-[#b1b4b6]">
-      <div className="flex gap-1 overflow-x-auto">
-        {adminResources.map((resource) => {
-          const isCurrent =
-            location.pathname === resource.path ||
-            (resource.path !== "/admin" && location.pathname.startsWith(`${resource.path}/`));
-          return (
-            <Button
-              key={resource.path}
-              asChild
-              variant="ghost"
-              className={cn(
-                "h-11 rounded-none border-b-4 border-transparent px-4 font-bold",
-                isCurrent && "border-[#1d70b8] bg-white dark:bg-card",
-              )}
-            >
-              <Link to={resource.path}>{resource.name}</Link>
-            </Button>
-          );
-        })}
-      </div>
-    </nav>
+    <div className="mb-6 flex flex-col gap-3 border-b border-[#b1b4b6] md:flex-row md:items-end md:justify-between">
+      <nav aria-label="Administration resources" className="min-w-0">
+        <div className="flex gap-1 overflow-x-auto">
+          {adminResources.map((resource) => {
+            const isCurrent =
+              location.pathname === resource.path ||
+              (resource.path !== "/admin" && location.pathname.startsWith(`${resource.path}/`));
+            return (
+              <Button
+                key={resource.path}
+                asChild
+                variant="ghost"
+                className={cn(
+                  "h-11 rounded-none border-b-4 border-transparent px-4 font-bold",
+                  isCurrent && "border-[#1d70b8] bg-white dark:bg-card",
+                )}
+              >
+                <Link to={resource.path}>{resource.name}</Link>
+              </Button>
+            );
+          })}
+        </div>
+      </nav>
+      {actions && <div className="flex shrink-0 flex-wrap gap-2 pb-2">{actions}</div>}
+    </div>
   );
 }
 
@@ -274,15 +277,11 @@ export function HelperWorkspacePage() {
 
   return (
     <ConsoleLayout
-      appName="Service Provider Workspace"
-      appDescription={`Delegated workspace for assisting ${terminologyLabel(terminology, "participant", true)} with ${terminologyLabel(terminology, "case", true)} and ${terminologyLabel(terminology, "stakeholder")} requests.`}
       breadcrumbs={[{ label: "Service provider workspace" }]}
       readOnly
     >
       <PageTitle
-        eyebrow="Service provider"
         title="Client workspaces"
-        description={`Assist ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case")} work only where an active helper grant permits it.`}
       />
       <MetricStrip
         items={[
@@ -386,8 +385,6 @@ export function HelperParticipantPage() {
 
   return (
     <ConsoleLayout
-      appName="Service Provider Workspace"
-      appDescription={`Delegated workspace for assisting ${terminologyLabel(terminology, "participant", true)} with ${terminologyLabel(terminology, "case", true)} and ${terminologyLabel(terminology, "stakeholder")} requests.`}
       breadcrumbs={[
         { label: "Service provider workspace", path: "/helper" },
         { label: workspace.participant.name },
@@ -395,9 +392,7 @@ export function HelperParticipantPage() {
       readOnly
     >
       <PageTitle
-        eyebrow="Client workspace"
         title={workspace.participant.name}
-        description={`Service-provider grant: ${workspace.grant.permissionLabel}. ${workspace.canEdit ? `You can assist with permitted ${terminologyLabel(terminology, "case")} updates and ${terminologyLabel(terminology, "requestForInformation", true)}.` : "This grant is review-only for this workspace."}`}
       />
       <MetricStrip
         items={[
@@ -499,9 +494,7 @@ export function StakeholderPortalPage() {
       readOnly
     >
       <PageTitle
-        eyebrow={terminologyTitle(terminology, "stakeholder")}
         title={`Granted ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)}`}
-        description={`Read submitted ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and your stakeholder-owned review status.`}
       />
       <MetricStrip
         items={[
@@ -582,9 +575,7 @@ export function StakeholderParticipantDetailPage() {
       readOnly
     >
       <PageTitle
-        eyebrow={`Read-only ${terminologyLabel(terminology, "participant")}`}
         title={participant.name}
-        description={`Granted ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "caseTask")} outcomes, and submitted ${terminologyLabel(terminology, "evidence")} metadata for ${terminologyLabel(terminology, "stakeholder")} review.`}
       />
       <MetricStrip
         items={[
@@ -778,9 +769,7 @@ export function StakeholderCaseDetailPage() {
       ]}
     >
       <PageTitle
-        eyebrow={`${terminologyTitle(terminology, "stakeholder")} review`}
         title={caseRecord.title}
-        description={`${participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`} ${caseRecord.caseType.toLowerCase()} status, ${terminologyLabel(terminology, "caseTask")} completion, and ${terminologyLabel(terminology, "stakeholder")}-owned review outcome.`}
       />
       <MetricStrip
         items={[
@@ -968,14 +957,9 @@ export function StakeholdersPage() {
 
   return (
     <ConsoleLayout
-      appName="Administration"
-      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
-      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: terminologyTitle(terminology, "stakeholder", true) }]}
+      breadcrumbs={[{ label: "Administration", path: "/admin/participants" }, { label: terminologyTitle(terminology, "stakeholder", true) }]}
     >
-      <PageTitle
-        eyebrow="Resource list"
-        title={terminologyTitle(terminology, "stakeholder", true)}
-        description={`Create ${terminologyLabel(terminology, "stakeholder", true)}, manage their users, and review ${terminologyLabel(terminology, "participant")} access.`}
+      <AdministrationResourceNav
         actions={
           <Button onClick={() => setShowCreate((current) => !current)}>
             <Plus />
@@ -983,7 +967,6 @@ export function StakeholdersPage() {
           </Button>
         }
       />
-      <AdministrationResourceNav />
       <ResourceActionPanel
         open={showCreate}
         title={`Create ${terminologyLabel(terminology, "stakeholder")}`}
@@ -1082,29 +1065,16 @@ export function StakeholderDetailPage() {
 
   return (
     <ConsoleLayout
-      appName={`${terminologyTitle(terminology, "authority")} Administration`}
-      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
       breadcrumbs={[
-        { label: "Administration", path: "/admin" },
+        { label: "Administration", path: "/admin/participants" },
         { label: terminologyTitle(terminology, "stakeholder", true), path: "/admin/stakeholders" },
         { label: stakeholder.name },
       ]}
     >
       <PageTitle
-        eyebrow={terminologyTitle(terminology, "stakeholder")}
         title={stakeholder.name}
-        description={`Manage ${terminologyLabel(terminology, "stakeholder")} users and approved ${terminologyLabel(terminology, "participant")} monitoring access.`}
       />
       <AdministrationResourceNav />
-      <Tabs
-        current="Overview"
-        tabs={[
-          { label: "Overview", path: `/admin/stakeholders/${stakeholder.id}` },
-          { label: "Users", path: `/admin/stakeholders/${stakeholder.id}` },
-          { label: "Access", path: `/admin/stakeholders/${stakeholder.id}` },
-          { label: "Audit", path: `/admin/stakeholders/${stakeholder.id}` },
-        ]}
-      />
       <MetricStrip
         items={[
           { label: "Current status", value: stakeholder.status.toLowerCase(), tone: "blue" },
@@ -1224,14 +1194,9 @@ export function CaseTemplatesPage() {
 
   return (
     <ConsoleLayout
-      appName={`${terminologyTitle(terminology, "authority")} Administration`}
-      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
-      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: terminologyTitle(terminology, "caseTemplate", true) }]}
+      breadcrumbs={[{ label: "Administration", path: "/admin/participants" }, { label: terminologyTitle(terminology, "caseTemplate", true) }]}
     >
-      <PageTitle
-        eyebrow="Resource list"
-        title={terminologyTitle(terminology, "caseTemplate", true)}
-        description={`Create reusable ${terminologyLabel(terminology, "authority")}-owned ${terminologyLabel(terminology, "case")} definitions, add tasks, assign ${terminologyLabel(terminology, "participant", true)}, and publish ${terminologyLabel(terminology, "case", true)}.`}
+      <AdministrationResourceNav
         actions={
           <Button onClick={() => setShowCreate((current) => !current)}>
             <Plus />
@@ -1239,7 +1204,6 @@ export function CaseTemplatesPage() {
           </Button>
         }
       />
-      <AdministrationResourceNav />
       <ResourceActionPanel
         open={showCreate}
         title={`Create ${terminologyLabel(terminology, "caseTemplate")}`}
@@ -1418,18 +1382,14 @@ export function CaseTemplateDetailPage() {
 
   return (
     <ConsoleLayout
-      appName={`${terminologyTitle(terminology, "authority")} Administration`}
-      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
       breadcrumbs={[
-        { label: "Administration", path: "/admin" },
+        { label: "Administration", path: "/admin/participants" },
         { label: terminologyTitle(terminology, "caseTemplate", true), path: "/admin/case-templates" },
         { label: templateRecord.name },
       ]}
     >
       <PageTitle
-        eyebrow={terminologyTitle(terminology, "caseTemplate")}
         title={templateRecord.name}
-        description={templateRecord.description}
         actions={
           templateRecord.status === "DRAFT" ? (
             <Button type="button" onClick={publishTemplate}>
@@ -1440,16 +1400,6 @@ export function CaseTemplateDetailPage() {
         }
       />
       <AdministrationResourceNav />
-      <Tabs
-        current="Overview"
-        tabs={[
-          { label: "Overview", path: `/admin/case-templates/${templateRecord.id}` },
-          { label: terminologyTitle(terminology, "caseTask", true), path: `/admin/case-templates/${templateRecord.id}` },
-          { label: terminologyTitle(terminology, "participant", true), path: `/admin/case-templates/${templateRecord.id}` },
-          { label: `Generated ${terminologyLabel(terminology, "case", true)}`, path: `/admin/case-templates/${templateRecord.id}` },
-          { label: "Activity", path: `/admin/case-templates/${templateRecord.id}` },
-        ]}
-      />
       <MetricStrip
         items={[
           { label: "Status", value: templateRecord.status.toLowerCase(), tone: templateRecord.status === "PUBLISHED" ? "green" : "yellow" },
@@ -1647,43 +1597,6 @@ export function CaseTemplateDetailPage() {
   );
 }
 
-export function AdminHome() {
-  const { user } = useAuth();
-  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
-  const terminology = getTerminologyForUser(user);
-
-  return (
-    <ConsoleLayout
-      appName={`${terminologyTitle(terminology, "authority")} Administration`}
-      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
-      breadcrumbs={[{ label: "Administration" }]}
-    >
-      <PageTitle
-        eyebrow="Administration"
-        title={`${terminologyTitle(terminology, "authority")} configuration`}
-        description={`Choose an administration resource to manage ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, templates, users, and parameters.`}
-      />
-      <AdministrationResourceNav />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {adminResources.map((resource) => {
-          const Icon = resource.Icon;
-          return (
-            <Link
-              key={resource.path}
-              to={resource.path}
-              className="border border-[#b1b4b6] bg-white p-4 hover:border-[#1d70b8] dark:bg-card"
-            >
-              <Icon className="mb-4 size-7 text-[#1d70b8]" />
-              <span className="block text-lg font-bold text-[#1d70b8]">{resource.name}</span>
-              <span className="mt-1 block text-sm text-[#505a5f] dark:text-muted-foreground">{resource.count}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </ConsoleLayout>
-  );
-}
-
 const terminologyKeys: TerminologyKey[] = [
   "authority",
   "participant",
@@ -1743,17 +1656,13 @@ export function ParametersPage() {
 
   return (
     <ConsoleLayout
-      appName={`${terminologyTitle(terminology, "authority")} Administration`}
-      appDescription="Authority-owned terminology and display parameters."
       breadcrumbs={[
-        { label: "Administration", path: "/admin" },
+        { label: "Administration", path: "/admin/participants" },
         { label: "Parameters" },
       ]}
     >
       <PageTitle
-        eyebrow="Parameters"
         title="Terminology"
-        description="Set the labels this authority uses for the generic platform concepts."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={resetDefaults}>
@@ -1826,14 +1735,9 @@ export function ParticipantsPage() {
 
   return (
     <ConsoleLayout
-      appName={`${terminologyTitle(terminology, "authority")} Administration`}
-      appDescription={`Configuration for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "participant", true)}, workflow, and review.`}
-      breadcrumbs={[{ label: "Administration", path: "/admin" }, { label: terminologyTitle(terminology, "participant", true) }]}
+      breadcrumbs={[{ label: "Administration", path: "/admin/participants" }, { label: terminologyTitle(terminology, "participant", true) }]}
     >
-      <PageTitle
-        eyebrow="Resource list"
-        title={terminologyTitle(terminology, "participant", true)}
-        description={`Select a ${terminologyLabel(terminology, "participant")} to review membership, ${terminologyLabel(terminology, "stakeholder")} access, generated ${terminologyLabel(terminology, "case", true)}, task status, and activity.`}
+      <AdministrationResourceNav
         actions={
           <Button onClick={() => setShowCreate((current) => !current)}>
             <Plus />
@@ -1841,7 +1745,6 @@ export function ParticipantsPage() {
           </Button>
         }
       />
-      <AdministrationResourceNav />
       <ResourceActionPanel
         open={showCreate}
         title={`Create ${terminologyLabel(terminology, "participant")}`}
@@ -1945,29 +1848,16 @@ export function ParticipantDetailPage() {
 
   return (
     <ConsoleLayout
-      appName={`${terminologyTitle(terminology, "authority")} Administration`}
-      appDescription={`Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.`}
       breadcrumbs={[
-        { label: "Administration", path: "/admin" },
+        { label: "Administration", path: "/admin/participants" },
         { label: terminologyTitle(terminology, "participant", true), path: "/admin/participants" },
         { label: participant.name },
       ]}
     >
       <PageTitle
-        eyebrow={terminologyTitle(terminology, "participant")}
         title={participant.name}
-        description={`Review ${terminologyLabel(terminology, "participant")} membership, ${terminologyLabel(terminology, "stakeholder")} access, generated ${terminologyLabel(terminology, "case", true)}, users, and audit activity.`}
       />
       <AdministrationResourceNav />
-      <Tabs
-        current="Overview"
-        tabs={[
-          { label: "Overview", path: `/admin/participants/${participant.id}` },
-          { label: "Users", path: `/admin/participants/${participant.id}` },
-          { label: terminologyTitle(terminology, "case", true), path: `/admin/participants/${participant.id}` },
-          { label: "Audit", path: `/admin/participants/${participant.id}` },
-        ]}
-      />
       <MetricStrip
         items={[
           { label: "Current status", value: participant.status.replace("-", " "), tone: participant.status === "attention" ? "red" : "blue" },
@@ -2047,7 +1937,7 @@ export function CaseManagementHome() {
   const [supplierError, setSupplierError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "helper") return <Navigate to="/helper" replace />;
-  if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+  if (user.role === "authority-admin") return <Navigate to="/admin/participants" replace />;
   const terminology = getTerminologyForUser(user);
   const authority = getAuthority(user.authorityId ?? undefined);
   const participant = getParticipant(user.participantId ?? undefined);
@@ -2088,15 +1978,11 @@ export function CaseManagementHome() {
 
   return (
     <ConsoleLayout
-      appName={terminologyTitle(terminology, "case", true)}
-      appDescription={`Operational workspace for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and controlled ${terminologyLabel(terminology, "stakeholder")} review.`}
       breadcrumbs={[{ label: terminologyTitle(terminology, "case", true) }]}
       readOnly
     >
       <PageTitle
-        eyebrow={`${terminologyTitle(terminology, "participant")} workspace`}
         title={terminologyTitle(terminology, "case", true)}
-        description={`Complete participant-owned ${terminologyLabel(terminology, "case", true)}, upload ${terminologyLabel(terminology, "evidence")} metadata, and control who can review this workspace.`}
         actions={
           <Button asChild>
             <Link to="/cases/access-grants">
@@ -2224,7 +2110,7 @@ export function AccessGrantsPage() {
 
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "helper") return <Navigate to="/helper" replace />;
-  if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+  if (user.role === "authority-admin") return <Navigate to="/admin/participants" replace />;
   const terminology = getTerminologyForUser(user);
 
   const participant = getParticipant(user.participantId ?? undefined);
@@ -2278,17 +2164,13 @@ export function AccessGrantsPage() {
 
   return (
     <ConsoleLayout
-      appName={terminologyTitle(terminology, "case", true)}
-      appDescription={`Operational workspace for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")}, and controlled review access.`}
       breadcrumbs={[
         { label: terminologyTitle(terminology, "case", true), path: "/cases" },
         { label: terminologyTitle(terminology, "accessGrant", true) },
       ]}
     >
       <PageTitle
-        eyebrow={`${terminologyTitle(terminology, "participant")}-controlled access`}
         title={terminologyTitle(terminology, "accessGrant", true)}
-        description={`Invite ${terminologyLabel(terminology, "stakeholder", true)} and helpers into this ${terminologyLabel(terminology, "participant")} workspace without giving the ${terminologyLabel(terminology, "authority")} default access to private ${terminologyLabel(terminology, "case")} answers or ${terminologyLabel(terminology, "evidence")}.`}
         actions={
           <Button type="button" onClick={() => setShowCreate((current) => !current)}>
             <UserPlus />
@@ -2430,7 +2312,7 @@ export function CaseDetailPage() {
   const [requestResponseText, setRequestResponseText] = useState("");
   const [requestError, setRequestError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
-  if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+  if (user.role === "authority-admin") return <Navigate to="/admin/participants" replace />;
   const terminology = getTerminologyForUser(user);
   const caseRecord = getCase(caseId);
   if (!caseRecord) return <Navigate to="/cases" replace />;
@@ -2495,8 +2377,6 @@ export function CaseDetailPage() {
 
   return (
     <ConsoleLayout
-      appName={terminologyTitle(terminology, "case", true)}
-      appDescription={`Operational workspace for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and controlled ${terminologyLabel(terminology, "stakeholder")} review.`}
       breadcrumbs={[
         { label: terminologyTitle(terminology, "case", true), path: "/cases" },
         { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}` },
@@ -2504,9 +2384,7 @@ export function CaseDetailPage() {
       readOnly
     >
       <PageTitle
-        eyebrow={terminologyTitle(terminology, "case")}
         title={caseRecord.title}
-        description={`${participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`} ${caseRecord.caseType.toLowerCase()} for ${terminologyLabel(terminology, "caseTask")} completion, ${terminologyLabel(terminology, "evidence")} metadata, ${terminologyLabel(terminology, "stakeholder")} review, and outcome visibility.`}
         actions={
           user.role === "participant" ? (
             <Button type="button" onClick={submitCase} disabled={!canSubmitCase}>
@@ -2517,15 +2395,6 @@ export function CaseDetailPage() {
         }
       />
       <FormError message={submitError} />
-      <Tabs
-        current="Summary"
-        tabs={[
-          { label: "Summary", path: `/cases/${caseRecord.id}` },
-          { label: "Tasks", path: `/cases/${caseRecord.id}` },
-          { label: "Evidence", path: `/cases/${caseRecord.id}` },
-          { label: "Activity", path: `/cases/${caseRecord.id}` },
-        ]}
-      />
       <MetricStrip
         items={[
           { label: `${terminologyTitle(terminology, "case")} status`, value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
@@ -2646,7 +2515,7 @@ export function TaskDetailPage() {
   }, [task?.id, task?.responseText]);
 
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
-  if (user.role === "authority-admin") return <Navigate to="/admin" replace />;
+  if (user.role === "authority-admin") return <Navigate to="/admin/participants" replace />;
   const terminology = getTerminologyForUser(user);
 
   if (!caseRecord || !task) return <Navigate to="/cases" replace />;
@@ -2766,8 +2635,6 @@ export function TaskDetailPage() {
 
   return (
     <ConsoleLayout
-      appName={terminologyTitle(terminology, "case", true)}
-      appDescription={`Operational workspace for ${terminologyLabel(terminology, "case", true)}, ${terminologyLabel(terminology, "evidence")} metadata, and controlled ${terminologyLabel(terminology, "stakeholder")} review.`}
       breadcrumbs={[
         { label: terminologyTitle(terminology, "case", true), path: "/cases" },
         { label: `${participant?.name ?? "Organization"} ${caseRecord.reference}`, path: `/cases/${caseRecord.id}` },
@@ -2776,9 +2643,7 @@ export function TaskDetailPage() {
       isEdited={isEdited}
     >
       <PageTitle
-        eyebrow={terminologyTitle(terminology, "caseTask")}
         title={task.title}
-        description={task.description}
         actions={
           <label
             className={cn(
@@ -2802,14 +2667,6 @@ export function TaskDetailPage() {
         }
       />
       <FormError message={error} />
-      <Tabs
-        current="Overview"
-        tabs={[
-          { label: "Overview", path: `/cases/${caseRecord.id}/tasks/${task.id}` },
-          { label: "Uploads", path: `/cases/${caseRecord.id}/tasks/${task.id}` },
-          { label: "History", path: `/cases/${caseRecord.id}/tasks/${task.id}` },
-        ]}
-      />
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <section className="border border-[#b1b4b6] bg-white p-5 dark:bg-card">
           <div className="flex items-start gap-4">
@@ -2958,99 +2815,75 @@ export function TaskDetailPage() {
   );
 }
 
-export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
+export function AdminReferencePage() {
   const { user } = useAuth();
+  const { db, refresh } = useDomainData();
   const location = useLocation();
-  const isAdmin = app === "admin";
-  if (!isAdmin && user.role === "authority-admin") return <Navigate to="/admin" replace />;
-  if (!isAdmin && user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
-  if (!isAdmin && user.role === "helper") return <Navigate to="/helper" replace />;
-  const terminology = getTerminologyForUser(user);
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserRole, setNewUserRole] = useState<MembershipRole>("MEMBER");
+  const [userError, setUserError] = useState<string | null>(null);
+  if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const authorityId = user.authorityId ?? undefined;
-  const scopedParticipants = getScopedParticipants(user);
-  const scopedStakeholders = getStakeholdersForAuthority(authorityId);
-  const scopedTemplates = getCaseTemplatesForAuthority(authorityId);
-  const scopedUsers = authenticatableUsers.filter((account) => {
-    if (account.membership.entityType === "authority") return account.membership.entityId === authorityId;
-    if (account.membership.entityType === "participant") {
-      return scopedParticipants.some((participant) => participant.id === account.membership.entityId);
-    }
-    if (account.membership.entityType === "stakeholder") {
-      return scopedStakeholders.some((stakeholder) => stakeholder.id === account.membership.entityId);
-    }
-    return false;
-  });
-  const resource =
-    location.pathname.includes("stakeholders")
-      ? "stakeholders"
-      : location.pathname.includes("case-templates")
-        ? "case-templates"
-        : location.pathname.includes("task-types")
-          ? "task-types"
-          : location.pathname.includes("users")
-            ? "users"
-            : "placeholder";
+  const authorityUsers = authenticatableUsers.filter(
+    (account) =>
+      account.membership.entityType === "authority" &&
+      account.membership.entityId === authorityId,
+  );
+  const resource = location.pathname.includes("task-types") ? "task-types" : "users";
   const titleMap: Record<typeof resource, string> = {
-    stakeholders: terminologyTitle(terminology, "stakeholder", true),
-    "case-templates": terminologyTitle(terminology, "caseTemplate", true),
     "task-types": "Task types",
     users: "Users",
-    placeholder: "Coming next",
   };
+
+  function createAuthorityUser() {
+    setUserError(null);
+    if (!authorityId) {
+      setUserError("No authority is selected for this session.");
+      return;
+    }
+    if (!newUserName.trim()) {
+      setUserError("Enter a user name.");
+      return;
+    }
+    if (!newUserEmail.trim()) {
+      setUserError("Enter an email address.");
+      return;
+    }
+    try {
+      db.createAuthorityUser(authorityId, {
+        displayName: newUserName.trim(),
+        email: newUserEmail.trim(),
+        role: newUserRole,
+      });
+      refresh();
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserRole("MEMBER");
+      setShowCreateUser(false);
+    } catch (caught) {
+      setUserError(caught instanceof Error ? caught.message : "Authority user could not be created.");
+    }
+  }
 
   return (
     <ConsoleLayout
-      appName={isAdmin ? `${terminologyTitle(terminology, "authority")} Administration` : terminologyTitle(terminology, "case", true)}
-      appDescription={isAdmin ? `Configuration for ${terminologyLabel(terminology, "participant", true)}, ${terminologyLabel(terminology, "stakeholder", true)}, ${terminologyLabel(terminology, "caseTemplate", true)}, task types, and review.` : `Operational workspace for ${terminologyLabel(terminology, "caseTask", true)}, forms, ${terminologyLabel(terminology, "evidence")}, and workflow.`}
       breadcrumbs={[
-        { label: isAdmin ? "Administration" : terminologyTitle(terminology, "case", true), path: isAdmin ? "/admin" : "/cases" },
+        { label: "Administration", path: "/admin/participants" },
         { label: titleMap[resource] },
       ]}
     >
-      <PageTitle
-        eyebrow="Resource console"
-        title={titleMap[resource]}
-        description={
-          resource === "stakeholders"
-            ? `${terminologyTitle(terminology, "stakeholder", true)} belong to the selected ${terminologyLabel(terminology, "authority")} and receive explicit ${terminologyLabel(terminology, "participant")} access records.`
-            : resource === "case-templates"
-              ? `${terminologyTitle(terminology, "caseTemplate", true)} are reusable ${terminologyLabel(terminology, "authority")} definitions. Publishing them creates ${terminologyLabel(terminology, "participant")} ${terminologyLabel(terminology, "case", true)} immediately.`
-              : resource === "task-types"
-                ? `Task types are global software capabilities configured into ${terminologyLabel(terminology, "authority")}-owned ${terminologyLabel(terminology, "caseTemplate", true)}.`
-                : resource === "users"
-                  ? "Users authenticate through Entra and have exactly one application user kind plus Admin or Member membership."
-                  : "This resource area is ready for the next implementation lesson."
+      <AdministrationResourceNav
+        actions={
+          resource === "users" ? (
+            <Button type="button" onClick={() => setShowCreateUser((current) => !current)}>
+              <UserPlus />
+              Create user
+            </Button>
+          ) : undefined
         }
       />
-      {isAdmin && <AdministrationResourceNav />}
-      {resource === "stakeholders" && (
-        <ResourceTable headings={[terminologyTitle(terminology, "stakeholder"), "Type", "Status", `${terminologyTitle(terminology, "participant")} access`]}>
-          {scopedStakeholders.map((stakeholder) => (
-            <tr key={stakeholder.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3 font-bold text-[#1d70b8]">{stakeholder.name}</td>
-              <td className="px-4 py-3">{stakeholder.type}</td>
-              <td className="px-4 py-3">{stakeholder.status}</td>
-              <td className="px-4 py-3">{stakeholder.visibleParticipants} approved</td>
-            </tr>
-          ))}
-        </ResourceTable>
-      )}
-      {resource === "case-templates" && (
-        <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Status", terminologyTitle(terminology, "caseTask", true), terminologyTitle(terminology, "participant", true), "Published"]}>
-          {scopedTemplates.map((template) => (
-            <tr key={template.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3">
-                <span className="block font-bold text-[#1d70b8]">{template.name}</span>
-                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{template.description}</span>
-              </td>
-              <td className="px-4 py-3">{template.status}</td>
-              <td className="px-4 py-3">{template.taskCount}</td>
-              <td className="px-4 py-3">{template.participantCount}</td>
-              <td className="px-4 py-3">{template.publishedAt ? "Published" : "Not published"}</td>
-            </tr>
-          ))}
-        </ResourceTable>
-      )}
       {resource === "task-types" && (
         <ResourceTable headings={["Code", "Name", "Status", "Description"]}>
           {taskTypes.map((taskType) => (
@@ -3064,24 +2897,45 @@ export function PlaceholderResourcePage({ app }: { app: "admin" | "cases" }) {
         </ResourceTable>
       )}
       {resource === "users" && (
-        <ResourceTable headings={["User", "Kind", "Membership", "Role"]}>
-          {scopedUsers.map((account) => (
-            <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3">
-                <span className="block font-bold text-[#1d70b8]">{account.name}</span>
-                <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{account.email}</span>
-              </td>
-              <td className="px-4 py-3">{account.userKind}</td>
-              <td className="px-4 py-3">{account.membership.entityType}</td>
-              <td className="px-4 py-3">{account.membershipRole}</td>
-            </tr>
-          ))}
-        </ResourceTable>
-      )}
-      {resource === "placeholder" && (
-        <section className="border border-dashed border-[#b1b4b6] bg-white p-5 text-sm text-[#505a5f] dark:bg-card dark:text-muted-foreground">
-          This resource area is ready for the next implementation lesson.
-        </section>
+        <>
+          <ResourceActionPanel
+            open={showCreateUser}
+            title="Create authority user"
+            description="Create a login user for this authority."
+            onClose={() => setShowCreateUser(false)}
+            footer={
+              <Button type="button" onClick={createAuthorityUser}>
+                <CheckCircle2 />
+                Save
+              </Button>
+            }
+          >
+            <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
+              <FormField label="Display name">
+                <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
+              </FormField>
+              <FormField label="Email">
+                <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
+              </FormField>
+              <FormField label="Role">
+                <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
+                  <option value="MEMBER">Member</option>
+                  <option value="ADMIN">Admin</option>
+                </SelectField>
+              </FormField>
+            </div>
+            <div className="mt-3"><FormError message={userError} /></div>
+          </ResourceActionPanel>
+          <ResourceTable headings={["User", "Email", "Role"]}>
+            {authorityUsers.map((account) => (
+              <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
+                <td className="px-4 py-3">{account.email}</td>
+                <td className="px-4 py-3">{account.membershipRole}</td>
+              </tr>
+            ))}
+          </ResourceTable>
+        </>
       )}
     </ConsoleLayout>
   );

@@ -1,8 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export type Crumb = {
   label: string;
@@ -10,8 +9,6 @@ export type Crumb = {
 };
 
 type ConsoleLayoutProps = {
-  appName?: string;
-  appDescription?: string;
   breadcrumbs: Crumb[];
   actions?: ReactNode;
   isEdited?: boolean;
@@ -101,26 +98,16 @@ export function ConsoleLayout({
 }
 
 export function PageTitle({
-  eyebrow,
   title,
-  description,
   actions,
 }: {
-  eyebrow?: string;
   title: string;
-  description?: string;
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 border-b border-[#b1b4b6] pb-5 md:flex-row md:items-start md:justify-between">
+    <div className="mb-6 flex flex-col gap-4 border-b border-[#b1b4b6] pb-4 md:flex-row md:items-center md:justify-between">
       <div className="max-w-4xl">
-        {eyebrow && <p className="text-sm font-bold uppercase text-[#505a5f] dark:text-muted-foreground">{eyebrow}</p>}
-        <h2 className="mt-1 text-3xl font-bold tracking-normal sm:text-4xl">{title}</h2>
-        {description && (
-          <p className="mt-3 max-w-3xl text-base leading-7 text-[#505a5f] dark:text-muted-foreground">
-            {description}
-          </p>
-        )}
+        <h2 className="text-3xl font-bold tracking-normal sm:text-4xl">{title}</h2>
       </div>
       {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
     </div>
@@ -153,34 +140,6 @@ export function MetricStrip({
           <p className="mt-1 text-2xl font-bold">{item.value}</p>
         </div>
       ))}
-    </div>
-  );
-}
-
-export function Tabs({
-  tabs,
-  current,
-}: {
-  tabs: Array<{ label: string; path: string }>;
-  current: string;
-}) {
-  return (
-    <div className="mb-6 border-b border-[#b1b4b6]">
-      <div className="flex gap-1 overflow-x-auto">
-        {tabs.map((tab) => (
-          <Button
-            key={tab.path}
-            asChild
-            variant="ghost"
-            className={cn(
-              "h-11 rounded-none border-b-4 border-transparent px-4 font-bold",
-              current === tab.label && "border-[#1d70b8] bg-white dark:bg-card",
-            )}
-          >
-            <Link to={tab.path}>{tab.label}</Link>
-          </Button>
-        ))}
-      </div>
     </div>
   );
 }

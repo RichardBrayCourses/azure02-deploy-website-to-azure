@@ -4,7 +4,7 @@
 
 In this lesson, you build and deploy a real React application to Azure using a small production-style monorepo.
 
-The application is a CaseFlow console built with React, TypeScript, Vite, Tailwind CSS, and shadcn-style UI components. It has client-side routing, a role-scoped demo sign-in flow, app navigation, global search, dark-mode persistence, and typed fixture data for authorities, participants, stakeholders, cases, and tasks. That gives us a useful frontend without adding a backend before the course needs one.
+The application is an All Checks Out console built with React, TypeScript, Vite, Tailwind CSS, and shadcn-style UI components. It has client-side routing, a role-scoped demo sign-in flow, app navigation, global search, dark-mode persistence, and typed fixture data for authorities, participants, stakeholders, cases, and tasks. That gives us a useful frontend without adding a backend before the course needs one.
 
 The infrastructure is written in Bicep. Bicep creates an Azure Storage account, and the deployment scripts enable Azure Blob static website hosting for the built frontend files. The Vite build output is uploaded into the special `$web` container, and Azure serves the app from the storage account's static website endpoint.
 
@@ -324,7 +324,7 @@ UI_DIST_DIR="${UI_DIST_DIR:-apps/ui/dist}"
 You can override these values for a one-off deployment:
 
 ```bash
-AZURE_LOCATION=westeurope AZURE_RESOURCE_GROUP=my-caseflow-rg pnpm run deploy-everything
+AZURE_LOCATION=westeurope AZURE_RESOURCE_GROUP=my-all-checks-out-rg pnpm run deploy-everything
 ```
 
 `deploy-infra.sh` creates the resource group, deploys Bicep, reads the storage account name from the deployment output, and enables static website hosting.

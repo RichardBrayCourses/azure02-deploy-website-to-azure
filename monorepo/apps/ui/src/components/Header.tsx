@@ -25,10 +25,8 @@ import {
 } from "@/data/console";
 import { cn } from "@/lib/utils";
 import {
-  Bell,
   Check,
   ChevronsUpDown,
-  CircleHelp,
   Grid3X3,
   LogOut,
   Moon,
@@ -179,71 +177,57 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-40 border-b border-black bg-[#0b1f33] text-white">
       <div className="flex h-14 items-center gap-2 px-3 sm:px-5">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label="Open app launcher"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "icon" }),
-              "text-white hover:bg-white/10 hover:text-white",
-            )}
-          >
-            <AppLauncherIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-80 rounded-sm p-3">
-            <DropdownMenuLabel className="flex items-center gap-2">
-              <Grid3X3 className="size-4" />
-              Console apps
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <div className="grid grid-cols-2 gap-2 p-1">
-              {availableApps.map((app) => {
-                const Icon = app.Icon;
-                return (
-                  <DropdownMenuItem key={app.id} asChild className="block p-0">
-                    <Link
-                      to={app.path}
-                      className="block rounded-sm border border-transparent p-3 hover:border-[#1d70b8] hover:bg-[#f3f2f1]"
-                    >
-                      <span className={cn("mb-2 flex size-8 items-center justify-center rounded-sm text-white", app.accent)}>
-                        <Icon className="size-4" />
-                      </span>
-                      <span className="block text-sm font-bold">{app.shortName}</span>
-                      <span className="mt-1 block text-xs leading-4 text-[#505a5f]">
-                        {app.description}
-                      </span>
-                    </Link>
-                  </DropdownMenuItem>
-                );
-              })}
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {availableApps.length > 1 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Open app launcher"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "text-white hover:bg-white/10 hover:text-white",
+              )}
+            >
+              <AppLauncherIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-80 rounded-sm p-3">
+              <DropdownMenuLabel className="flex items-center gap-2">
+                <Grid3X3 className="size-4" />
+                Console apps
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <div className="grid grid-cols-2 gap-2 p-1">
+                {availableApps.map((app) => {
+                  const Icon = app.Icon;
+                  return (
+                    <DropdownMenuItem key={app.id} asChild className="block p-0">
+                      <Link
+                        to={app.path}
+                        className="block rounded-sm border border-transparent p-3 hover:border-[#1d70b8] hover:bg-[#f3f2f1]"
+                      >
+                        <span className={cn("mb-2 flex size-8 items-center justify-center rounded-sm text-white", app.accent)}>
+                          <Icon className="size-4" />
+                        </span>
+                        <span className="block text-sm font-bold">{app.shortName}</span>
+                        <span className="mt-1 block text-xs leading-4 text-[#505a5f]">
+                          {app.description}
+                        </span>
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         <Button asChild variant="ghost" className="h-10 px-2 text-white hover:bg-white/10 hover:text-white">
           <Link to={getDefaultConsolePath(user.role)} className="text-base font-bold tracking-normal">
-            CaseFlow Console
+            All Checks Out
           </Link>
         </Button>
 
         <GlobalSearch />
 
         <div className="ml-auto flex items-center gap-1">
-          <Button
-            aria-label="Help"
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-white/10 hover:text-white"
-          >
-            <CircleHelp />
-          </Button>
-          <Button
-            aria-label="Notifications"
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-white/10 hover:text-white"
-          >
-            <Bell />
-          </Button>
           <Button
             aria-label="Toggle theme"
             variant="ghost"

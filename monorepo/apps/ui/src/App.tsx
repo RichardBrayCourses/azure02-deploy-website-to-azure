@@ -5,17 +5,16 @@ import DomainDataProvider, { useDomainData } from "./context/DomainDataContext";
 import ThemeProvider, { useTheme } from "./context/ThemeContext";
 import { getDefaultConsolePath } from "./data/console";
 import {
-  AdminHome,
   AccessGrantsPage,
   CaseDetailPage,
   CaseManagementHome,
   CaseTemplateDetailPage,
   CaseTemplatesPage,
   TaskDetailPage,
+  AdminReferencePage,
   ParametersPage,
   ParticipantsPage,
   ParticipantDetailPage,
-  PlaceholderResourcePage,
   StakeholderDetailPage,
   StakeholderCaseDetailPage,
   StakeholderParticipantDetailPage,
@@ -44,24 +43,21 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Navigate to={getDefaultConsolePath(user.role)} replace />} />
 
-        <Route path="/admin" element={<AdminHome />} />
+        <Route path="/admin" element={<Navigate to="/admin/participants" replace />} />
         <Route path="/admin/participants" element={<ParticipantsPage />} />
         <Route path="/admin/participants/:participantId" element={<ParticipantDetailPage />} />
         <Route path="/admin/stakeholders" element={<StakeholdersPage />} />
         <Route path="/admin/stakeholders/:stakeholderId" element={<StakeholderDetailPage />} />
         <Route path="/admin/case-templates" element={<CaseTemplatesPage />} />
         <Route path="/admin/case-templates/:templateId" element={<CaseTemplateDetailPage />} />
-        <Route path="/admin/task-types" element={<PlaceholderResourcePage app="admin" />} />
-        <Route path="/admin/users" element={<PlaceholderResourcePage app="admin" />} />
+        <Route path="/admin/task-types" element={<AdminReferencePage />} />
+        <Route path="/admin/users" element={<AdminReferencePage />} />
         <Route path="/admin/parameters" element={<ParametersPage />} />
 
         <Route path="/cases" element={<CaseManagementHome />} />
         <Route path="/cases/access-grants" element={<AccessGrantsPage />} />
         <Route path="/cases/:caseId" element={<CaseDetailPage />} />
         <Route path="/cases/:caseId/tasks/:taskId" element={<TaskDetailPage />} />
-        <Route path="/cases/tasks" element={<PlaceholderResourcePage app="cases" />} />
-        <Route path="/cases/evidence" element={<PlaceholderResourcePage app="cases" />} />
-        <Route path="/cases/stakeholder-preview" element={<PlaceholderResourcePage app="cases" />} />
         <Route path="/stakeholder" element={<StakeholderPortalPage />} />
         <Route path="/stakeholder/participants/:participantId" element={<StakeholderParticipantDetailPage />} />
         <Route path="/stakeholder/:caseId" element={<StakeholderCaseDetailPage />} />
