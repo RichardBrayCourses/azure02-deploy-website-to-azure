@@ -105,8 +105,6 @@ Common fields on all entities:
 - `name: string`
 - `description: string`
 - `status: CaseTemplateStatus`
-- `publishedAt: string | null`
-- `publishedByUserId: UserAccountId | null`
 
 ## CaseTemplateTask
 
@@ -117,7 +115,6 @@ Common fields on all entities:
 - `parametersJson: JsonObject`
 - `sortOrder: number`
 - `status: "ACTIVE" | "WITHDRAWN"`
-- `createdAfterPublish: boolean`
 - `withdrawnReason: string | null`
 - `withdrawnAt: string | null`
 - `withdrawnByUserId: UserAccountId | null`
@@ -141,6 +138,9 @@ Common fields on all entities:
 - `status: CaseStatus`
 - `submittedAt: string | null`
 - `closedAt: string | null`
+- `withdrawnAt: string | null`
+- `withdrawnByUserId: UserAccountId | null`
+- `withdrawnReason: string | null`
 
 ## CaseTask
 

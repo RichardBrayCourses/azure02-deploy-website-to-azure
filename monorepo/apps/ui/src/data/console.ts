@@ -33,9 +33,9 @@ export type AccessGrantPermissionLevel =
   | "ADMINISTER_GRANTS";
 export type AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "PARTICIPANT_SUPPLIER";
 export type TaskTypeStatus = "ACTIVE" | "DEPRECATED";
-export type CaseTemplateStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
-export type TemplateParticipantStatus = "REQUIRED" | "EXEMPT";
-export type CaseStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CLOSED";
+export type CaseTemplateStatus = "ACTIVE";
+export type TemplateParticipantStatus = "ASSIGNED";
+export type CaseStatus = "INCOMPLETE" | "COMPLETE" | "WITHDRAWN";
 export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
 export type StakeholderReviewStatus = "NOT_REVIEWED" | "IN_REVIEW" | "APPROVED" | "MORE_INFO_REQUESTED";
 export type RequestForInformationStatus = "OPEN" | "IN_PROGRESS" | "ANSWERED" | "ACCEPTED" | "WITHDRAWN";
@@ -164,8 +164,6 @@ export type CaseTemplateDto = BaseDto & {
   name: string;
   description: string;
   status: CaseTemplateStatus;
-  publishedAt: string | null;
-  publishedByUserId: UserAccountId | null;
 };
 
 export type CaseTemplateTaskDto = BaseDto & {
@@ -176,7 +174,6 @@ export type CaseTemplateTaskDto = BaseDto & {
   parametersJson: JsonObject;
   sortOrder: number;
   status: "ACTIVE" | "WITHDRAWN";
-  createdAfterPublish: boolean;
   withdrawnReason: string | null;
   withdrawnAt: string | null;
   withdrawnByUserId: UserAccountId | null;
@@ -200,6 +197,9 @@ export type CaseDto = BaseDto & {
   status: CaseStatus;
   submittedAt: string | null;
   closedAt: string | null;
+  withdrawnAt: string | null;
+  withdrawnByUserId: UserAccountId | null;
+  withdrawnReason: string | null;
 };
 
 export type CaseTaskDto = BaseDto & {
@@ -375,6 +375,12 @@ class DomainEntity<TDto extends BaseDto> {
 
   toDto(): TDto {
     return { ...this.dto };
+  }
+}
+
+function removeWhere<T>(items: T[], predicate: (item: T) => boolean) {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (predicate(items[index])) items.splice(index, 1);
   }
 }
 
@@ -607,7 +613,6 @@ export type CaseTemplate = {
   status: CaseTemplateStatus;
   taskCount: number;
   participantCount: number;
-  publishedAt: string | null;
 };
 
 export type TaskType = {
@@ -628,7 +633,6 @@ export type CaseTemplateTask = {
   due: string;
   sortOrder: number;
   status: "ACTIVE" | "WITHDRAWN";
-  createdAfterPublish: boolean;
   withdrawnReason: string | null;
   withdrawnAt: string | null;
   withdrawnByUserId: UserAccountId | null;
@@ -642,6 +646,7 @@ export type CaseTemplateParticipant = {
   participantType: string;
   status: TemplateParticipantStatus;
   caseId: CaseRecordId | null;
+  caseStatus: CaseStatus | null;
   exemptionReason: string | null;
 };
 
@@ -761,8 +766,8 @@ function uiTaskStatus(status: CaseTaskStatus): Status {
 }
 
 function uiCaseStatus(status: CaseStatus): CaseRecord["status"] {
-  if (status === "CLOSED" || status === "APPROVED") return "closed";
-  if (status === "SUBMITTED" || status === "REJECTED") return "review";
+  if (status === "COMPLETE") return "closed";
+  if (status === "WITHDRAWN") return "closed";
   return "open";
 }
 
@@ -978,8 +983,8 @@ export class InMemoryAllChecksOutDatabase {
   ];
 
   readonly caseTemplates = [
-    this.caseTemplate("template-annual-platform-ddq", "northstar-association", "Annual Platform Participant Case 2026", "Case", "PUBLISHED", "user-jonathan-price"),
-    this.caseTemplate("template-critical-supplier-ddq", "northstar-association", "Critical Supplier Case", "Participant supplier case", "PUBLISHED", "user-jonathan-price"),
+    this.caseTemplate("template-annual-platform-ddq", "northstar-association", "Annual Platform Participant Case 2026", "Case"),
+    this.caseTemplate("template-critical-supplier-ddq", "northstar-association", "Critical Supplier Case", "Participant supplier case"),
   ];
 
   readonly caseTemplateTasks = [
@@ -1007,11 +1012,11 @@ export class InMemoryAllChecksOutDatabase {
   ];
 
   readonly cases = [
-    this.caseRecord("case-2026-northstar", "northstar-association", "template-annual-platform-ddq", "northstar-cloud", null, "SUBMITTED", "2026-06-12T15:30:00.000Z", null),
-    this.caseRecord("case-2026-cobalt", "northstar-association", "template-annual-platform-ddq", "cobalt-workflow", null, "IN_PROGRESS", null, null),
-    this.caseRecord("case-2026-pinebridge", "northstar-association", "template-annual-platform-ddq", "pinebridge-data", null, "REJECTED", "2026-06-10T12:00:00.000Z", null),
-    this.caseRecord("case-2026-asteria", "northstar-association", "template-annual-platform-ddq", "asteria-identity", null, "APPROVED", "2026-06-05T11:15:00.000Z", "2026-06-14T09:30:00.000Z"),
-    this.caseRecord("case-supplier-northstar-stratuspay", "northstar-association", "template-critical-supplier-ddq", "northstar-cloud", "participant-supplier-northstar-stratuspay", "IN_PROGRESS", null, null),
+    this.caseRecord("case-2026-northstar", "northstar-association", "template-annual-platform-ddq", "northstar-cloud", null, "COMPLETE", "2026-06-12T15:30:00.000Z", null),
+    this.caseRecord("case-2026-cobalt", "northstar-association", "template-annual-platform-ddq", "cobalt-workflow", null, "INCOMPLETE", null, null),
+    this.caseRecord("case-2026-pinebridge", "northstar-association", "template-annual-platform-ddq", "pinebridge-data", null, "INCOMPLETE", "2026-06-10T12:00:00.000Z", null),
+    this.caseRecord("case-2026-asteria", "northstar-association", "template-annual-platform-ddq", "asteria-identity", null, "COMPLETE", "2026-06-05T11:15:00.000Z", "2026-06-14T09:30:00.000Z"),
+    this.caseRecord("case-supplier-northstar-stratuspay", "northstar-association", "template-critical-supplier-ddq", "northstar-cloud", "participant-supplier-northstar-stratuspay", "INCOMPLETE", null, null),
   ];
 
   readonly caseTemplateParticipants = [
@@ -1644,62 +1649,16 @@ export class InMemoryAllChecksOutDatabase {
       authorityId: command.authorityId,
       name: command.name,
       description: command.description,
-      status: "DRAFT",
-      publishedAt: null,
-      publishedByUserId: null,
+      status: "ACTIVE",
     });
     this.caseTemplates.push(template);
     return template.toDto();
   }
 
   addTaskToTemplate(command: AddTaskToTemplateCommand) {
-    const template = this.requireCaseTemplate(command.caseTemplateId);
+    this.requireCaseTemplate(command.caseTemplateId);
     this.requireTaskType(command.taskTypeId);
-    const sortOrder =
-      Math.max(
-        0,
-        ...this.caseTemplateTasks
-          .map((task) => task.toDto())
-          .filter((task) => task.caseTemplateId === command.caseTemplateId)
-          .map((task) => task.sortOrder),
-      ) + 1;
-    const templateTask = new CaseTemplateTaskEntity({
-      ...this.createBase(this.nextId("template-task", this.caseTemplateTasks)),
-      caseTemplateId: command.caseTemplateId,
-      taskTypeId: command.taskTypeId,
-      title: command.title,
-      description: command.description,
-      parametersJson: command.parametersJson ?? {},
-      sortOrder,
-      status: "ACTIVE",
-      createdAfterPublish: template.status === "PUBLISHED",
-      withdrawnReason: null,
-      withdrawnAt: null,
-      withdrawnByUserId: null,
-    });
-    this.caseTemplateTasks.push(templateTask);
-
-    if (template.status === "PUBLISHED") {
-      this.cases
-        .map((caseRecord) => caseRecord.toDto())
-        .filter((caseRecord) => caseRecord.caseTemplateId === command.caseTemplateId)
-        .forEach((caseRecord) => {
-          this.caseTasks.push(
-            new CaseTaskEntity({
-              ...this.createBase(this.nextId("case-task", this.caseTasks)),
-              caseId: caseRecord.id,
-              caseTemplateTaskId: templateTask.id,
-              status: "NOT_STARTED",
-              responseJson: {},
-              evidenceJson: {},
-              withdrawnAt: null,
-            }),
-          );
-          this.recalculateCaseStatus(caseRecord.id);
-        });
-    }
-
-    return templateTask.toDto();
+    throw new Error("Case templates cannot be edited after they are created.");
   }
 
   assignParticipantToTemplate(command: AssignParticipantToTemplateCommand) {
@@ -1716,15 +1675,12 @@ export class InMemoryAllChecksOutDatabase {
       throw new Error("Participant is already assigned to this template.");
     }
 
-    const caseId =
-      template.status === "PUBLISHED" && command.status === "REQUIRED"
-        ? this.createCaseForTemplateParticipant(template, command.participantId).id
-        : null;
+    const caseId = this.createCaseForTemplateParticipant(template, command.participantId).id;
     const assignment = new CaseTemplateParticipantEntity({
       ...this.createBase(this.nextId("template-participant", this.caseTemplateParticipants)),
       caseTemplateId: command.caseTemplateId,
       participantId: command.participantId,
-      status: command.status,
+      status: "ASSIGNED",
       caseId,
       exemptionReason: command.exemptionReason ?? null,
       decidedByUserId: command.decidedByUserId ?? null,
@@ -1732,49 +1688,6 @@ export class InMemoryAllChecksOutDatabase {
     });
     this.caseTemplateParticipants.push(assignment);
     return assignment.toDto();
-  }
-
-  publishTemplate(caseTemplateId: CaseTemplateId, publishedByUserId: UserAccountId) {
-    const template = this.requireCaseTemplate(caseTemplateId);
-    this.requireUserAccount(publishedByUserId);
-    if (template.status !== "DRAFT") {
-      throw new Error("Only draft templates can be published.");
-    }
-
-    const activeTasks = this.getActiveTemplateTasks(caseTemplateId);
-    if (activeTasks.length === 0) {
-      throw new Error("A template must have at least one active task before publication.");
-    }
-    const requiredParticipants = this.caseTemplateParticipants
-      .map((assignment) => assignment.toDto())
-      .filter((assignment) => assignment.caseTemplateId === caseTemplateId && assignment.status === "REQUIRED");
-    if (requiredParticipants.length === 0) {
-      throw new Error("A template must have at least one required participant before publication.");
-    }
-
-    const publishedTemplate: CaseTemplateDto = {
-      ...template,
-      status: "PUBLISHED",
-      publishedAt: this.timestamp(),
-      publishedByUserId,
-      updatedAt: this.timestamp(),
-    };
-    this.replaceById(this.caseTemplates, new CaseTemplateEntity(publishedTemplate));
-
-    requiredParticipants.forEach((assignment) => {
-      if (assignment.caseId) return;
-      const caseRecord = this.createCaseForTemplateParticipant(publishedTemplate, assignment.participantId);
-      this.replaceById(
-        this.caseTemplateParticipants,
-        new CaseTemplateParticipantEntity({
-          ...assignment,
-          caseId: caseRecord.id,
-          updatedAt: this.timestamp(),
-        }),
-      );
-    });
-
-    return publishedTemplate;
   }
 
   completeTask(command: CompleteTaskCommand) {
@@ -1819,6 +1732,9 @@ export class InMemoryAllChecksOutDatabase {
 
   submitCase(caseId: CaseRecordId) {
     const caseRecord = this.requireCase(caseId);
+    if (caseRecord.status === "WITHDRAWN") {
+      throw new Error("Withdrawn cases cannot be completed.");
+    }
     const activeTasks = this.getCaseTasksForCase(caseId).filter((caseTask) => caseTask.status !== "WITHDRAWN");
     const hasUnsubmittedTasks = activeTasks.some(
       (caseTask) => caseTask.status === "NOT_STARTED" || caseTask.status === "IN_PROGRESS",
@@ -1828,8 +1744,9 @@ export class InMemoryAllChecksOutDatabase {
     }
     const submittedCase = {
       ...caseRecord,
-      status: "SUBMITTED" as const,
+      status: "COMPLETE" as const,
       submittedAt: this.timestamp(),
+      closedAt: this.timestamp(),
       updatedAt: this.timestamp(),
     };
     this.replaceById(this.cases, new CaseEntity(submittedCase));
@@ -1882,6 +1799,66 @@ export class InMemoryAllChecksOutDatabase {
       });
 
     return updatedTemplateTask;
+  }
+
+  withdrawCase(caseId: CaseRecordId, withdrawnByUserId: UserAccountId, withdrawnReason: string) {
+    const caseRecord = this.requireCase(caseId);
+    if (!withdrawnReason.trim()) {
+      throw new Error("Enter a withdrawal reason.");
+    }
+    if (caseRecord.status === "WITHDRAWN") {
+      throw new Error("Case is already withdrawn.");
+    }
+    const withdrawnAt = this.timestamp();
+    const withdrawnCase: CaseDto = {
+      ...caseRecord,
+      status: "WITHDRAWN",
+      withdrawnAt,
+      withdrawnByUserId,
+      withdrawnReason: withdrawnReason.trim(),
+      updatedAt: withdrawnAt,
+    };
+    this.replaceById(this.cases, new CaseEntity(withdrawnCase));
+
+    return withdrawnCase;
+  }
+
+  reinstateCase(caseId: CaseRecordId) {
+    const caseRecord = this.requireCase(caseId);
+    if (caseRecord.status !== "WITHDRAWN") {
+      throw new Error("Only withdrawn cases can be reinstated.");
+    }
+    const reinstatedCase: CaseDto = {
+      ...caseRecord,
+      status: "INCOMPLETE",
+      withdrawnAt: null,
+      withdrawnByUserId: null,
+      withdrawnReason: null,
+      updatedAt: this.timestamp(),
+    };
+    this.replaceById(this.cases, new CaseEntity(reinstatedCase));
+    this.recalculateCaseStatus(caseId);
+    return this.requireCase(caseId);
+  }
+
+  deleteCaseTemplate(caseTemplateId: CaseTemplateId) {
+    const template = this.requireCaseTemplate(caseTemplateId);
+    const hasAssignments = this.caseTemplateParticipants.some((assignment) => assignment.toDto().caseTemplateId === caseTemplateId);
+    if (hasAssignments) {
+      throw new Error("Case templates with assigned participants cannot be deleted.");
+    }
+
+    const withdrawnCaseIds = new Set(
+      this.cases
+        .map((caseRecord) => caseRecord.toDto())
+        .filter((caseRecord) => caseRecord.caseTemplateId === caseTemplateId && caseRecord.status === "WITHDRAWN")
+        .map((caseRecord) => caseRecord.id),
+    );
+    removeWhere(this.caseTasks, (caseTask) => withdrawnCaseIds.has(caseTask.toDto().caseId));
+    removeWhere(this.cases, (caseRecord) => caseRecord.toDto().caseTemplateId === caseTemplateId);
+    removeWhere(this.caseTemplateTasks, (task) => task.toDto().caseTemplateId === caseTemplateId);
+    removeWhere(this.caseTemplates, (item) => item.id === caseTemplateId);
+    return template;
   }
 
   private user(id: UserAccountId, displayName: string, email: string, userKind: UserKind) {
@@ -1989,17 +1966,13 @@ export class InMemoryAllChecksOutDatabase {
     authorityId: AuthorityId,
     name: string,
     description: string,
-    status: CaseTemplateStatus,
-    publishedByUserId: UserAccountId,
   ) {
     return new CaseTemplateEntity({
       ...base(id),
       authorityId,
       name,
       description,
-      status,
-      publishedAt: status === "PUBLISHED" ? "2026-05-01T10:00:00.000Z" : null,
-      publishedByUserId: status === "PUBLISHED" ? publishedByUserId : null,
+      status: "ACTIVE",
     });
   }
 
@@ -2021,7 +1994,6 @@ export class InMemoryAllChecksOutDatabase {
       parametersJson,
       sortOrder,
       status: "ACTIVE",
-      createdAfterPublish: false,
       withdrawnReason: null,
       withdrawnAt: null,
       withdrawnByUserId: null,
@@ -2038,7 +2010,7 @@ export class InMemoryAllChecksOutDatabase {
       ...base(id),
       caseTemplateId,
       participantId,
-      status: "REQUIRED",
+      status: "ASSIGNED",
       caseId,
       exemptionReason: null,
       decidedByUserId: null,
@@ -2056,7 +2028,19 @@ export class InMemoryAllChecksOutDatabase {
     submittedAt: string | null,
     closedAt: string | null,
   ) {
-    return new CaseEntity({ ...base(id), authorityId, caseTemplateId, participantId, participantSupplierId, status, submittedAt, closedAt });
+    return new CaseEntity({
+      ...base(id),
+      authorityId,
+      caseTemplateId,
+      participantId,
+      participantSupplierId,
+      status,
+      submittedAt,
+      closedAt,
+      withdrawnAt: null,
+      withdrawnByUserId: null,
+      withdrawnReason: null,
+    });
   }
 
   private caseTask(id: CaseTaskId, caseId: CaseRecordId, caseTemplateTaskId: CaseTemplateTaskId, status: CaseTaskStatus) {
@@ -2292,9 +2276,12 @@ export class InMemoryAllChecksOutDatabase {
       caseTemplateId: template.id,
       participantId,
       participantSupplierId: null,
-      status: "NOT_STARTED",
+      status: "INCOMPLETE",
       submittedAt: null,
       closedAt: null,
+      withdrawnAt: null,
+      withdrawnByUserId: null,
+      withdrawnReason: null,
     });
     this.cases.push(caseRecord);
 
@@ -2330,27 +2317,20 @@ export class InMemoryAllChecksOutDatabase {
 
   private recalculateCaseStatus(caseId: CaseRecordId) {
     const caseRecord = this.requireCase(caseId);
+    if (caseRecord.status === "WITHDRAWN") return;
     const activeTasks = this.getCaseTasksForCase(caseId).filter((caseTask) => caseTask.status !== "WITHDRAWN");
     const nextStatus: CaseStatus =
-      activeTasks.length === 0
-        ? "IN_PROGRESS"
-        : activeTasks.some((caseTask) => caseTask.status === "FAILED")
-          ? "REJECTED"
-          : activeTasks.every((caseTask) => caseTask.status === "PASSED")
-            ? "APPROVED"
-            : activeTasks.every((caseTask) => caseTask.status === "SUBMITTED" || caseTask.status === "PASSED")
-              ? "SUBMITTED"
-              : activeTasks.some((caseTask) => caseTask.status !== "NOT_STARTED")
-                ? "IN_PROGRESS"
-                : "NOT_STARTED";
+      activeTasks.length > 0 && activeTasks.every((caseTask) => caseTask.status === "SUBMITTED" || caseTask.status === "PASSED")
+        ? "COMPLETE"
+        : "INCOMPLETE";
     const timestamp = this.timestamp();
     this.replaceById(
       this.cases,
       new CaseEntity({
         ...caseRecord,
         status: nextStatus,
-        submittedAt: nextStatus === "SUBMITTED" ? caseRecord.submittedAt ?? timestamp : caseRecord.submittedAt,
-        closedAt: nextStatus === "APPROVED" ? caseRecord.closedAt ?? timestamp : caseRecord.closedAt,
+        submittedAt: nextStatus === "COMPLETE" ? caseRecord.submittedAt ?? timestamp : caseRecord.submittedAt,
+        closedAt: nextStatus === "COMPLETE" ? caseRecord.closedAt ?? timestamp : caseRecord.closedAt,
         updatedAt: timestamp,
       }),
     );
@@ -2375,7 +2355,7 @@ export const consoleApps: ConsoleApp[] = [
     id: "case-management",
     name: "Cases",
     shortName: "Cases",
-    description: "Open participant cases, complete case tasks, upload evidence metadata, and track progress.",
+    description: "View participant cases, complete case tasks, upload evidence metadata, and track progress.",
     path: "/cases",
     accent: "bg-[#0078d4]",
     Icon: FolderKanban,
@@ -2467,7 +2447,6 @@ function buildCaseTemplates(): CaseTemplate[] {
       status: dto.status,
       taskCount,
       participantCount,
-      publishedAt: dto.publishedAt,
     };
   });
 }
@@ -2538,13 +2517,13 @@ function buildCaseRecords(): CaseRecord[] {
       totalTasks: caseTasks.length,
       risk: failedTasks > 0 ? "high" : completedTasks === caseTasks.length ? "low" : "medium",
       outcome:
-        caseDto.status === "APPROVED" || caseDto.status === "CLOSED"
-          ? "Stakeholder-ready case"
-          : failedTasks > 0
-            ? "Requests for additional information are outstanding"
-            : caseDto.status === "SUBMITTED"
-              ? "Submitted for stakeholder review"
-              : "Participant case is in progress",
+        caseDto.status === "WITHDRAWN"
+          ? "Case withdrawn"
+          : caseDto.status === "COMPLETE"
+            ? "Case complete"
+            : failedTasks > 0
+              ? "Requests for additional information are outstanding"
+              : "Case incomplete",
       lastActivity:
         caseDto.id === "case-2026-northstar"
           ? "Critical supplier Case updated"
@@ -3276,7 +3255,6 @@ export function getCaseTemplateTasks(caseTemplateId: string | undefined): CaseTe
         due: typeof task.parametersJson.due === "string" ? task.parametersJson.due : "No due date",
         sortOrder: task.sortOrder,
         status: task.status,
-        createdAfterPublish: task.createdAfterPublish,
         withdrawnReason: task.withdrawnReason,
         withdrawnAt: task.withdrawnAt,
         withdrawnByUserId: task.withdrawnByUserId,
@@ -3291,6 +3269,7 @@ export function getCaseTemplateParticipants(caseTemplateId: string | undefined):
     .filter((assignment) => assignment.caseTemplateId === caseTemplateId)
     .map((assignment) => {
       const participant = getParticipant(assignment.participantId);
+      const caseRecord = assignment.caseId ? db.cases.find((item) => item.id === assignment.caseId)?.toDto() : null;
       return {
         id: assignment.id,
         caseTemplateId: assignment.caseTemplateId,
@@ -3299,6 +3278,7 @@ export function getCaseTemplateParticipants(caseTemplateId: string | undefined):
         participantType: participant?.type ?? "Participant",
         status: assignment.status,
         caseId: assignment.caseId,
+        caseStatus: caseRecord?.status ?? null,
         exemptionReason: assignment.exemptionReason,
       };
     });

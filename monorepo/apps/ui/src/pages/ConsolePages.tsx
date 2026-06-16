@@ -56,15 +56,15 @@ import {
   History,
   MessageSquarePlus,
   Plus,
-  Rocket,
   Save,
   SendHorizontal,
+  Trash2,
   Upload,
   UserPlus,
   XCircle,
 } from "lucide-react";
-import { ReactNode, useEffect, useState } from "react";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { Fragment, ReactNode, useEffect, useState } from "react";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 
 function StatusBadge({ status }: { status: Status | "open" | "closed" | "review" }) {
   const classes = {
@@ -580,7 +580,7 @@ export function StakeholderParticipantDetailPage() {
       <MetricStrip
         items={[
           { label: `Visible ${terminologyLabel(terminology, "case", true)}`, value: String(participantCases.length), tone: "blue" },
-          { label: `Open ${terminologyLabel(terminology, "case", true)}`, value: String(openCases), tone: "yellow" },
+          { label: `Incomplete ${terminologyLabel(terminology, "case", true)}`, value: String(openCases), tone: "yellow" },
           { label: terminologyTitle(terminology, "participantSupplier", true), value: String(visibleParticipantSuppliers.length), tone: "yellow" },
           { label: "Items complete", value: `${completedVisibleTasks}/${totalVisibleTasks}`, tone: "green" },
         ]}
@@ -1191,6 +1191,16 @@ export function CaseTemplatesPage() {
     }
   }
 
+  function deleteTemplate(templateId: string) {
+    setError(null);
+    try {
+      db.deleteCaseTemplate(templateId);
+      refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Template could not be deleted.");
+    }
+  }
+
   return (
     <ConsoleLayout
       breadcrumbs={[{ label: "Administration", path: "/admin/participants" }, { label: terminologyTitle(terminology, "caseTemplate", true) }]}
@@ -1206,7 +1216,7 @@ export function CaseTemplatesPage() {
       <ResourceActionPanel
         open={showCreate}
         title={`Create ${terminologyLabel(terminology, "caseTemplate")}`}
-        description={`Create a draft template inside the current ${terminologyLabel(terminology, "authority")}.`}
+        description={`Create a ${terminologyLabel(terminology, "caseTemplate")} inside the current ${terminologyLabel(terminology, "authority")}.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createTemplate}>
@@ -1225,7 +1235,8 @@ export function CaseTemplatesPage() {
         </div>
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
-      <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Status", terminologyTitle(terminology, "caseTask", true), terminologyTitle(terminology, "participant", true), "Published"]}>
+      {!showCreate && <FormError message={error} />}
+      <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), terminologyTitle(terminology, "caseTask", true), terminologyTitle(terminology, "participant", true), "Actions"]}>
         {scopedTemplates.map((template) => (
           <tr key={template.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -1234,10 +1245,20 @@ export function CaseTemplatesPage() {
               </Link>
               <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{template.description}</span>
             </td>
-            <td className="px-4 py-3">{template.status}</td>
             <td className="px-4 py-3">{template.taskCount}</td>
             <td className="px-4 py-3">{template.participantCount}</td>
-            <td className="px-4 py-3">{template.publishedAt ? "Published" : "Not published"}</td>
+            <td className="px-4 py-3">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => deleteTemplate(template.id)}
+                disabled={template.participantCount > 0}
+              >
+                <Trash2 />
+                Delete
+              </Button>
+            </td>
           </tr>
         ))}
       </ResourceTable>
@@ -1248,22 +1269,15 @@ export function CaseTemplatesPage() {
 export function CaseTemplateDetailPage() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
+  const navigate = useNavigate();
   const { templateId } = useParams();
-  const [showAddTask, setShowAddTask] = useState(false);
   const [showAssignParticipant, setShowAssignParticipant] = useState(false);
-  const [withdrawingTaskId, setWithdrawingTaskId] = useState<string | null>(null);
-  const [taskTypeId, setTaskTypeId] = useState(taskTypes[0]?.id ?? "");
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskDescription, setTaskDescription] = useState("");
-  const [taskDue, setTaskDue] = useState("");
+  const [withdrawingCaseId, setWithdrawingCaseId] = useState<string | null>(null);
   const [withdrawReason, setWithdrawReason] = useState("");
   const [participantId, setParticipantId] = useState("");
-  const [assignmentStatus, setAssignmentStatus] = useState<"REQUIRED" | "EXEMPT">("REQUIRED");
-  const [exemptionReason, setExemptionReason] = useState("");
-  const [taskError, setTaskError] = useState<string | null>(null);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
-  const [publishError, setPublishError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
   const template = getCaseTemplate(templateId);
@@ -1273,38 +1287,12 @@ export function CaseTemplateDetailPage() {
   if (!scopedTemplates.some((item) => item.id === templateRecord.id)) return <Navigate to="/admin/case-templates" replace />;
   const templateTasks = getCaseTemplateTasks(templateRecord.id);
   const templateParticipants = getCaseTemplateParticipants(templateRecord.id);
-  const generatedCases = getScopedCases(user).filter((caseRecord) => caseRecord.caseTemplateId === templateRecord.id);
+  const assignedCases = templateParticipants
+    .map((assignment) => (assignment.caseId ? getCase(assignment.caseId) : null))
+    .filter((caseRecord): caseRecord is NonNullable<typeof caseRecord> => Boolean(caseRecord));
   const assignedParticipantIds = new Set(templateParticipants.map((assignment) => assignment.participantId));
   const assignableParticipants = getScopedParticipants(user).filter((participant) => !assignedParticipantIds.has(participant.id));
-  const withdrawingTask = templateTasks.find((task) => task.id === withdrawingTaskId) ?? null;
-
-  function addTask() {
-    setTaskError(null);
-    if (!taskTypeId) {
-      setTaskError("Select a task type.");
-      return;
-    }
-    if (!taskTitle.trim()) {
-      setTaskError("Enter a task title.");
-      return;
-    }
-    try {
-      db.addTaskToTemplate({
-        caseTemplateId: templateRecord.id,
-        taskTypeId,
-        title: taskTitle.trim(),
-        description: taskDescription.trim() || "Configured template task",
-        parametersJson: { due: taskDue.trim() || "No due date" },
-      });
-      refresh();
-      setTaskTitle("");
-      setTaskDescription("");
-      setTaskDue("");
-      setShowAddTask(false);
-    } catch (caught) {
-      setTaskError(caught instanceof Error ? caught.message : "Task could not be added.");
-    }
-  }
+  const canDeleteTemplate = templateParticipants.length === 0;
 
   function assignParticipant() {
     setAssignmentError(null);
@@ -1316,50 +1304,33 @@ export function CaseTemplateDetailPage() {
       db.assignParticipantToTemplate({
         caseTemplateId: templateRecord.id,
         participantId,
-        status: assignmentStatus,
-        exemptionReason: assignmentStatus === "EXEMPT" ? exemptionReason.trim() || "Exempted by authority" : null,
+        status: "ASSIGNED",
         decidedByUserId: user.authenticatableUserId,
       });
       refresh();
       setParticipantId("");
-      setAssignmentStatus("REQUIRED");
-      setExemptionReason("");
       setShowAssignParticipant(false);
     } catch (caught) {
       setAssignmentError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participant")} could not be assigned.`);
     }
   }
 
-  function publishTemplate() {
-    setPublishError(null);
-    if (!user.authenticatableUserId) {
-      setPublishError("No authority user is selected for this session.");
-      return;
-    }
-    try {
-      db.publishTemplate(templateRecord.id, user.authenticatableUserId);
-      refresh();
-    } catch (caught) {
-      setPublishError(caught instanceof Error ? caught.message : "Template could not be published.");
-    }
-  }
-
-  function openWithdrawTask(taskId: string) {
-    setWithdrawingTaskId(taskId);
+  function openWithdrawCase(caseId: string) {
+    setWithdrawingCaseId(caseId);
     setWithdrawReason("");
     setWithdrawError(null);
   }
 
-  function closeWithdrawTask() {
-    setWithdrawingTaskId(null);
+  function closeWithdrawCase() {
+    setWithdrawingCaseId(null);
     setWithdrawReason("");
     setWithdrawError(null);
   }
 
-  function withdrawTask() {
+  function withdrawCase() {
     setWithdrawError(null);
-    if (!withdrawingTaskId) {
-      setWithdrawError("Select a task to withdraw.");
+    if (!withdrawingCaseId) {
+      setWithdrawError(`Select a ${terminologyLabel(terminology, "case")} to withdraw.`);
       return;
     }
     if (!withdrawReason.trim()) {
@@ -1371,11 +1342,32 @@ export function CaseTemplateDetailPage() {
       return;
     }
     try {
-      db.withdrawTemplateTask(withdrawingTaskId, user.authenticatableUserId, withdrawReason.trim());
+      db.withdrawCase(withdrawingCaseId, user.authenticatableUserId, withdrawReason.trim());
       refresh();
-      closeWithdrawTask();
+      closeWithdrawCase();
     } catch (caught) {
-      setWithdrawError(caught instanceof Error ? caught.message : "Task could not be withdrawn.");
+      setWithdrawError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "case")} could not be withdrawn.`);
+    }
+  }
+
+  function reinstateCase(caseId: string) {
+    setWithdrawError(null);
+    try {
+      db.reinstateCase(caseId);
+      refresh();
+    } catch (caught) {
+      setWithdrawError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "case")} could not be reinstated.`);
+    }
+  }
+
+  function deleteTemplate() {
+    setDeleteError(null);
+    try {
+      db.deleteCaseTemplate(templateRecord.id);
+      refresh();
+      navigate("/admin/case-templates");
+    } catch (caught) {
+      setDeleteError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "caseTemplate")} could not be deleted.`);
     }
   }
 
@@ -1390,83 +1382,25 @@ export function CaseTemplateDetailPage() {
       <PageTitle
         title={templateRecord.name}
         actions={
-          templateRecord.status === "DRAFT" ? (
-            <Button type="button" onClick={publishTemplate}>
-              <Rocket />
-              Publish
-            </Button>
-          ) : undefined
+          <Button type="button" variant="outline" onClick={deleteTemplate} disabled={!canDeleteTemplate}>
+            <Trash2 />
+            Delete
+          </Button>
         }
       />
       <MetricStrip
         items={[
-          { label: "Status", value: templateRecord.status.toLowerCase(), tone: templateRecord.status === "PUBLISHED" ? "green" : "yellow" },
           { label: terminologyTitle(terminology, "caseTask", true), value: String(templateRecord.taskCount), tone: "blue" },
           { label: terminologyTitle(terminology, "participant", true), value: String(templateRecord.participantCount), tone: "blue" },
-          { label: `Generated ${terminologyLabel(terminology, "case", true)}`, value: String(generatedCases.length), tone: "green" },
+          { label: `Assigned ${terminologyLabel(terminology, "case", true)}`, value: String(assignedCases.length), tone: "green" },
         ]}
       />
-      <div className="mt-3"><FormError message={publishError} /></div>
+      <div className="mt-3"><FormError message={deleteError} /></div>
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-xl font-bold">{terminologyTitle(terminology, "caseTask", true)}</h3>
-          <Button type="button" onClick={() => setShowAddTask((current) => !current)}>
-            <Plus />
-            Add {terminologyLabel(terminology, "caseTask")}
-          </Button>
         </div>
-        <ResourceActionPanel
-          open={showAddTask}
-          title={`Add ${terminologyLabel(terminology, "caseTask")}`}
-          description={templateRecord.status === "PUBLISHED" ? `Adding a task to a published template creates a ${terminologyLabel(terminology, "caseTask")} for every generated ${terminologyLabel(terminology, "case")}.` : "Add a configured task type to this template."}
-          onClose={() => setShowAddTask(false)}
-          footer={
-            <Button type="button" onClick={addTask}>
-              <CheckCircle2 />
-              Save
-            </Button>
-          }
-        >
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_12rem]">
-            <FormField label="Task type">
-              <SelectField value={taskTypeId} onChange={setTaskTypeId}>
-                {taskTypes.map((taskType) => (
-                  <option key={taskType.id} value={taskType.id}>{taskType.name}</option>
-                ))}
-              </SelectField>
-            </FormField>
-            <FormField label="Title">
-              <Input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
-            </FormField>
-            <FormField label="Due">
-              <Input value={taskDue} onChange={(event) => setTaskDue(event.target.value)} placeholder="20 Jun 2026" />
-            </FormField>
-          </div>
-          <div className="mt-4">
-            <FormField label="Description">
-              <Input value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} />
-            </FormField>
-          </div>
-          <div className="mt-3"><FormError message={taskError} /></div>
-        </ResourceActionPanel>
-        <ResourceActionPanel
-          open={Boolean(withdrawingTask)}
-          title="Withdraw task"
-          description={withdrawingTask ? `Withdraw ${withdrawingTask.title} from this template and incomplete generated case tasks.` : "Withdraw a task from this template."}
-          onClose={closeWithdrawTask}
-          footer={
-            <Button type="button" variant="destructive" onClick={withdrawTask}>
-              <XCircle />
-              Withdraw
-            </Button>
-          }
-        >
-          <FormField label="Reason">
-            <Input value={withdrawReason} onChange={(event) => setWithdrawReason(event.target.value)} />
-          </FormField>
-          <div className="mt-3"><FormError message={withdrawError} /></div>
-        </ResourceActionPanel>
-        <ResourceTable headings={["Order", terminologyTitle(terminology, "caseTask"), "Type", "Due", "Status", "Actions"]}>
+        <ResourceTable headings={["Order", terminologyTitle(terminology, "caseTask"), "Type", "Due", "Status"]}>
           {templateTasks.map((task) => (
             <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">{task.sortOrder}</td>
@@ -1483,28 +1417,11 @@ export function CaseTemplateDetailPage() {
               <td className="px-4 py-3">{task.due}</td>
               <td className="px-4 py-3">
                 <span className="block font-bold">{task.status}</span>
-                {task.createdAfterPublish && (
-                  <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                    Added after publish
-                  </span>
-                )}
                 {task.withdrawnAt && (
                   <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
                     Withdrawn {new Date(task.withdrawnAt).toLocaleString("en-GB")}
                   </span>
                 )}
-              </td>
-              <td className="px-4 py-3">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openWithdrawTask(task.id)}
-                  disabled={templateRecord.status !== "PUBLISHED" || task.status === "WITHDRAWN"}
-                >
-                  <XCircle />
-                  Withdraw
-                </Button>
               </td>
             </tr>
           ))}
@@ -1521,7 +1438,7 @@ export function CaseTemplateDetailPage() {
         <ResourceActionPanel
           open={showAssignParticipant}
           title={`Assign ${terminologyLabel(terminology, "participant")}`}
-          description={templateRecord.status === "PUBLISHED" ? `Required ${terminologyLabel(terminology, "participant", true)} assigned after publication get a ${terminologyLabel(terminology, "case")} immediately.` : `Choose whether the ${terminologyLabel(terminology, "participant")} is required or exempt for this template.`}
+          description={`Assigning a ${terminologyLabel(terminology, "participant")} creates a ${terminologyLabel(terminology, "case")}.`}
           onClose={() => setShowAssignParticipant(false)}
           footer={
             <Button type="button" onClick={assignParticipant}>
@@ -1530,7 +1447,7 @@ export function CaseTemplateDetailPage() {
             </Button>
           }
         >
-          <div className="grid gap-4 md:grid-cols-[1fr_12rem_1fr]">
+          <div className="grid gap-4 md:grid-cols-[1fr]">
             <FormField label={terminologyTitle(terminology, "participant")}>
               <SelectField value={participantId} onChange={setParticipantId}>
                 <option value="">Select {terminologyLabel(terminology, "participant")}</option>
@@ -1539,49 +1456,73 @@ export function CaseTemplateDetailPage() {
                 ))}
               </SelectField>
             </FormField>
-            <FormField label="Status">
-              <SelectField value={assignmentStatus} onChange={(value) => setAssignmentStatus(value as "REQUIRED" | "EXEMPT")}>
-                <option value="REQUIRED">Required</option>
-                <option value="EXEMPT">Exempt</option>
-              </SelectField>
-            </FormField>
-            <FormField label="Exemption reason">
-              <Input value={exemptionReason} onChange={(event) => setExemptionReason(event.target.value)} disabled={assignmentStatus !== "EXEMPT"} />
-            </FormField>
           </div>
           <div className="mt-3"><FormError message={assignmentError} /></div>
         </ResourceActionPanel>
-        <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", "Status", `Generated ${terminologyLabel(terminology, "case")}`]}>
+        <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", terminologyTitle(terminology, "case"), "Actions"]}>
           {templateParticipants.map((assignment) => (
-            <tr key={assignment.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3 font-bold text-[#1d70b8]">{assignment.participantName}</td>
-              <td className="px-4 py-3">{assignment.participantType}</td>
-              <td className="px-4 py-3">{assignment.status}{assignment.exemptionReason ? ` - ${assignment.exemptionReason}` : ""}</td>
-              <td className="px-4 py-3">
-                {assignment.caseId ? (
-                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${assignment.caseId}`}>
-                    Open {terminologyLabel(terminology, "case")}
-                  </Link>
-                ) : (
-                  "Not generated"
-                )}
-              </td>
-            </tr>
+            <Fragment key={assignment.id}>
+              <tr className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3 font-bold text-[#1d70b8]">{assignment.participantName}</td>
+                <td className="px-4 py-3">{assignment.participantType}</td>
+                <td className="px-4 py-3">{assignment.caseStatus?.toLowerCase() ?? "created"}</td>
+                <td className="px-4 py-3">
+                  {assignment.caseStatus === "WITHDRAWN" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => assignment.caseId && reinstateCase(assignment.caseId)}
+                      disabled={!assignment.caseId}
+                    >
+                      <CheckCircle2 />
+                      Reinstate
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => assignment.caseId && openWithdrawCase(assignment.caseId)}
+                      disabled={!assignment.caseId}
+                    >
+                      <XCircle />
+                      Withdraw
+                    </Button>
+                  )}
+                </td>
+              </tr>
+              {withdrawingCaseId === assignment.caseId && (
+                <tr className="border-b border-[#b1b4b6] bg-white dark:bg-card">
+                  <td className="px-4 py-4" colSpan={4}>
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
+                      <FormField label="Reason">
+                        <Input value={withdrawReason} onChange={(event) => setWithdrawReason(event.target.value)} />
+                      </FormField>
+                      <Button type="button" variant="destructive" onClick={withdrawCase}>
+                        <XCircle />
+                        Withdraw
+                      </Button>
+                      <Button type="button" variant="outline" onClick={closeWithdrawCase}>
+                        Cancel
+                      </Button>
+                    </div>
+                    <div className="mt-3"><FormError message={withdrawError} /></div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Generated {terminologyLabel(terminology, "case", true)}</h3>
+        <h3 className="mb-3 text-xl font-bold">Assigned {terminologyLabel(terminology, "case", true)}</h3>
         <ResourceTable headings={[terminologyTitle(terminology, "case"), terminologyTitle(terminology, "participant"), "Status", "Progress", "Outcome"]}>
-          {generatedCases.map((caseRecord) => {
+          {assignedCases.map((caseRecord) => {
             const participant = getParticipant(caseRecord.participantId);
             return (
               <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
-                <td className="px-4 py-3">
-                  <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
-                    {caseRecord.title}
-                  </Link>
-                </td>
+                <td className="px-4 py-3 font-bold text-[#0b0c0c] dark:text-white">{caseRecord.title}</td>
                 <td className="px-4 py-3">{participant?.name ?? `Unknown ${terminologyLabel(terminology, "participant")}`}</td>
                 <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
@@ -1768,7 +1709,7 @@ export function ParticipantsPage() {
         </div>
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
-      <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", "Status", `Open ${terminologyLabel(terminology, "case", true)}`, "Progress", "Last activity"]}>
+      <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Type", "Status", `Incomplete ${terminologyLabel(terminology, "case", true)}`, "Progress", "Last activity"]}>
         {scopedParticipants.map((participant) => (
           <tr key={participant.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -1822,7 +1763,7 @@ export function ParticipantDetailPage() {
       <MetricStrip
         items={[
           { label: `${terminologyTitle(terminology, "participant")} status`, value: participant.status.replace("-", " "), tone: participant.status === "attention" ? "red" : "blue" },
-          { label: `Open ${terminologyLabel(terminology, "case", true)}`, value: String(participant.openCases), tone: "blue" },
+          { label: `Incomplete ${terminologyLabel(terminology, "case", true)}`, value: String(participant.openCases), tone: "blue" },
           { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
           { label: `Active ${terminologyLabel(terminology, "accessGrant", true)}`, value: String(activeAccessGrants), tone: "yellow" },
         ]}
@@ -2260,9 +2201,8 @@ export function CaseDetailPage() {
   const activeRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS");
   const canSubmitCase =
     user.role === "participant" &&
-    caseRecord.domainStatus !== "SUBMITTED" &&
-    caseRecord.domainStatus !== "APPROVED" &&
-    caseRecord.domainStatus !== "CLOSED" &&
+    caseRecord.domainStatus !== "COMPLETE" &&
+    caseRecord.domainStatus !== "WITHDRAWN" &&
     tasks.length > 0 &&
     tasks.every((task) => task.domainStatus === "SUBMITTED" || task.domainStatus === "PASSED" || task.domainStatus === "WITHDRAWN");
 
