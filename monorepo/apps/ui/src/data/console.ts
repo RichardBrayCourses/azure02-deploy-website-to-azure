@@ -23,11 +23,11 @@ export type AccessGrantPermissionLevel =
   | "REVIEW_AND_COMMENT"
   | "CREATE_AND_EDIT"
   | "ADMINISTER_GRANTS";
-export type AccessGrantDataScopeType = "PARTICIPANT" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "PARTICIPANT_SUPPLIER";
+export type AccessGrantDataScopeType = "PARTICIPANT" | "CASE" | "TASK" | "EVIDENCE_METADATA" | "PARTICIPANT_SUPPLIER";
 export type TaskTypeStatus = "ACTIVE" | "DEPRECATED";
 export type CaseTemplateStatus = "DRAFT" | "FINALIZED";
 export type CaseStatus = "INCOMPLETE" | "COMPLETE" | "WITHDRAWN";
-export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
+export type TaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
 export type RequestForInformationStatus = "OPEN" | "IN_PROGRESS" | "ANSWERED" | "ACCEPTED" | "WITHDRAWN";
 export type UserAccountStatus = "ACTIVE" | "DISABLED";
 export type Status = "complete" | "in-progress" | "attention" | "not-started" | "withdrawn";
@@ -40,10 +40,10 @@ export type AgentId = string;
 export type UserAccountId = string;
 export type TaskTypeId = string;
 export type CaseTemplateId = string;
-export type CaseTemplateTaskId = string;
+export type TemplateTaskId = string;
 export type CaseTemplateParticipantId = string;
 export type CaseRecordId = string;
-export type CaseTaskId = string;
+export type TaskId = string;
 export type StakeholderParticipantAccessId = string;
 export type AccessGrantId = string;
 export type StakeholderReviewId = string;
@@ -75,7 +75,7 @@ export type TerminologyKey =
   | "agent"
   | "case"
   | "caseTemplate"
-  | "caseTask"
+  | "task"
   | "participantSupplier"
   | "evidence"
   | "accessGrant"
@@ -152,7 +152,7 @@ export type CaseTemplateDto = BaseDto & {
   status: CaseTemplateStatus;
 };
 
-export type CaseTemplateTaskDto = BaseDto & {
+export type TemplateTaskDto = BaseDto & {
   caseTemplateId: CaseTemplateId;
   taskTypeId: TaskTypeId;
   title: string;
@@ -187,10 +187,10 @@ export type CaseDto = BaseDto & {
   withdrawnReason: string | null;
 };
 
-export type CaseTaskDto = BaseDto & {
+export type TaskDto = BaseDto & {
   caseId: CaseRecordId;
-  caseTemplateTaskId: CaseTemplateTaskId;
-  status: CaseTaskStatus;
+  templateTaskId: TemplateTaskId;
+  status: TaskStatus;
   responseJson: JsonObject;
   evidenceJson: JsonObject;
   withdrawnAt: string | null;
@@ -209,7 +209,7 @@ export type RequestForInformationDto = BaseDto & {
   participantId: ParticipantId;
   stakeholderId: StakeholderId;
   caseId: CaseRecordId | null;
-  caseTaskId: CaseTaskId | null;
+  taskId: TaskId | null;
   requestText: string;
   responseText: string;
   status: RequestForInformationStatus;
@@ -299,12 +299,12 @@ export type AssignParticipantToTemplateCommand = {
 };
 
 export type CompleteTaskCommand = {
-  caseTaskId: CaseTaskId;
+  taskId: TaskId;
   responseJson: JsonObject;
 };
 
 export type UploadEvidenceCommand = {
-  caseTaskId: CaseTaskId;
+  taskId: TaskId;
   evidenceJson: JsonObject;
 };
 
@@ -318,7 +318,7 @@ export type UpsertStakeholderReviewCommand = {
 export type CreateRequestForInformationCommand = {
   stakeholderId: StakeholderId;
   caseId: CaseRecordId;
-  caseTaskId?: CaseTaskId | null;
+  taskId?: TaskId | null;
   requestText: string;
   requestedByUserId: UserAccountId;
 };
@@ -380,10 +380,10 @@ export class StakeholderParticipantAccessEntity extends DomainEntity<Stakeholder
 export class AccessGrantEntity extends DomainEntity<AccessGrantDto> {}
 export class TaskTypeEntity extends DomainEntity<TaskTypeDto> {}
 export class CaseTemplateEntity extends DomainEntity<CaseTemplateDto> {}
-export class CaseTemplateTaskEntity extends DomainEntity<CaseTemplateTaskDto> {}
+export class TemplateTaskEntity extends DomainEntity<TemplateTaskDto> {}
 export class CaseTemplateParticipantEntity extends DomainEntity<CaseTemplateParticipantDto> {}
 export class CaseEntity extends DomainEntity<CaseDto> {}
-export class CaseTaskEntity extends DomainEntity<CaseTaskDto> {}
+export class TaskEntity extends DomainEntity<TaskDto> {}
 export class StakeholderReviewEntity extends DomainEntity<StakeholderReviewDto> {}
 export class RequestForInformationEntity extends DomainEntity<RequestForInformationDto> {}
 export class ParticipantSupplierEntity extends DomainEntity<ParticipantSupplierDto> {}
@@ -516,11 +516,11 @@ export type AccountContext = {
 };
 
 export type Task = {
-  id: CaseTaskId;
+  id: TaskId;
   title: string;
   type: string;
   status: Status;
-  domainStatus: CaseTaskStatus;
+  domainStatus: TaskStatus;
   due: string;
   description: string;
   responseText: string;
@@ -567,7 +567,7 @@ export type RequestForInformation = {
   stakeholderName: string;
   caseId: CaseRecordId | null;
   caseTitle: string;
-  caseTaskId: CaseTaskId | null;
+  taskId: TaskId | null;
   taskTitle: string | null;
   scopeLabel: string;
   requestText: string;
@@ -599,8 +599,8 @@ export type TaskType = {
   status: TaskTypeStatus;
 };
 
-export type CaseTemplateTask = {
-  id: CaseTemplateTaskId;
+export type TemplateTask = {
+  id: TemplateTaskId;
   caseTemplateId: CaseTemplateId;
   taskTypeId: TaskTypeId;
   taskTypeName: string;
@@ -643,7 +643,7 @@ export const defaultTerminologyLabels: TerminologyLabels = {
   agent: { singular: "agent", plural: "agents" },
   case: { singular: "case", plural: "cases" },
   caseTemplate: { singular: "case template", plural: "case templates" },
-  caseTask: { singular: "case task", plural: "case tasks" },
+  task: { singular: "task", plural: "tasks" },
   participantSupplier: { singular: "participant supplier", plural: "participant suppliers" },
   evidence: { singular: "evidence", plural: "evidence" },
   accessGrant: { singular: "access grant", plural: "access grants" },
@@ -731,7 +731,7 @@ const iconByTaskCode: Record<string, typeof ImageUp> = {
   HOSTING_RESIDENCY: Building2,
 };
 
-function uiTaskStatus(status: CaseTaskStatus): Status {
+function uiTaskStatus(status: TaskStatus): Status {
   if (status === "PASSED" || status === "SUBMITTED") return "complete";
   if (status === "FAILED") return "attention";
   if (status === "IN_PROGRESS") return "in-progress";
@@ -948,7 +948,7 @@ export class InMemoryAllChecksOutDatabase {
     this.caseTemplate("template-critical-supplier-ddq", "northstar-association", "Critical Supplier Case", "Participant supplier case"),
   ];
 
-  readonly caseTemplateTasks = [
+  readonly templateTasks = [
     this.templateTask("template-task-company-profile", "template-annual-platform-ddq", "task-type-questionnaire", "Company profile and platform summary", "Confirm company details, platform summary, core services, and regulated customer sectors.", 1, { due: "18 Jun 2026" }),
     this.templateTask("template-task-security-policy", "template-annual-platform-ddq", "task-type-policy-document", "Information security policy", "Upload the current information security policy and confirm senior management approval date.", 2, { due: "19 Jun 2026" }),
     this.templateTask("template-task-certification", "template-annual-platform-ddq", "task-type-certification", "ISO 27001 or SOC 2 evidence", "Upload current ISO 27001 certificate, SOC 2 Type II report, Cyber Essentials certificate, or equivalent controls evidence.", 3, { due: "20 Jun 2026" }),
@@ -988,82 +988,82 @@ export class InMemoryAllChecksOutDatabase {
     this.templateParticipant("template-participant-northstar-stratuspay", "template-critical-supplier-ddq", "northstar-cloud", "case-supplier-northstar-stratuspay"),
   ];
 
-  readonly caseTasks = [
-    this.caseTask("case-task-northstar-profile", "case-2026-northstar", "template-task-company-profile", "PASSED"),
-    this.caseTask("case-task-northstar-security-policy", "case-2026-northstar", "template-task-security-policy", "PASSED"),
-    this.caseTask("case-task-northstar-certification", "case-2026-northstar", "template-task-certification", "PASSED"),
-    this.caseTask("case-task-northstar-penetration-test", "case-2026-northstar", "template-task-penetration-test", "SUBMITTED"),
-    this.caseTask("case-task-northstar-vulnerability", "case-2026-northstar", "template-task-vulnerability-management", "SUBMITTED"),
-    this.caseTask("case-task-northstar-access-control", "case-2026-northstar", "template-task-access-control", "PASSED"),
-    this.caseTask("case-task-northstar-data-protection", "case-2026-northstar", "template-task-data-protection", "PASSED"),
-    this.caseTask("case-task-northstar-dpa", "case-2026-northstar", "template-task-dpa", "PASSED"),
-    this.caseTask("case-task-northstar-subprocessors", "case-2026-northstar", "template-task-subprocessor-register", "SUBMITTED"),
-    this.caseTask("case-task-northstar-hosting", "case-2026-northstar", "template-task-hosting-residency", "PASSED"),
-    this.caseTask("case-task-northstar-backup", "case-2026-northstar", "template-task-backup-restore", "SUBMITTED"),
-    this.caseTask("case-task-northstar-bcp", "case-2026-northstar", "template-task-bcp-dr", "PASSED"),
-    this.caseTask("case-task-northstar-incident", "case-2026-northstar", "template-task-incident-response", "PASSED"),
-    this.caseTask("case-task-northstar-insurance", "case-2026-northstar", "template-task-cyber-insurance", "PASSED"),
-    this.caseTask("case-task-northstar-sdlc", "case-2026-northstar", "template-task-secure-development", "SUBMITTED"),
-    this.caseTask("case-task-northstar-ai", "case-2026-northstar", "template-task-ai-disclosure", "PASSED"),
-    this.caseTask("case-task-northstar-critical-supplier", "case-2026-northstar", "template-task-critical-supplier", "IN_PROGRESS"),
-    this.caseTask("case-task-northstar-attestation", "case-2026-northstar", "template-task-senior-attestation", "SUBMITTED"),
-    this.caseTask("case-task-cobalt-profile", "case-2026-cobalt", "template-task-company-profile", "PASSED"),
-    this.caseTask("case-task-cobalt-security-policy", "case-2026-cobalt", "template-task-security-policy", "PASSED"),
-    this.caseTask("case-task-cobalt-certification", "case-2026-cobalt", "template-task-certification", "IN_PROGRESS"),
-    this.caseTask("case-task-cobalt-penetration-test", "case-2026-cobalt", "template-task-penetration-test", "NOT_STARTED"),
-    this.caseTask("case-task-cobalt-vulnerability", "case-2026-cobalt", "template-task-vulnerability-management", "IN_PROGRESS"),
-    this.caseTask("case-task-cobalt-access-control", "case-2026-cobalt", "template-task-access-control", "PASSED"),
-    this.caseTask("case-task-cobalt-data-protection", "case-2026-cobalt", "template-task-data-protection", "PASSED"),
-    this.caseTask("case-task-cobalt-dpa", "case-2026-cobalt", "template-task-dpa", "IN_PROGRESS"),
-    this.caseTask("case-task-cobalt-subprocessors", "case-2026-cobalt", "template-task-subprocessor-register", "NOT_STARTED"),
-    this.caseTask("case-task-cobalt-hosting", "case-2026-cobalt", "template-task-hosting-residency", "IN_PROGRESS"),
-    this.caseTask("case-task-cobalt-backup", "case-2026-cobalt", "template-task-backup-restore", "NOT_STARTED"),
-    this.caseTask("case-task-cobalt-bcp", "case-2026-cobalt", "template-task-bcp-dr", "IN_PROGRESS"),
-    this.caseTask("case-task-cobalt-incident", "case-2026-cobalt", "template-task-incident-response", "IN_PROGRESS"),
-    this.caseTask("case-task-cobalt-insurance", "case-2026-cobalt", "template-task-cyber-insurance", "NOT_STARTED"),
-    this.caseTask("case-task-cobalt-sdlc", "case-2026-cobalt", "template-task-secure-development", "IN_PROGRESS"),
-    this.caseTask("case-task-cobalt-ai", "case-2026-cobalt", "template-task-ai-disclosure", "NOT_STARTED"),
-    this.caseTask("case-task-cobalt-critical-supplier", "case-2026-cobalt", "template-task-critical-supplier", "NOT_STARTED"),
-    this.caseTask("case-task-cobalt-attestation", "case-2026-cobalt", "template-task-senior-attestation", "NOT_STARTED"),
-    this.caseTask("case-task-pinebridge-profile", "case-2026-pinebridge", "template-task-company-profile", "PASSED"),
-    this.caseTask("case-task-pinebridge-security-policy", "case-2026-pinebridge", "template-task-security-policy", "PASSED"),
-    this.caseTask("case-task-pinebridge-certification", "case-2026-pinebridge", "template-task-certification", "FAILED"),
-    this.caseTask("case-task-pinebridge-penetration-test", "case-2026-pinebridge", "template-task-penetration-test", "FAILED"),
-    this.caseTask("case-task-pinebridge-vulnerability", "case-2026-pinebridge", "template-task-vulnerability-management", "SUBMITTED"),
-    this.caseTask("case-task-pinebridge-access-control", "case-2026-pinebridge", "template-task-access-control", "PASSED"),
-    this.caseTask("case-task-pinebridge-data-protection", "case-2026-pinebridge", "template-task-data-protection", "PASSED"),
-    this.caseTask("case-task-pinebridge-dpa", "case-2026-pinebridge", "template-task-dpa", "PASSED"),
-    this.caseTask("case-task-pinebridge-subprocessors", "case-2026-pinebridge", "template-task-subprocessor-register", "SUBMITTED"),
-    this.caseTask("case-task-pinebridge-hosting", "case-2026-pinebridge", "template-task-hosting-residency", "SUBMITTED"),
-    this.caseTask("case-task-pinebridge-backup", "case-2026-pinebridge", "template-task-backup-restore", "FAILED"),
-    this.caseTask("case-task-pinebridge-bcp", "case-2026-pinebridge", "template-task-bcp-dr", "SUBMITTED"),
-    this.caseTask("case-task-pinebridge-incident", "case-2026-pinebridge", "template-task-incident-response", "PASSED"),
-    this.caseTask("case-task-pinebridge-insurance", "case-2026-pinebridge", "template-task-cyber-insurance", "PASSED"),
-    this.caseTask("case-task-pinebridge-sdlc", "case-2026-pinebridge", "template-task-secure-development", "SUBMITTED"),
-    this.caseTask("case-task-pinebridge-ai", "case-2026-pinebridge", "template-task-ai-disclosure", "SUBMITTED"),
-    this.caseTask("case-task-pinebridge-critical-supplier", "case-2026-pinebridge", "template-task-critical-supplier", "FAILED"),
-    this.caseTask("case-task-pinebridge-attestation", "case-2026-pinebridge", "template-task-senior-attestation", "SUBMITTED"),
-    this.caseTask("case-task-asteria-profile", "case-2026-asteria", "template-task-company-profile", "PASSED"),
-    this.caseTask("case-task-asteria-security-policy", "case-2026-asteria", "template-task-security-policy", "PASSED"),
-    this.caseTask("case-task-asteria-certification", "case-2026-asteria", "template-task-certification", "PASSED"),
-    this.caseTask("case-task-asteria-penetration-test", "case-2026-asteria", "template-task-penetration-test", "PASSED"),
-    this.caseTask("case-task-asteria-vulnerability", "case-2026-asteria", "template-task-vulnerability-management", "PASSED"),
-    this.caseTask("case-task-asteria-access-control", "case-2026-asteria", "template-task-access-control", "PASSED"),
-    this.caseTask("case-task-asteria-data-protection", "case-2026-asteria", "template-task-data-protection", "PASSED"),
-    this.caseTask("case-task-asteria-dpa", "case-2026-asteria", "template-task-dpa", "PASSED"),
-    this.caseTask("case-task-asteria-subprocessors", "case-2026-asteria", "template-task-subprocessor-register", "PASSED"),
-    this.caseTask("case-task-asteria-hosting", "case-2026-asteria", "template-task-hosting-residency", "PASSED"),
-    this.caseTask("case-task-asteria-backup", "case-2026-asteria", "template-task-backup-restore", "PASSED"),
-    this.caseTask("case-task-asteria-bcp", "case-2026-asteria", "template-task-bcp-dr", "PASSED"),
-    this.caseTask("case-task-asteria-incident", "case-2026-asteria", "template-task-incident-response", "PASSED"),
-    this.caseTask("case-task-asteria-insurance", "case-2026-asteria", "template-task-cyber-insurance", "PASSED"),
-    this.caseTask("case-task-asteria-sdlc", "case-2026-asteria", "template-task-secure-development", "PASSED"),
-    this.caseTask("case-task-asteria-ai", "case-2026-asteria", "template-task-ai-disclosure", "PASSED"),
-    this.caseTask("case-task-asteria-critical-supplier", "case-2026-asteria", "template-task-critical-supplier", "PASSED"),
-    this.caseTask("case-task-asteria-attestation", "case-2026-asteria", "template-task-senior-attestation", "PASSED"),
-    this.caseTask("case-task-stratuspay-profile", "case-supplier-northstar-stratuspay", "template-task-supplier-profile", "PASSED"),
-    this.caseTask("case-task-stratuspay-controls", "case-supplier-northstar-stratuspay", "template-task-supplier-controls", "IN_PROGRESS"),
-    this.caseTask("case-task-stratuspay-risk", "case-supplier-northstar-stratuspay", "template-task-supplier-risk", "NOT_STARTED"),
+  readonly tasks = [
+    this.task("task-northstar-profile", "case-2026-northstar", "template-task-company-profile", "PASSED"),
+    this.task("task-northstar-security-policy", "case-2026-northstar", "template-task-security-policy", "PASSED"),
+    this.task("task-northstar-certification", "case-2026-northstar", "template-task-certification", "PASSED"),
+    this.task("task-northstar-penetration-test", "case-2026-northstar", "template-task-penetration-test", "SUBMITTED"),
+    this.task("task-northstar-vulnerability", "case-2026-northstar", "template-task-vulnerability-management", "SUBMITTED"),
+    this.task("task-northstar-access-control", "case-2026-northstar", "template-task-access-control", "PASSED"),
+    this.task("task-northstar-data-protection", "case-2026-northstar", "template-task-data-protection", "PASSED"),
+    this.task("task-northstar-dpa", "case-2026-northstar", "template-task-dpa", "PASSED"),
+    this.task("task-northstar-subprocessors", "case-2026-northstar", "template-task-subprocessor-register", "SUBMITTED"),
+    this.task("task-northstar-hosting", "case-2026-northstar", "template-task-hosting-residency", "PASSED"),
+    this.task("task-northstar-backup", "case-2026-northstar", "template-task-backup-restore", "SUBMITTED"),
+    this.task("task-northstar-bcp", "case-2026-northstar", "template-task-bcp-dr", "PASSED"),
+    this.task("task-northstar-incident", "case-2026-northstar", "template-task-incident-response", "PASSED"),
+    this.task("task-northstar-insurance", "case-2026-northstar", "template-task-cyber-insurance", "PASSED"),
+    this.task("task-northstar-sdlc", "case-2026-northstar", "template-task-secure-development", "SUBMITTED"),
+    this.task("task-northstar-ai", "case-2026-northstar", "template-task-ai-disclosure", "PASSED"),
+    this.task("task-northstar-critical-supplier", "case-2026-northstar", "template-task-critical-supplier", "IN_PROGRESS"),
+    this.task("task-northstar-attestation", "case-2026-northstar", "template-task-senior-attestation", "SUBMITTED"),
+    this.task("task-cobalt-profile", "case-2026-cobalt", "template-task-company-profile", "PASSED"),
+    this.task("task-cobalt-security-policy", "case-2026-cobalt", "template-task-security-policy", "PASSED"),
+    this.task("task-cobalt-certification", "case-2026-cobalt", "template-task-certification", "IN_PROGRESS"),
+    this.task("task-cobalt-penetration-test", "case-2026-cobalt", "template-task-penetration-test", "NOT_STARTED"),
+    this.task("task-cobalt-vulnerability", "case-2026-cobalt", "template-task-vulnerability-management", "IN_PROGRESS"),
+    this.task("task-cobalt-access-control", "case-2026-cobalt", "template-task-access-control", "PASSED"),
+    this.task("task-cobalt-data-protection", "case-2026-cobalt", "template-task-data-protection", "PASSED"),
+    this.task("task-cobalt-dpa", "case-2026-cobalt", "template-task-dpa", "IN_PROGRESS"),
+    this.task("task-cobalt-subprocessors", "case-2026-cobalt", "template-task-subprocessor-register", "NOT_STARTED"),
+    this.task("task-cobalt-hosting", "case-2026-cobalt", "template-task-hosting-residency", "IN_PROGRESS"),
+    this.task("task-cobalt-backup", "case-2026-cobalt", "template-task-backup-restore", "NOT_STARTED"),
+    this.task("task-cobalt-bcp", "case-2026-cobalt", "template-task-bcp-dr", "IN_PROGRESS"),
+    this.task("task-cobalt-incident", "case-2026-cobalt", "template-task-incident-response", "IN_PROGRESS"),
+    this.task("task-cobalt-insurance", "case-2026-cobalt", "template-task-cyber-insurance", "NOT_STARTED"),
+    this.task("task-cobalt-sdlc", "case-2026-cobalt", "template-task-secure-development", "IN_PROGRESS"),
+    this.task("task-cobalt-ai", "case-2026-cobalt", "template-task-ai-disclosure", "NOT_STARTED"),
+    this.task("task-cobalt-critical-supplier", "case-2026-cobalt", "template-task-critical-supplier", "NOT_STARTED"),
+    this.task("task-cobalt-attestation", "case-2026-cobalt", "template-task-senior-attestation", "NOT_STARTED"),
+    this.task("task-pinebridge-profile", "case-2026-pinebridge", "template-task-company-profile", "PASSED"),
+    this.task("task-pinebridge-security-policy", "case-2026-pinebridge", "template-task-security-policy", "PASSED"),
+    this.task("task-pinebridge-certification", "case-2026-pinebridge", "template-task-certification", "FAILED"),
+    this.task("task-pinebridge-penetration-test", "case-2026-pinebridge", "template-task-penetration-test", "FAILED"),
+    this.task("task-pinebridge-vulnerability", "case-2026-pinebridge", "template-task-vulnerability-management", "SUBMITTED"),
+    this.task("task-pinebridge-access-control", "case-2026-pinebridge", "template-task-access-control", "PASSED"),
+    this.task("task-pinebridge-data-protection", "case-2026-pinebridge", "template-task-data-protection", "PASSED"),
+    this.task("task-pinebridge-dpa", "case-2026-pinebridge", "template-task-dpa", "PASSED"),
+    this.task("task-pinebridge-subprocessors", "case-2026-pinebridge", "template-task-subprocessor-register", "SUBMITTED"),
+    this.task("task-pinebridge-hosting", "case-2026-pinebridge", "template-task-hosting-residency", "SUBMITTED"),
+    this.task("task-pinebridge-backup", "case-2026-pinebridge", "template-task-backup-restore", "FAILED"),
+    this.task("task-pinebridge-bcp", "case-2026-pinebridge", "template-task-bcp-dr", "SUBMITTED"),
+    this.task("task-pinebridge-incident", "case-2026-pinebridge", "template-task-incident-response", "PASSED"),
+    this.task("task-pinebridge-insurance", "case-2026-pinebridge", "template-task-cyber-insurance", "PASSED"),
+    this.task("task-pinebridge-sdlc", "case-2026-pinebridge", "template-task-secure-development", "SUBMITTED"),
+    this.task("task-pinebridge-ai", "case-2026-pinebridge", "template-task-ai-disclosure", "SUBMITTED"),
+    this.task("task-pinebridge-critical-supplier", "case-2026-pinebridge", "template-task-critical-supplier", "FAILED"),
+    this.task("task-pinebridge-attestation", "case-2026-pinebridge", "template-task-senior-attestation", "SUBMITTED"),
+    this.task("task-asteria-profile", "case-2026-asteria", "template-task-company-profile", "PASSED"),
+    this.task("task-asteria-security-policy", "case-2026-asteria", "template-task-security-policy", "PASSED"),
+    this.task("task-asteria-certification", "case-2026-asteria", "template-task-certification", "PASSED"),
+    this.task("task-asteria-penetration-test", "case-2026-asteria", "template-task-penetration-test", "PASSED"),
+    this.task("task-asteria-vulnerability", "case-2026-asteria", "template-task-vulnerability-management", "PASSED"),
+    this.task("task-asteria-access-control", "case-2026-asteria", "template-task-access-control", "PASSED"),
+    this.task("task-asteria-data-protection", "case-2026-asteria", "template-task-data-protection", "PASSED"),
+    this.task("task-asteria-dpa", "case-2026-asteria", "template-task-dpa", "PASSED"),
+    this.task("task-asteria-subprocessors", "case-2026-asteria", "template-task-subprocessor-register", "PASSED"),
+    this.task("task-asteria-hosting", "case-2026-asteria", "template-task-hosting-residency", "PASSED"),
+    this.task("task-asteria-backup", "case-2026-asteria", "template-task-backup-restore", "PASSED"),
+    this.task("task-asteria-bcp", "case-2026-asteria", "template-task-bcp-dr", "PASSED"),
+    this.task("task-asteria-incident", "case-2026-asteria", "template-task-incident-response", "PASSED"),
+    this.task("task-asteria-insurance", "case-2026-asteria", "template-task-cyber-insurance", "PASSED"),
+    this.task("task-asteria-sdlc", "case-2026-asteria", "template-task-secure-development", "PASSED"),
+    this.task("task-asteria-ai", "case-2026-asteria", "template-task-ai-disclosure", "PASSED"),
+    this.task("task-asteria-critical-supplier", "case-2026-asteria", "template-task-critical-supplier", "PASSED"),
+    this.task("task-asteria-attestation", "case-2026-asteria", "template-task-senior-attestation", "PASSED"),
+    this.task("task-stratuspay-profile", "case-supplier-northstar-stratuspay", "template-task-supplier-profile", "PASSED"),
+    this.task("task-stratuspay-controls", "case-supplier-northstar-stratuspay", "template-task-supplier-controls", "IN_PROGRESS"),
+    this.task("task-stratuspay-risk", "case-supplier-northstar-stratuspay", "template-task-supplier-risk", "NOT_STARTED"),
   ];
 
   readonly stakeholderReviews = [
@@ -1078,7 +1078,7 @@ export class InMemoryAllChecksOutDatabase {
       "rfi-harrington-northstar-subprocessors",
       "harrington-financial",
       "case-2026-northstar",
-      "case-task-northstar-subprocessors",
+      "task-northstar-subprocessors",
       "Please confirm whether the EU monitoring provider listed in the subprocessor register has access to production customer data.",
       "user-rachel-morgan",
       "OPEN",
@@ -1087,7 +1087,7 @@ export class InMemoryAllChecksOutDatabase {
       "rfi-mercury-pinebridge-restore",
       "mercury-retail",
       "case-2026-pinebridge",
-      "case-task-pinebridge-backup",
+      "task-pinebridge-backup",
       "The restore-test evidence is older than the current policy cycle. Please provide a 2026 restore-test summary or explain the gap.",
       "user-sophie-turner",
       "ANSWERED",
@@ -1198,10 +1198,10 @@ export class InMemoryAllChecksOutDatabase {
       .filter((relationship) => relationship.participantId === participantId);
   }
 
-  getCaseTasksForCase(caseId: CaseRecordId) {
-    return this.caseTasks
-      .map((caseTask) => caseTask.toDto())
-      .filter((caseTask) => caseTask.caseId === caseId);
+  getTasksForCase(caseId: CaseRecordId) {
+    return this.tasks
+      .map((task) => task.toDto())
+      .filter((task) => task.caseId === caseId);
   }
 
   getStakeholderParticipantAccess(stakeholderId: StakeholderId) {
@@ -1577,11 +1577,11 @@ export class InMemoryAllChecksOutDatabase {
     const stakeholder = this.requireStakeholder(command.stakeholderId);
     const caseRecord = this.requireCase(command.caseId);
     this.requireUserAccount(command.requestedByUserId);
-    let caseTask: CaseTaskDto | null = null;
-    if (command.caseTaskId) {
-      caseTask = this.requireCaseTask(command.caseTaskId);
-      if (caseTask.caseId !== caseRecord.id) {
-        throw new Error("The selected case task does not belong to this Case.");
+    let task: TaskDto | null = null;
+    if (command.taskId) {
+      task = this.requireTask(command.taskId);
+      if (task.caseId !== caseRecord.id) {
+        throw new Error("The selected task does not belong to this case.");
       }
     }
     const grant = this.getActiveAccessGrantsForStakeholder(stakeholder.id).find(
@@ -1604,7 +1604,7 @@ export class InMemoryAllChecksOutDatabase {
       participantId: caseRecord.participantId,
       stakeholderId: stakeholder.id,
       caseId: caseRecord.id,
-      caseTaskId: caseTask?.id ?? null,
+      taskId: task?.id ?? null,
       requestText,
       responseText: "",
       status: "OPEN",
@@ -1708,13 +1708,13 @@ export class InMemoryAllChecksOutDatabase {
     const sortOrder =
       Math.max(
         0,
-        ...this.caseTemplateTasks
+        ...this.templateTasks
           .map((task) => task.toDto())
           .filter((task) => task.caseTemplateId === command.caseTemplateId)
           .map((task) => task.sortOrder),
       ) + 1;
-    const task = new CaseTemplateTaskEntity({
-      ...this.createBase(this.nextId("template-task", this.caseTemplateTasks)),
+    const task = new TemplateTaskEntity({
+      ...this.createBase(this.nextId("template-task", this.templateTasks)),
       caseTemplateId: command.caseTemplateId,
       taskTypeId: command.taskTypeId,
       title: command.title.trim(),
@@ -1726,7 +1726,7 @@ export class InMemoryAllChecksOutDatabase {
       withdrawnAt: null,
       withdrawnByUserId: null,
     });
-    this.caseTemplateTasks.push(task);
+    this.templateTasks.push(task);
     return task.toDto();
   }
 
@@ -1777,12 +1777,12 @@ export class InMemoryAllChecksOutDatabase {
   }
 
   completeTask(command: CompleteTaskCommand) {
-    const caseTask = this.requireCaseTask(command.caseTaskId);
-    if (caseTask.status === "WITHDRAWN") {
+    const task = this.requireTask(command.taskId);
+    if (task.status === "WITHDRAWN") {
       throw new Error("Withdrawn tasks cannot be completed.");
     }
-    return this.updateCaseTask({
-      ...caseTask,
+    return this.updateTask({
+      ...task,
       responseJson: command.responseJson,
       status: "IN_PROGRESS",
       updatedAt: this.timestamp(),
@@ -1790,29 +1790,29 @@ export class InMemoryAllChecksOutDatabase {
   }
 
   uploadEvidence(command: UploadEvidenceCommand) {
-    const caseTask = this.requireCaseTask(command.caseTaskId);
-    if (caseTask.status === "WITHDRAWN") {
+    const task = this.requireTask(command.taskId);
+    if (task.status === "WITHDRAWN") {
       throw new Error("Withdrawn tasks cannot receive evidence.");
     }
-    return this.updateCaseTask({
-      ...caseTask,
+    return this.updateTask({
+      ...task,
       evidenceJson: command.evidenceJson,
-      status: caseTask.status === "NOT_STARTED" ? "IN_PROGRESS" : caseTask.status,
+      status: task.status === "NOT_STARTED" ? "IN_PROGRESS" : task.status,
       updatedAt: this.timestamp(),
     });
   }
 
-  submitTask(caseTaskId: CaseTaskId) {
-    const caseTask = this.requireCaseTask(caseTaskId);
-    if (caseTask.status === "WITHDRAWN") {
+  submitTask(taskId: TaskId) {
+    const task = this.requireTask(taskId);
+    if (task.status === "WITHDRAWN") {
       throw new Error("Withdrawn tasks cannot be submitted.");
     }
-    const updated = this.updateCaseTask({
-      ...caseTask,
+    const updated = this.updateTask({
+      ...task,
       status: "SUBMITTED",
       updatedAt: this.timestamp(),
     });
-    this.recalculateCaseStatus(caseTask.caseId);
+    this.recalculateCaseStatus(task.caseId);
     return updated;
   }
 
@@ -1821,12 +1821,12 @@ export class InMemoryAllChecksOutDatabase {
     if (caseRecord.status === "WITHDRAWN") {
       throw new Error("Withdrawn cases cannot be completed.");
     }
-    const activeTasks = this.getCaseTasksForCase(caseId).filter((caseTask) => caseTask.status !== "WITHDRAWN");
+    const activeTasks = this.getTasksForCase(caseId).filter((task) => task.status !== "WITHDRAWN");
     const hasUnsubmittedTasks = activeTasks.some(
-      (caseTask) => caseTask.status === "NOT_STARTED" || caseTask.status === "IN_PROGRESS",
+      (task) => task.status === "NOT_STARTED" || task.status === "IN_PROGRESS",
     );
     if (hasUnsubmittedTasks) {
-      throw new Error("All active case tasks must be submitted before the case can be submitted.");
+      throw new Error("All active tasks must be submitted before the case can be submitted.");
     }
     const submittedCase = {
       ...caseRecord,
@@ -1839,29 +1839,29 @@ export class InMemoryAllChecksOutDatabase {
     return submittedCase;
   }
 
-  reviewTask(caseTaskId: CaseTaskId, decision: "PASSED" | "FAILED") {
-    const caseTask = this.requireCaseTask(caseTaskId);
-    if (caseTask.status === "WITHDRAWN") {
+  reviewTask(taskId: TaskId, decision: "PASSED" | "FAILED") {
+    const task = this.requireTask(taskId);
+    if (task.status === "WITHDRAWN") {
       throw new Error("Withdrawn tasks cannot be reviewed.");
     }
-    const updated = this.updateCaseTask({
-      ...caseTask,
+    const updated = this.updateTask({
+      ...task,
       status: decision,
       updatedAt: this.timestamp(),
     });
-    this.recalculateCaseStatus(caseTask.caseId);
+    this.recalculateCaseStatus(task.caseId);
     return updated;
   }
 
-  withdrawTemplateTask(caseTemplateTaskId: CaseTemplateTaskId, withdrawnByUserId: UserAccountId, withdrawnReason: string) {
-    const templateTask = this.requireCaseTemplateTask(caseTemplateTaskId);
+  withdrawTemplateTask(templateTaskId: TemplateTaskId, withdrawnByUserId: UserAccountId, withdrawnReason: string) {
+    const templateTask = this.requireTemplateTask(templateTaskId);
     const template = this.requireCaseTemplate(templateTask.caseTemplateId);
     if (template.status === "FINALIZED") {
       throw new Error("Finalized case templates cannot be edited.");
     }
     this.requireUserAccount(withdrawnByUserId);
     const withdrawnAt = this.timestamp();
-    const updatedTemplateTask: CaseTemplateTaskDto = {
+    const updatedTemplateTask: TemplateTaskDto = {
       ...templateTask,
       status: "WITHDRAWN",
       withdrawnAt,
@@ -1869,23 +1869,23 @@ export class InMemoryAllChecksOutDatabase {
       withdrawnReason,
       updatedAt: withdrawnAt,
     };
-    this.replaceById(this.caseTemplateTasks, new CaseTemplateTaskEntity(updatedTemplateTask));
+    this.replaceById(this.templateTasks, new TemplateTaskEntity(updatedTemplateTask));
 
-    this.caseTasks
-      .map((caseTask) => caseTask.toDto())
+    this.tasks
+      .map((task) => task.toDto())
       .filter(
-        (caseTask) =>
-          caseTask.caseTemplateTaskId === caseTemplateTaskId &&
-          !["PASSED", "FAILED", "WITHDRAWN"].includes(caseTask.status),
+        (task) =>
+          task.templateTaskId === templateTaskId &&
+          !["PASSED", "FAILED", "WITHDRAWN"].includes(task.status),
       )
-      .forEach((caseTask) => {
-        this.updateCaseTask({
-          ...caseTask,
+      .forEach((task) => {
+        this.updateTask({
+          ...task,
           status: "WITHDRAWN",
           withdrawnAt,
           updatedAt: withdrawnAt,
         });
-        this.recalculateCaseStatus(caseTask.caseId);
+        this.recalculateCaseStatus(task.caseId);
       });
 
     return updatedTemplateTask;
@@ -1944,9 +1944,9 @@ export class InMemoryAllChecksOutDatabase {
         .filter((caseRecord) => caseRecord.caseTemplateId === caseTemplateId && caseRecord.status === "WITHDRAWN")
         .map((caseRecord) => caseRecord.id),
     );
-    removeWhere(this.caseTasks, (caseTask) => withdrawnCaseIds.has(caseTask.toDto().caseId));
+    removeWhere(this.tasks, (task) => withdrawnCaseIds.has(task.toDto().caseId));
     removeWhere(this.cases, (caseRecord) => caseRecord.toDto().caseTemplateId === caseTemplateId);
-    removeWhere(this.caseTemplateTasks, (task) => task.toDto().caseTemplateId === caseTemplateId);
+    removeWhere(this.templateTasks, (task) => task.toDto().caseTemplateId === caseTemplateId);
     removeWhere(this.caseTemplates, (item) => item.id === caseTemplateId);
     return template;
   }
@@ -2061,7 +2061,7 @@ export class InMemoryAllChecksOutDatabase {
   }
 
   private templateTask(
-    id: CaseTemplateTaskId,
+    id: TemplateTaskId,
     caseTemplateId: CaseTemplateId,
     taskTypeId: TaskTypeId,
     title: string,
@@ -2069,7 +2069,7 @@ export class InMemoryAllChecksOutDatabase {
     sortOrder: number,
     parametersJson: JsonObject,
   ) {
-    return new CaseTemplateTaskEntity({
+    return new TemplateTaskEntity({
       ...base(id),
       caseTemplateId,
       taskTypeId,
@@ -2126,11 +2126,11 @@ export class InMemoryAllChecksOutDatabase {
     });
   }
 
-  private caseTask(id: CaseTaskId, caseId: CaseRecordId, caseTemplateTaskId: CaseTemplateTaskId, status: CaseTaskStatus) {
-    return new CaseTaskEntity({
+  private task(id: TaskId, caseId: CaseRecordId, templateTaskId: TemplateTaskId, status: TaskStatus) {
+    return new TaskEntity({
       ...base(id),
       caseId,
-      caseTemplateTaskId,
+      templateTaskId,
       status,
       responseJson: {},
       evidenceJson: {},
@@ -2159,7 +2159,7 @@ export class InMemoryAllChecksOutDatabase {
     id: RequestForInformationId,
     stakeholderId: StakeholderId,
     caseId: CaseRecordId,
-    caseTaskId: CaseTaskId | null,
+    taskId: TaskId | null,
     requestText: string,
     requestedByUserId: UserAccountId,
     status: RequestForInformationStatus,
@@ -2175,7 +2175,7 @@ export class InMemoryAllChecksOutDatabase {
       participantId: caseRecord?.participantId ?? "northstar-cloud",
       stakeholderId,
       caseId,
-      caseTaskId,
+      taskId,
       requestText,
       responseText,
       status,
@@ -2300,9 +2300,9 @@ export class InMemoryAllChecksOutDatabase {
     return template;
   }
 
-  private requireCaseTemplateTask(caseTemplateTaskId: CaseTemplateTaskId) {
-    const templateTask = this.caseTemplateTasks.find((task) => task.id === caseTemplateTaskId)?.toDto();
-    if (!templateTask) throw new Error(`Case template task ${caseTemplateTaskId} was not found.`);
+  private requireTemplateTask(templateTaskId: TemplateTaskId) {
+    const templateTask = this.templateTasks.find((task) => task.id === templateTaskId)?.toDto();
+    if (!templateTask) throw new Error(`Template task ${templateTaskId} was not found.`);
     return templateTask;
   }
 
@@ -2312,10 +2312,10 @@ export class InMemoryAllChecksOutDatabase {
     return caseRecord;
   }
 
-  private requireCaseTask(caseTaskId: CaseTaskId) {
-    const caseTask = this.caseTasks.find((task) => task.id === caseTaskId)?.toDto();
-    if (!caseTask) throw new Error(`Case task ${caseTaskId} was not found.`);
-    return caseTask;
+  private requireTask(taskId: TaskId) {
+    const task = this.tasks.find((task) => task.id === taskId)?.toDto();
+    if (!task) throw new Error(`Task ${taskId} was not found.`);
+    return task;
   }
 
   private requireRequestForInformation(requestId: RequestForInformationId) {
@@ -2329,8 +2329,8 @@ export class InMemoryAllChecksOutDatabase {
     if (grant.participantId !== caseRecord.participantId) return false;
     if (grant.dataScopeType === "PARTICIPANT") return true;
     if (grant.dataScopeType === "CASE") return grant.dataScopeId === caseRecord.id;
-    if (grant.dataScopeType === "CASE_TASK") {
-      return this.getCaseTasksForCase(caseRecord.id).some((task) => task.id === grant.dataScopeId);
+    if (grant.dataScopeType === "TASK") {
+      return this.getTasksForCase(caseRecord.id).some((task) => task.id === grant.dataScopeId);
     }
     if (grant.dataScopeType === "PARTICIPANT_SUPPLIER") return caseRecord.participantSupplierId === grant.dataScopeId;
     if (grant.dataScopeType === "EVIDENCE_METADATA") return true;
@@ -2344,7 +2344,7 @@ export class InMemoryAllChecksOutDatabase {
   }
 
   private getActiveTemplateTasks(caseTemplateId: CaseTemplateId) {
-    return this.caseTemplateTasks
+    return this.templateTasks
       .map((task) => task.toDto())
       .filter((task) => task.caseTemplateId === caseTemplateId && task.status === "ACTIVE");
   }
@@ -2371,11 +2371,11 @@ export class InMemoryAllChecksOutDatabase {
     this.cases.push(caseRecord);
 
     this.getActiveTemplateTasks(template.id).forEach((templateTask) => {
-      this.caseTasks.push(
-        new CaseTaskEntity({
-          ...this.createBase(this.nextId("case-task", this.caseTasks)),
+      this.tasks.push(
+        new TaskEntity({
+          ...this.createBase(this.nextId("task", this.tasks)),
           caseId: caseRecord.id,
-          caseTemplateTaskId: templateTask.id,
+          templateTaskId: templateTask.id,
           status: "NOT_STARTED",
           responseJson: {},
           evidenceJson: {},
@@ -2395,17 +2395,17 @@ export class InMemoryAllChecksOutDatabase {
     collection[index] = nextEntity;
   }
 
-  private updateCaseTask(caseTask: CaseTaskDto) {
-    this.replaceById(this.caseTasks, new CaseTaskEntity(caseTask));
-    return caseTask;
+  private updateTask(task: TaskDto) {
+    this.replaceById(this.tasks, new TaskEntity(task));
+    return task;
   }
 
   private recalculateCaseStatus(caseId: CaseRecordId) {
     const caseRecord = this.requireCase(caseId);
     if (caseRecord.status === "WITHDRAWN") return;
-    const activeTasks = this.getCaseTasksForCase(caseId).filter((caseTask) => caseTask.status !== "WITHDRAWN");
+    const activeTasks = this.getTasksForCase(caseId).filter((task) => task.status !== "WITHDRAWN");
     const nextStatus: CaseStatus =
-      activeTasks.length > 0 && activeTasks.every((caseTask) => caseTask.status === "SUBMITTED" || caseTask.status === "PASSED")
+      activeTasks.length > 0 && activeTasks.every((task) => task.status === "SUBMITTED" || task.status === "PASSED")
         ? "COMPLETE"
         : "INCOMPLETE";
     const timestamp = this.timestamp();
@@ -2440,7 +2440,7 @@ export const consoleApps: ConsoleApp[] = [
     id: "case-management",
     name: "Cases",
     shortName: "Cases",
-    description: "View participant cases, complete case tasks, upload evidence metadata, and track progress.",
+    description: "View participant cases, complete tasks, upload evidence metadata, and track progress.",
     path: "/cases",
     accent: "bg-[#0078d4]",
     Icon: FolderKanban,
@@ -2450,7 +2450,7 @@ export const consoleApps: ConsoleApp[] = [
     id: "stakeholder-portal",
     name: "Stakeholder Portal",
     shortName: "Stakeholders",
-    description: "Review granted participant cases, submitted case tasks, evidence metadata, and outcomes.",
+    description: "Review granted participant cases, submitted tasks, evidence metadata, and outcomes.",
     path: "/stakeholder",
     accent: "bg-[#00703c]",
     Icon: BadgeCheck,
@@ -2492,6 +2492,10 @@ export function terminologyTitle(terminology: AuthorityTerminology | undefined, 
   return titleCase(terminologyLabel(terminology, key, plural));
 }
 
+export function taskTypeTitle(terminology: AuthorityTerminology | undefined, plural = false) {
+  return `${terminologyTitle(terminology, "task")} ${plural ? "Types" : "Type"}`;
+}
+
 function buildTaskTypes(): TaskType[] {
   return db.taskTypes.map((taskType) => {
     const dto = taskType.toDto();
@@ -2508,7 +2512,7 @@ function buildTaskTypes(): TaskType[] {
 function buildCaseTemplates(): CaseTemplate[] {
   return db.caseTemplates.map((template) => {
     const dto = template.toDto();
-    const taskCount = db.caseTemplateTasks
+    const taskCount = db.templateTasks
       .map((task) => task.toDto())
       .filter((task) => task.caseTemplateId === dto.id && task.status === "ACTIVE").length;
     const participantCount = db.caseTemplateParticipants.filter((participant) => participant.toDto().caseTemplateId === dto.id).length;
@@ -2531,11 +2535,11 @@ function buildCaseRecords(): CaseRecord[] {
     const participantSupplier = caseDto.participantSupplierId
       ? db.participantSuppliers.find((item) => item.id === caseDto.participantSupplierId)?.toDto()
       : null;
-    const caseTasks = db.caseTasks
-      .filter((caseTask) => caseTask.toDto().caseId === caseDto.id)
-      .map((caseTask) => {
-        const taskDto = caseTask.toDto();
-        const templateTask = db.caseTemplateTasks.find((item) => item.id === taskDto.caseTemplateTaskId)?.toDto();
+    const tasks = db.tasks
+      .filter((task) => task.toDto().caseId === caseDto.id)
+      .map((task) => {
+        const taskDto = task.toDto();
+        const templateTask = db.templateTasks.find((item) => item.id === taskDto.templateTaskId)?.toDto();
         const taskType = db.taskTypes.find((item) => item.id === templateTask?.taskTypeId)?.toDto();
         const evidenceFiles = Array.isArray(taskDto.evidenceJson.files)
           ? taskDto.evidenceJson.files
@@ -2563,8 +2567,8 @@ function buildCaseRecords(): CaseRecord[] {
           Icon: iconByTaskCode[taskType?.code ?? "UPLOAD_DOCUMENT"] ?? ImageUp,
         };
       });
-    const completedTasks = caseTasks.filter((task) => task.status === "complete").length;
-    const failedTasks = caseTasks.filter((task) => task.status === "attention").length;
+    const completedTasks = tasks.filter((task) => task.status === "complete").length;
+    const failedTasks = tasks.filter((task) => task.status === "attention").length;
     return {
       id: caseDto.id,
       title: template?.name ?? "Case",
@@ -2587,8 +2591,8 @@ function buildCaseRecords(): CaseRecord[] {
       status: uiCaseStatus(caseDto.status),
       domainStatus: caseDto.status,
       completedTasks,
-      totalTasks: caseTasks.length,
-      risk: failedTasks > 0 ? "high" : completedTasks === caseTasks.length ? "low" : "medium",
+      totalTasks: tasks.length,
+      risk: failedTasks > 0 ? "high" : completedTasks === tasks.length ? "low" : "medium",
       outcome:
         caseDto.status === "WITHDRAWN"
           ? "Case withdrawn"
@@ -2607,7 +2611,7 @@ function buildCaseRecords(): CaseRecord[] {
               : caseDto.id === "case-2026-asteria"
                 ? "Senior officer attestation accepted"
                 : "Supplier control attestation updated",
-      tasks: caseTasks,
+      tasks: tasks,
     };
   });
 }
@@ -2671,9 +2675,9 @@ function accessGrantScopeLabel(dataScopeType: AccessGrantDataScopeType, dataScop
   if (dataScopeType === "EVIDENCE_METADATA") return "Evidence metadata";
   if (dataScopeType === "PARTICIPANT_SUPPLIER") return participantSuppliers.find((relationship) => relationship.id === dataScopeId)?.supplierName ?? "Specific participant supplier record";
   if (dataScopeType === "CASE") return cases.find((caseRecord) => caseRecord.id === dataScopeId)?.title ?? "Specific case";
-  if (dataScopeType === "CASE_TASK") {
+  if (dataScopeType === "TASK") {
     const task = cases.flatMap((caseRecord) => caseRecord.tasks).find((candidate) => candidate.id === dataScopeId);
-    return task?.title ?? "Specific case task";
+    return task?.title ?? "Specific task";
   }
   return "Configured scope";
 }
@@ -2741,7 +2745,7 @@ function buildRequestsForInformation(): RequestForInformation[] {
     const participant = getParticipant(dto.participantId);
     const stakeholder = getStakeholder(dto.stakeholderId);
     const caseRecord = cases.find((item) => item.id === dto.caseId);
-    const task = cases.flatMap((item) => item.tasks).find((candidate) => candidate.id === dto.caseTaskId);
+    const task = cases.flatMap((item) => item.tasks).find((candidate) => candidate.id === dto.taskId);
     const requestedBy = db.userAccounts.find((account) => account.id === dto.requestedByUserId)?.toDto();
     const assignedTo = dto.assignedToUserId ? db.userAccounts.find((account) => account.id === dto.assignedToUserId)?.toDto() : null;
     const respondedBy = dto.respondedByUserId ? db.userAccounts.find((account) => account.id === dto.respondedByUserId)?.toDto() : null;
@@ -2754,7 +2758,7 @@ function buildRequestsForInformation(): RequestForInformation[] {
       stakeholderName: stakeholder?.name ?? "Unknown stakeholder",
       caseId: dto.caseId,
       caseTitle: caseRecord?.title ?? "Case",
-      caseTaskId: dto.caseTaskId,
+      taskId: dto.taskId,
       taskTitle: task?.title ?? null,
       scopeLabel: task?.title ?? caseRecord?.title ?? "Participant",
       requestText: dto.requestText,
@@ -2948,7 +2952,7 @@ function buildAdminResources() {
     { name: terminologyTitle(terminology, "participant", true), path: "/admin/participants", Icon: Building2, count: `${participants.length} in scope` },
     { name: terminologyTitle(terminology, "stakeholder", true), path: "/admin/stakeholders", Icon: UserRoundCheck, count: `${stakeholders.length} in scope` },
     { name: terminologyTitle(terminology, "caseTemplate", true), path: "/admin/case-templates", Icon: ShieldCheck, count: `${caseTemplates.length} configured` },
-    { name: "Task types", path: "/admin/task-types", Icon: ClipboardCheck, count: `${taskTypes.length} available` },
+    { name: taskTypeTitle(terminology, true), path: "/admin/task-types", Icon: ClipboardCheck, count: `${taskTypes.length} available` },
     { name: "Users", path: "/admin/users", Icon: Users, count: `${authenticatableUsers.length} users` },
     { name: "Parameters", path: "/admin/parameters", Icon: KeyRound, count: "Terminology" },
   ];
@@ -2988,7 +2992,7 @@ function buildSearchItems(): SearchItem[] {
       const participant = participants.find((item) => item.id === caseRecord.participantId);
       return {
         title: `${caseRecord.title} - ${participant?.name ?? "Unknown participant"}`,
-        description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} case tasks complete`,
+        description: `${caseRecord.completedTasks}/${caseRecord.totalTasks} tasks complete`,
         path: `/cases/${caseRecord.id}`,
         group: "Cases",
         audience: ["participant", "agent"] as UserRole[],
@@ -2998,7 +3002,7 @@ function buildSearchItems(): SearchItem[] {
       title: task.title,
       description: task.type,
       path: `/cases/${caseRecord.id}/tasks/${task.id}`,
-      group: "Case tasks",
+      group: "Tasks",
       audience: ["participant", "agent"] as UserRole[],
     }))),
   ];
@@ -3093,7 +3097,7 @@ export function getSearchItemsForUser(user: AuthenticatedUser) {
     if (item.group === "Cases") {
       return scopedCases.some((caseRecord) => item.path.endsWith(caseRecord.id));
     }
-    if (item.group === "Case tasks") {
+    if (item.group === "Tasks") {
       return scopedCaseIds.has(item.path.split("/")[2] ?? "");
     }
     return true;
@@ -3198,7 +3202,7 @@ function grantAllowsCaseVisibility(grant: AccessGrant, caseRecord: CaseRecord) {
   if (grant.participantId !== caseRecord.participantId) return false;
   if (grant.dataScopeType === "PARTICIPANT") return true;
   if (grant.dataScopeType === "CASE") return grant.dataScopeId === caseRecord.id;
-  if (grant.dataScopeType === "CASE_TASK") return caseRecord.tasks.some((task) => task.id === grant.dataScopeId);
+  if (grant.dataScopeType === "TASK") return caseRecord.tasks.some((task) => task.id === grant.dataScopeId);
   if (grant.dataScopeType === "PARTICIPANT_SUPPLIER") return caseRecord.participantSupplierId === grant.dataScopeId;
   if (grant.dataScopeType === "EVIDENCE_METADATA") return true;
   return false;
@@ -3279,7 +3283,7 @@ export function getRequestsForCase(caseId: string | undefined, user?: Authentica
 export function getRequestsForTask(taskId: string | undefined, user?: AuthenticatedUser) {
   if (!taskId) return [];
   return requestsForInformation
-    .filter((request) => request.caseTaskId === taskId)
+    .filter((request) => request.taskId === taskId)
     .filter((request) => {
       if (!user) return true;
       if (user.role === "participant") return request.participantId === user.participantId;
@@ -3325,9 +3329,9 @@ export function getCaseTemplate(id: string | undefined) {
   return caseTemplates.find((template) => template.id === id);
 }
 
-export function getCaseTemplateTasks(caseTemplateId: string | undefined): CaseTemplateTask[] {
+export function getTemplateTasks(caseTemplateId: string | undefined): TemplateTask[] {
   if (!caseTemplateId) return [];
-  return db.caseTemplateTasks
+  return db.templateTasks
     .map((task) => task.toDto())
     .filter((task) => task.caseTemplateId === caseTemplateId)
     .sort((first, second) => first.sortOrder - second.sortOrder)

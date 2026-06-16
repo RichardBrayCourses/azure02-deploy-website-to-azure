@@ -13,7 +13,7 @@ import {
   getParticipant,
   getCaseTemplate,
   getCaseTemplateParticipants,
-  getCaseTemplateTasks,
+  getTemplateTasks,
   getCaseTemplatesForAuthority,
   getAccessGrantsForParticipant,
   getAuthorityTerminology,
@@ -40,6 +40,7 @@ import {
   AccessGrantGranteeType,
   RequestForInformationStatus,
   Status,
+  taskTypeTitle,
   terminologyLabel,
   terminologyTitle,
   TerminologyKey,
@@ -244,6 +245,16 @@ function EvidenceMetadataList({ task }: { task: Task }) {
 
 function AdministrationResourceNav({ actions }: { actions?: ReactNode }) {
   const location = useLocation();
+  const { user } = useAuth();
+  const terminology = getAuthorityTerminology(user.authorityId ?? undefined);
+
+  function resourceName(resource: (typeof adminResources)[number]) {
+    if (resource.path === "/admin/participants") return terminologyTitle(terminology, "participant", true);
+    if (resource.path === "/admin/stakeholders") return terminologyTitle(terminology, "stakeholder", true);
+    if (resource.path === "/admin/case-templates") return terminologyTitle(terminology, "caseTemplate", true);
+    if (resource.path === "/admin/task-types") return taskTypeTitle(terminology, true);
+    return resource.name;
+  }
 
   return (
     <div className="mb-6 flex flex-col gap-3 border-b border-[#b1b4b6] md:flex-row md:items-end md:justify-between">
@@ -263,7 +274,7 @@ function AdministrationResourceNav({ actions }: { actions?: ReactNode }) {
                   isCurrent && "border-[#1d70b8] bg-white dark:bg-card",
                 )}
               >
-                <Link to={resource.path}>{resource.name}</Link>
+                <Link to={resource.path}>{resourceName(resource)}</Link>
               </Button>
             );
           })}
@@ -591,7 +602,7 @@ export function StakeholderPortalPage() {
         </ResourceTable>
       </section>
       <p className="mt-4 text-sm text-[#505a5f] dark:text-muted-foreground">
-        Visible {terminologyLabel(terminology, "caseTask")} progress across granted {terminologyLabel(terminology, "participant", true)}: {completedTasks} of {totalTasks}.
+        Visible {terminologyLabel(terminology, "task")} progress across granted {terminologyLabel(terminology, "participant", true)}: {completedTasks} of {totalTasks}.
       </p>
     </ConsoleLayout>
   );
@@ -674,8 +685,8 @@ export function StakeholderParticipantDetailPage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "caseTask")} outcomes and {terminologyLabel(terminology, "evidence")}</h3>
-        <ResourceTable headings={[terminologyTitle(terminology, "case"), terminologyTitle(terminology, "caseTask"), "Outcome", `${terminologyTitle(terminology, "evidence")} metadata`]}>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "task")} outcomes and {terminologyLabel(terminology, "evidence")}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "case"), terminologyTitle(terminology, "task"), "Outcome", `${terminologyTitle(terminology, "evidence")} metadata`]}>
           {participantCases.flatMap((caseRecord) =>
             caseRecord.tasks.map((task) => (
               <tr key={`${caseRecord.id}-${task.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -764,7 +775,7 @@ export function StakeholderCaseDetailPage() {
       db.createRequestForInformation({
         stakeholderId: user.stakeholderId,
         caseId: caseRecord?.id ?? "",
-        caseTaskId: requestTaskId || null,
+        taskId: requestTaskId || null,
         requestText,
         requestedByUserId: user.authenticatableUserId,
       });
@@ -808,7 +819,7 @@ export function StakeholderCaseDetailPage() {
       <MetricStrip
         items={[
           { label: `${terminologyTitle(terminology, "case")} status`, value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
-          { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
+          { label: `${terminologyTitle(terminology, "task", true)} complete`, value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
           { label: `Linked ${terminologyLabel(terminology, "participantSupplier")}`, value: caseRecord.participantSupplierName ?? terminologyTitle(terminology, "participant"), tone: caseRecord.participantSupplierName ? "yellow" : "blue" },
           { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
         ]}
@@ -920,8 +931,8 @@ export function StakeholderCaseDetailPage() {
         </dl>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "caseTask")} outcomes and {terminologyLabel(terminology, "evidence")}</h3>
-        <ResourceTable headings={[terminologyTitle(terminology, "caseTask"), "Status", "Response", `${terminologyTitle(terminology, "evidence")} metadata`]}>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "task")} outcomes and {terminologyLabel(terminology, "evidence")}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "task"), "Status", "Response", `${terminologyTitle(terminology, "evidence")} metadata`]}>
           {caseRecord.tasks.map((task) => (
             <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
@@ -1237,7 +1248,7 @@ export function CaseTemplatesPage() {
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
       {!showCreate && <FormError message={error} />}
-      <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Finalized", terminologyTitle(terminology, "caseTask", true), terminologyTitle(terminology, "participant", true), "Actions"]}>
+      <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Finalized", terminologyTitle(terminology, "task", true), terminologyTitle(terminology, "participant", true), "Actions"]}>
         {scopedTemplates.map((template) => (
           <tr key={template.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
@@ -1331,7 +1342,7 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
   const scopedTemplates = getCaseTemplatesForAuthority(user.authorityId ?? undefined);
   const templateRecord = template;
   if (!scopedTemplates.some((item) => item.id === templateRecord.id)) return <Navigate to="/admin/case-templates" replace />;
-  const templateTasks = getCaseTemplateTasks(templateRecord.id);
+  const templateTasks = getTemplateTasks(templateRecord.id);
   const templateParticipants = getCaseTemplateParticipants(templateRecord.id);
   const assignedCases = templateParticipants
     .map((assignment) => (assignment.caseId ? getCase(assignment.caseId) : null))
@@ -1356,7 +1367,7 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
   function addTemplateTask() {
     setTaskError(null);
     if (!taskTypeId) {
-      setTaskError("Select a task type.");
+      setTaskError(`Select a ${terminologyLabel(terminology, "task")} type.`);
       return;
     }
     if (!taskTitle.trim()) {
@@ -1378,7 +1389,7 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
       setTaskDue("");
       setShowAddTask(false);
     } catch (caught) {
-      setTaskError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "caseTask")} could not be added.`);
+      setTaskError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "task")} could not be added.`);
     }
   }
 
@@ -1404,7 +1415,7 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
       db.withdrawTemplateTask(taskId, user.authenticatableUserId, "Removed before finalization.");
       refresh();
     } catch (caught) {
-      setTaskError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "caseTask")} could not be removed.`);
+      setTaskError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "task")} could not be removed.`);
     }
   }
 
@@ -1516,7 +1527,7 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
       <MetricStrip
         items={[
           { label: "Finalized", value: isFinalized ? "Yes" : "No", tone: isFinalized ? "green" : "yellow" },
-          { label: terminologyTitle(terminology, "caseTask", true), value: String(templateRecord.taskCount), tone: "blue" },
+          { label: terminologyTitle(terminology, "task", true), value: String(templateRecord.taskCount), tone: "blue" },
           { label: terminologyTitle(terminology, "participant", true), value: String(templateRecord.participantCount), tone: "blue" },
           { label: `Assigned ${terminologyLabel(terminology, "case", true)}`, value: String(assignedCases.length), tone: "green" },
         ]}
@@ -1527,18 +1538,18 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
       {effectiveMode === "edit" && (
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-bold">{terminologyTitle(terminology, "caseTask", true)}</h3>
+          <h3 className="text-xl font-bold">{terminologyTitle(terminology, "task", true)}</h3>
           {!isFinalized && (
             <Button type="button" onClick={() => setShowAddTask((current) => !current)}>
               <Plus />
-              Add {terminologyLabel(terminology, "caseTask")}
+              Add {terminologyLabel(terminology, "task")}
             </Button>
           )}
         </div>
         <ResourceActionPanel
           open={showAddTask}
-          title={`Add ${terminologyLabel(terminology, "caseTask")}`}
-          description={`${terminologyTitle(terminology, "caseTask", true)} can be added until the ${terminologyLabel(terminology, "caseTemplate")} is finalized.`}
+          title={`Add ${terminologyLabel(terminology, "task")}`}
+          description={`${terminologyTitle(terminology, "task", true)} can be added until the ${terminologyLabel(terminology, "caseTemplate")} is finalized.`}
           onClose={() => setShowAddTask(false)}
           footer={
             <Button type="button" onClick={addTemplateTask}>
@@ -1548,9 +1559,9 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
           }
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Task type">
+            <FormField label={taskTypeTitle(terminology)}>
               <SelectField value={taskTypeId} onChange={setTaskTypeId}>
-                <option value="">Select task type</option>
+                <option value="">Select {terminologyLabel(terminology, "task")} type</option>
                 {activeTaskTypes.map((taskType) => (
                   <option key={taskType.id} value={taskType.id}>{taskType.name}</option>
                 ))}
@@ -1569,7 +1580,7 @@ export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
           <div className="mt-3"><FormError message={taskError} /></div>
         </ResourceActionPanel>
         {!showAddTask && <FormError message={taskError} />}
-        <ResourceTable headings={isFinalized ? ["Order", terminologyTitle(terminology, "caseTask"), "Type", "Due", "Status"] : ["Order", terminologyTitle(terminology, "caseTask"), "Type", "Due", "Status", "Actions"]}>
+        <ResourceTable headings={isFinalized ? ["Order", terminologyTitle(terminology, "task"), taskTypeTitle(terminology), "Due", "Status"] : ["Order", terminologyTitle(terminology, "task"), taskTypeTitle(terminology), "Due", "Status", "Actions"]}>
           {templateTasks.map((task) => (
             <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">{task.sortOrder}</td>
@@ -1730,7 +1741,7 @@ const terminologyKeys: TerminologyKey[] = [
   "agent",
   "case",
   "caseTemplate",
-  "caseTask",
+  "task",
   "participantSupplier",
   "evidence",
   "accessGrant",
@@ -1808,7 +1819,7 @@ export function ParametersPage() {
         <ResourceTable headings={["Concept", "Singular label", "Plural label"]}>
           {terminologyKeys.map((key) => (
             <tr key={key} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3 font-bold">{titleCaseForPage(key)}</td>
+              <td className="px-4 py-3 font-bold">{titleCaseForPage(defaultTerminologyLabels[key].singular)}</td>
               <td className="px-4 py-3">
                 <Input value={labels[key].singular} onChange={(event) => updateLabel(key, "singular", event.target.value)} />
               </td>
@@ -1963,7 +1974,7 @@ export function ParticipantDetailPage() {
         items={[
           { label: `${terminologyTitle(terminology, "participant")} status`, value: participant.status.replace("-", " "), tone: participant.status === "attention" ? "red" : "blue" },
           { label: `Incomplete ${terminologyLabel(terminology, "case", true)}`, value: String(participant.openCases), tone: "blue" },
-          { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
+          { label: `${terminologyTitle(terminology, "task", true)} complete`, value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
           { label: `Active ${terminologyLabel(terminology, "accessGrant", true)}`, value: String(activeAccessGrants), tone: "yellow" },
         ]}
       />
@@ -2792,7 +2803,7 @@ export function CaseDetailPage() {
       <MetricStrip
         items={[
           { label: `${terminologyTitle(terminology, "case")} status`, value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
-          { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
+          { label: `${terminologyTitle(terminology, "task", true)} complete`, value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
           { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
           { label: `Linked ${terminologyLabel(terminology, "participantSupplier")}`, value: caseRecord.participantSupplierName ?? terminologyTitle(terminology, "participant"), tone: caseRecord.participantSupplierName ? "yellow" : "blue" },
         ]}
@@ -2804,7 +2815,7 @@ export function CaseDetailPage() {
           <ResourceActionPanel
             open
             title="Respond to request"
-            description={`Save a ${terminologyLabel(terminology, "participant")} response without changing ${terminologyLabel(terminology, "caseTask")} answers or ${terminologyLabel(terminology, "evidence")} metadata.`}
+            description={`Save a ${terminologyLabel(terminology, "participant")} response without changing ${terminologyLabel(terminology, "task")} answers or ${terminologyLabel(terminology, "evidence")} metadata.`}
             onClose={() => setRespondingRequestId(null)}
             footer={
               <div className="flex flex-wrap gap-2">
@@ -2848,7 +2859,7 @@ export function CaseDetailPage() {
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "caseTask", true)}</h3>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "task", true)}</h3>
         <div className="grid gap-3">
           {tasks.map((task) => {
             const Icon = task.Icon;
@@ -2938,7 +2949,7 @@ export function TaskDetailPage() {
     setError(null);
     try {
       db.completeTask({
-        caseTaskId: currentTask.id,
+        taskId: currentTask.id,
         responseJson: {
           summary: responseText.trim(),
           savedAt: new Date().toISOString(),
@@ -2965,7 +2976,7 @@ export function TaskDetailPage() {
     ];
     try {
       db.uploadEvidence({
-        caseTaskId: currentTask.id,
+        taskId: currentTask.id,
         evidenceJson: {
           files: nextFiles,
         },
@@ -2981,7 +2992,7 @@ export function TaskDetailPage() {
     try {
       if (isEdited) {
         db.completeTask({
-          caseTaskId: currentTask.id,
+          taskId: currentTask.id,
           responseJson: {
             summary: responseText.trim(),
             savedAt: new Date().toISOString(),
@@ -3071,7 +3082,7 @@ export function TaskDetailPage() {
               <StatusBadge status={task.status} />
               <h3 className="mt-4 text-xl font-bold">Work area</h3>
               <p className="mt-2 text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-                Record the response and {terminologyLabel(terminology, "evidence")} metadata for this {terminologyLabel(terminology, "caseTask")}, then submit it when it is ready for {terminologyLabel(terminology, "stakeholder")} review.
+                Record the response and {terminologyLabel(terminology, "evidence")} metadata for this {terminologyLabel(terminology, "task")}, then submit it when it is ready for {terminologyLabel(terminology, "stakeholder")} review.
               </p>
             </div>
           </div>
@@ -3158,7 +3169,7 @@ export function TaskDetailPage() {
             <ResourceActionPanel
               open
               title="Respond to request"
-              description={`Add a response to the ${terminologyLabel(terminology, "stakeholder")}'s request without overwriting this ${terminologyLabel(terminology, "caseTask")} answer.`}
+              description={`Add a response to the ${terminologyLabel(terminology, "stakeholder")}'s request without overwriting this ${terminologyLabel(terminology, "task")} answer.`}
               onClose={() => setRespondingRequestId(null)}
               footer={
                 <div className="flex flex-wrap gap-2">
@@ -3213,6 +3224,7 @@ export function AdminReferencePage() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
   const location = useLocation();
+  const terminology = getAuthorityTerminology(user.authorityId ?? undefined);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -3226,7 +3238,7 @@ export function AdminReferencePage() {
   );
   const resource = location.pathname.includes("task-types") ? "task-types" : "users";
   const titleMap: Record<typeof resource, string> = {
-    "task-types": "Task types",
+    "task-types": taskTypeTitle(terminology, true),
     users: "Users",
   };
 

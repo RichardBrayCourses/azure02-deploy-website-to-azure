@@ -8,11 +8,11 @@ All Checks Out is a case management system.
 
 They then assign "cases" based on these case templates to "participants".
 
-Participants complete the generated cases by completing each case task, uploading "evidence" metadata where needed, and submitting the case when all active tasks are submitted.
+Participants complete the generated cases by completing each task, uploading "evidence" metadata where needed, and submitting the case when all active tasks are submitted.
 
 Participants may invite "agents" to login and complete work on their behalf.
 
-Participants may also invite "stakeholders" to observe case progress, review submitted case task outcomes, add review notes, and request further information.
+Participants may also invite "stakeholders" to observe case progress, review submitted task outcomes, add review notes, and request further information.
 
 ## Business Model
 
@@ -32,7 +32,7 @@ The business model is documented separately and is not repeated in this function
 | Agent                   | Agent                   |
 | Case template           | Case template           |
 | Case                    | Case                    |
-| Case task               | Case task               |
+| Task                    | Task                    |
 | Participant supplier    | Participant supplier    |
 | Evidence                | Evidence                |
 | Access grant            | Access grant            |
@@ -56,10 +56,10 @@ The business model is documented separately and is not repeated in this function
 - `AccessGrant` records participant-controlled access for a stakeholder, agent, user, or authority target, including permission level, data scope, status, creator, and expiry.
 - `TaskType` defines a reusable task capability with a code, name, description, parameter schema, and status.
 - `CaseTemplate` stores an authority-owned reusable case definition with draft or finalized status.
-- `CaseTemplateTask` stores the ordered task configuration inside a case template, including task type, title, description, parameters, sort order, active or withdrawn status, and withdrawal metadata.
+- `TemplateTask` stores the ordered task configuration inside a case template, including task type, title, description, parameters, sort order, active or withdrawn status, and withdrawal metadata.
 - `CaseTemplateParticipant` records assignment of a finalized case template to a participant and links to the generated case.
 - `Case` stores the participant-specific instance of a case template, including status, submitted and closed dates, optional participant supplier link, and withdrawal metadata.
-- `CaseTask` stores the participant-specific instance of a case template task, including response JSON, evidence JSON, status, and withdrawal date.
+- `Task` stores the participant-specific instance of a template task, including response JSON, evidence JSON, status, and withdrawal date.
 - `StakeholderReview` stores a stakeholder's review note, reviewer, and review date for a case.
 - `RequestForInformation` stores a stakeholder request and participant or agent response, including scope, status, assigned/responding users, timestamps, and status history.
 - `ParticipantSupplier` stores a participant-owned supplier record, including relationship type, services provided, and data exposure.
@@ -70,14 +70,16 @@ The business model is documented separately and is not repeated in this function
 - Access grant status: `INVITED`, `ACTIVE`, `SUSPENDED`, `REVOKED`, `EXPIRED`.
 - Access grant grantee type: `STAKEHOLDER`, `AGENT`, `USER`, `AUTHORITY`.
 - Access grant permission level: `READ_ONLY`, `REQUEST_INFORMATION`, `REVIEW_AND_COMMENT`, `CREATE_AND_EDIT`, `ADMINISTER_GRANTS`.
-- Access grant data scope type: `PARTICIPANT`, `CASE`, `CASE_TASK`, `EVIDENCE_METADATA`, `PARTICIPANT_SUPPLIER`.
+- Access grant data scope type: `PARTICIPANT`, `CASE`, `TASK`, `EVIDENCE_METADATA`, `PARTICIPANT_SUPPLIER`.
 - Task type status: `ACTIVE`, `DEPRECATED`.
 - Case template status: `DRAFT`, `FINALIZED`.
 - Case status: `INCOMPLETE`, `COMPLETE`, `WITHDRAWN`.
-- Case task status: `NOT_STARTED`, `IN_PROGRESS`, `SUBMITTED`, `PASSED`, `FAILED`, `WITHDRAWN`.
+- Task status: `NOT_STARTED`, `IN_PROGRESS`, `SUBMITTED`, `PASSED`, `FAILED`, `WITHDRAWN`.
 - Request for information status: `OPEN`, `IN_PROGRESS`, `ANSWERED`, `ACCEPTED`, `WITHDRAWN`.
 
 ## Task Types
+
+Task types are the reference catalogue of available task definitions. They are not separate tasks; they describe the kind of task that can be added to a case template.
 
 The system includes these built-in task types:
 
@@ -127,10 +129,10 @@ Access status values for this user type:
 - As an authority user, I create authority users.
 - As an authority user, I view task types as a reference list.
 - As an authority user, I create case templates as drafts with a name and description.
-- As an authority user, I add ordered case template tasks to draft templates by selecting a task type, entering a title, entering a due value, and entering a description.
-- As an authority user, I withdraw draft case template tasks before finalization.
+- As an authority user, I add ordered template tasks to draft templates by selecting a task type, entering a title, entering a due value, and entering a description.
+- As an authority user, I withdraw draft template tasks before finalization.
 - As an authority user, I finalize a case template so it can no longer be edited.
-- As an authority user, I assign finalized case templates to participants. The system creates one case and one case task for each active template task.
+- As an authority user, I assign finalized case templates to participants. The system creates one case and one task for each active template task.
 - As an authority user, I withdraw assigned cases with a withdrawal reason and reinstate withdrawn cases.
 - As an authority user, I delete a case template only when it has no participant assignments.
 - As an authority user, I update authority terminology labels.
@@ -150,11 +152,11 @@ Access status values for this user type:
 ### Stories
 
 - As a participant user, I start in Cases and see the cases owned by my participant account.
-- As a participant user, I open a case to see its status, progress, linked participant supplier, stakeholder requests, and case tasks.
-- As a participant user, I open a case task, enter or update the response summary, and save it. The task moves to `IN_PROGRESS`.
-- As a participant user, I record evidence metadata for a case task. Evidence metadata is stored in `CaseTask.evidenceJson`.
-- As a participant user, I submit a case task. The task moves to `SUBMITTED`.
-- As a participant user, I submit a case only after every active case task is no longer `NOT_STARTED` or `IN_PROGRESS`. The case moves to `COMPLETE` and records submitted and closed timestamps.
+- As a participant user, I open a case to see its status, progress, linked participant supplier, stakeholder requests, and tasks.
+- As a participant user, I open a task, enter or update the response summary, and save it. The task moves to `IN_PROGRESS`.
+- As a participant user, I record evidence metadata for a task. Evidence metadata is stored in `Task.evidenceJson`.
+- As a participant user, I submit a task. The task moves to `SUBMITTED`.
+- As a participant user, I submit a case only after every active task is no longer `NOT_STARTED` or `IN_PROGRESS`. The case moves to `COMPLETE` and records submitted and closed timestamps.
 - As a participant user, I respond to requests for information for my participant account. I can save a response as `IN_PROGRESS` or `ANSWERED`.
 - As a participant user, I create participant supplier records with supplier name, relationship type, services provided, and data exposure.
 - As a participant user, I link one participant supplier record to one case and unlink it later if needed.
@@ -178,11 +180,11 @@ Access status values for this user type:
 
 ### Stories
 
-- As a stakeholder user, I start in the Stakeholder Portal and see only participants, cases, case tasks, evidence metadata, and participant suppliers made visible by active access grants.
+- As a stakeholder user, I start in the Stakeholder Portal and see only participants, cases, tasks, evidence metadata, and participant suppliers made visible by active access grants.
 - As a stakeholder user, I open a participant page to see visible cases, visible participant suppliers, and task progress.
-- As a stakeholder user, I open a case page to review submitted case task outcomes and visible evidence metadata.
+- As a stakeholder user, I open a case page to review submitted task outcomes and visible evidence metadata.
 - As a stakeholder user, I save a stakeholder review note for a case.
-- As a stakeholder user, I create a request for information against a whole case or a specific case task when my active grant is not `READ_ONLY`.
+- As a stakeholder user, I create a request for information against a whole case or a specific task when my active grant is not `READ_ONLY`.
 - As a stakeholder user, I track request status and participant responses.
 - As a stakeholder user, I mark a request for information as `ACCEPTED` or `WITHDRAWN`.
 - As a stakeholder user, I cannot see participant data outside my active grant scope.
@@ -203,11 +205,11 @@ Access status values for this user type:
 
 - As an agent user, I start in Cases and see only participants covered by active agent access grants.
 - As an agent user, I see assigned cases, participant suppliers, open requests, permission level, and scope for granted participants.
-- As an agent user, I open granted cases and case tasks inside my access scope.
-- As an agent user with `CREATE_AND_EDIT` or `ADMINISTER_GRANTS`, I update case task responses, record evidence metadata, submit case tasks, and submit cases for granted participants.
+- As an agent user, I open granted cases and tasks inside my access scope.
+- As an agent user with `CREATE_AND_EDIT` or `ADMINISTER_GRANTS`, I update task responses, record evidence metadata, submit tasks, and submit cases for granted participants.
 - As an agent user with `CREATE_AND_EDIT` or `ADMINISTER_GRANTS`, I respond to requests for information for granted participants.
-- As an agent user without edit permission, I can review granted information but cannot update case task responses, evidence metadata, case status, or request responses.
-- As an agent user, I cannot open participants, cases, case tasks, or participant suppliers outside my active grant scope.
+- As an agent user without edit permission, I can review granted information but cannot update task responses, evidence metadata, case status, or request responses.
+- As an agent user, I cannot open participants, cases, tasks, or participant suppliers outside my active grant scope.
 - As an agent user, I do not see the participant Access grants screen.
 
 ## Case Template Behaviour
@@ -217,14 +219,14 @@ Access status values for this user type:
 - Participants can be assigned only to finalized case templates.
 - A participant cannot be assigned to the same case template twice.
 - A participant must belong to the same authority as the case template.
-- Assigning a participant creates a case and one case task for each active template task.
+- Assigning a participant creates a case and one task for each active template task.
 - Deleting a case template is blocked if any participant assignment exists.
 
-## Case And Case Task Behaviour
+## Case And Task Behaviour
 
-- Completing a case task stores response JSON and changes the task to `IN_PROGRESS`.
+- Completing a task stores response JSON and changes the task to `IN_PROGRESS`.
 - Uploading evidence metadata stores evidence JSON and changes a `NOT_STARTED` task to `IN_PROGRESS`.
-- Submitting a case task changes the task to `SUBMITTED`.
+- Submitting a task changes the task to `SUBMITTED`.
 - Reviewing a task changes it to `PASSED` or `FAILED`.
 - `SUBMITTED` and `PASSED` tasks count as complete in the UI.
 - `FAILED` tasks require attention in the UI.
@@ -247,7 +249,7 @@ Access status values for this user type:
 
 ## Request For Information Behaviour
 
-- Stakeholders can create requests for information against visible cases or case tasks when they have an active grant with a permission level other than `READ_ONLY`.
+- Stakeholders can create requests for information against visible cases or tasks when they have an active grant with a permission level other than `READ_ONLY`.
 - Requests start as `OPEN`.
 - Participant users can respond to requests for their participant account.
 - Agent users can respond only when an active agent grant gives `CREATE_AND_EDIT` or `ADMINISTER_GRANTS`.

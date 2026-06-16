@@ -143,10 +143,10 @@ It is based on:
 - `UserAccount`
 - `TaskType`
 - `CaseTemplate`
-- `CaseTemplateTask`
+- `TemplateTask`
 - `CaseTemplateParticipant`
 - `Case`
-- `CaseTask`
+- `Task`
 
 ## Domain Rules
 
@@ -164,8 +164,8 @@ It is based on:
 - Tasks:
   - Never physically deleted.
   - Published template tasks may be withdrawn.
-  - Incomplete generated case tasks are withdrawn with the template task.
-  - Passed and failed case tasks are preserved.
+  - Incomplete generated tasks are withdrawn with the template task.
+  - Passed and failed tasks are preserved.
 
 ## Implemented Domain Commands
 
@@ -194,7 +194,7 @@ It is based on:
 - List and get stakeholders
 - List and get case templates
 - List and get cases
-- List case tasks for a case
+- List tasks for a case
 - List stakeholder access
 - List participants visible to a stakeholder
 - List users for an authority

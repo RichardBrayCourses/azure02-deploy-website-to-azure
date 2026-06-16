@@ -105,7 +105,7 @@ Common fields on all entities:
 - `description: string`
 - `status: CaseTemplateStatus`
 
-## CaseTemplateTask
+## TemplateTask
 
 - `caseTemplateId: CaseTemplateId`
 - `taskTypeId: TaskTypeId`
@@ -140,11 +140,11 @@ Common fields on all entities:
 - `withdrawnByUserId: UserAccountId | null`
 - `withdrawnReason: string | null`
 
-## CaseTask
+## Task
 
 - `caseId: CaseRecordId`
-- `caseTemplateTaskId: CaseTemplateTaskId`
-- `status: CaseTaskStatus`
+- `templateTaskId: TemplateTaskId`
+- `status: TaskStatus`
 - `responseJson: JsonObject`
 - `evidenceJson: JsonObject`
 - `withdrawnAt: string | null`
@@ -163,7 +163,7 @@ Common fields on all entities:
 - `participantId: ParticipantId`
 - `stakeholderId: StakeholderId`
 - `caseId: CaseRecordId | null`
-- `caseTaskId: CaseTaskId | null`
+- `taskId: TaskId | null`
 - `requestText: string`
 - `responseText: string`
 - `status: RequestForInformationStatus`
