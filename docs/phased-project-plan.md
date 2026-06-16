@@ -1,5 +1,43 @@
 # ALL CHECKS OUT - DEVELOPMENT ROADMAP
 
+## Phase Summary
+
+- **Azure02 - Baseline Repository**  
+  Create a clean version of the application that deploys using Azure-generated URLs and contains no custom domain or DNS configuration.
+
+- **Azure03 - Custom Domains**  
+  Add support for www.all-checks-out.com, testing.all-checks-out.com, DNS configuration and managed SSL certificates.
+
+- **Azure04 - Entra Authentication**  
+  Add Microsoft Entra login, logout, token management and API authorization.
+
+- **Azure05 - Azure SQL**  
+  Replace the existing persistence mechanism with Azure SQL, Entity Framework Core and modern ASP.NET Core data access patterns.
+
+- **Azure06 - Document Storage**  
+  Store uploaded documents in Azure Blob Storage and manage document metadata in Azure SQL.
+
+- **Azure07 - AI Verification**  
+  Analyse and verify uploaded documents using Azure AI services and implement verification workflows.
+
+- **Azure08 - GitHub Actions Deployment**  
+  Introduce automated build, test and deployment pipelines using GitHub Actions.
+
+- **Azure09 - Environment Separation**  
+  Create independent testing and production environments with separate resources, databases, storage and secrets.
+
+- **Azure10 - Domain Model Review**  
+  Review the completed application and identify bounded contexts and candidate service ownership boundaries.
+
+- **Azure11 - Microservices**  
+  Split the backend into independently deployable services based on the boundaries identified in Azure10.
+
+- **Azure12 - Microfrontends**  
+  Split the frontend into independently deployable applications aligned with backend service ownership.
+
+- **Azure13 - Production Hardening**  
+  Add monitoring, logging, alerting, backups, security reviews and operational procedures for long-term production operation.
+
 ## Current State
 
 - Azure01 completed
