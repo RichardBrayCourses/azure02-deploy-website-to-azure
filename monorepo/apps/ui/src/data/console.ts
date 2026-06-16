@@ -29,7 +29,7 @@ export type AccessGrantPermissionLevel =
   | "REVIEW_AND_COMMENT"
   | "CREATE_AND_EDIT"
   | "ADMINISTER_GRANTS";
-export type AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "PARTICIPANT_SUPPLIER";
+export type AccessGrantDataScopeType = "PARTICIPANT" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "PARTICIPANT_SUPPLIER";
 export type TaskTypeStatus = "ACTIVE" | "DEPRECATED";
 export type CaseTemplateStatus = "DRAFT" | "FINALIZED";
 export type TemplateParticipantStatus = "ASSIGNED";
@@ -521,7 +521,7 @@ export type ParticipantSupplier = {
   linkedCases: CaseRecord[];
 };
 
-export type HelperClientWorkspace = {
+export type AgentParticipantAccessView = {
   participant: Participant;
   grant: AccessGrant;
   cases: CaseRecord[];
@@ -1515,7 +1515,7 @@ export class InMemoryAllChecksOutDatabase {
         dto.granteeStakeholderId === (command.granteeStakeholderId ?? null) &&
         dto.granteeAgentId === (command.granteeAgentId ?? null) &&
         dto.granteeUserId === (command.granteeUserId ?? null) &&
-        dto.dataScopeType === (command.dataScopeType ?? "PARTICIPANT_WORKSPACE") &&
+        dto.dataScopeType === (command.dataScopeType ?? "PARTICIPANT") &&
         dto.dataScopeId === (command.dataScopeId ?? null) &&
         dto.status !== "REVOKED"
       );
@@ -1533,7 +1533,7 @@ export class InMemoryAllChecksOutDatabase {
       granteeAgentId: command.granteeAgentId ?? null,
       granteeUserId: command.granteeUserId ?? null,
       permissionLevel: command.permissionLevel,
-      dataScopeType: command.dataScopeType ?? "PARTICIPANT_WORKSPACE",
+      dataScopeType: command.dataScopeType ?? "PARTICIPANT",
       dataScopeId: command.dataScopeId ?? null,
       status: command.status ?? "ACTIVE",
       createdByUserId: command.createdByUserId,
@@ -1578,7 +1578,7 @@ export class InMemoryAllChecksOutDatabase {
     const relationship = this.requireParticipantSupplier(participantSupplierId);
     const caseRecord = this.requireCase(caseId);
     if (caseRecord.authorityId !== relationship.authorityId || caseRecord.participantId !== relationship.participantId) {
-      throw new Error("Supplier and case must belong to the same participant workspace.");
+      throw new Error("Supplier and case must belong to the same participant.");
     }
     const existingLinkedCase = this.cases
       .map((candidate) => candidate.toDto())
@@ -1629,7 +1629,7 @@ export class InMemoryAllChecksOutDatabase {
         this.accessGrantAllowsCase(grant, caseRecord),
     );
     if (!activeGrant) {
-      throw new Error("Stakeholder review requires an active participant access grant.");
+      throw new Error("Stakeholder review requires an active access grant.");
     }
 
     const reviewedAt = this.timestamp();
@@ -1684,7 +1684,7 @@ export class InMemoryAllChecksOutDatabase {
         this.accessGrantAllowsCase(candidate, caseRecord),
     );
     if (!grant || grant.permissionLevel === "READ_ONLY") {
-      throw new Error("Requesting information requires an active participant access grant with request permission.");
+      throw new Error("Requesting information requires an active access grant with request permission.");
     }
     const requestText = command.requestText.trim();
     if (!requestText) {
@@ -2091,7 +2091,7 @@ export class InMemoryAllChecksOutDatabase {
     permissionLevel: AccessGrantPermissionLevel,
     status: AccessGrantStatus,
     createdByUserId: UserAccountId,
-    dataScopeType: AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE",
+    dataScopeType: AccessGrantDataScopeType = "PARTICIPANT",
     dataScopeId: string | null = null,
   ) {
     const participant = this.participants.find((item) => item.id === participantId)?.toDto();
@@ -2434,7 +2434,7 @@ export class InMemoryAllChecksOutDatabase {
   private accessGrantAllowsCase(grant: AccessGrantDto, caseRecord: CaseDto) {
     if (grant.status !== "ACTIVE") return false;
     if (grant.participantId !== caseRecord.participantId) return false;
-    if (grant.dataScopeType === "PARTICIPANT_WORKSPACE") return true;
+    if (grant.dataScopeType === "PARTICIPANT") return true;
     if (grant.dataScopeType === "CASE") return grant.dataScopeId === caseRecord.id;
     if (grant.dataScopeType === "CASE_TASK") {
       return this.getCaseTasksForCase(caseRecord.id).some((task) => task.id === grant.dataScopeId);
@@ -2781,7 +2781,7 @@ function accessGrantPermissionLabel(permissionLevel: AccessGrantPermissionLevel)
 }
 
 function accessGrantScopeLabel(dataScopeType: AccessGrantDataScopeType, dataScopeId: string | null) {
-  if (dataScopeType === "PARTICIPANT_WORKSPACE") return "Entire participant workspace";
+  if (dataScopeType === "PARTICIPANT") return "Entire participant";
   if (dataScopeType === "EVIDENCE_METADATA") return "Evidence metadata";
   if (dataScopeType === "PARTICIPANT_SUPPLIER") return participantSuppliers.find((relationship) => relationship.id === dataScopeId)?.supplierName ?? "Specific participant supplier record";
   if (dataScopeType === "CASE") return cases.find((caseRecord) => caseRecord.id === dataScopeId)?.title ?? "Specific case";
@@ -2883,7 +2883,7 @@ function buildRequestsForInformation(): RequestForInformation[] {
       caseTaskId: dto.caseTaskId,
       taskTitle: task?.title ?? null,
       scopeType: dto.scopeType,
-      scopeLabel: task?.title ?? caseRecord?.title ?? "Participant workspace",
+      scopeLabel: task?.title ?? caseRecord?.title ?? "Participant",
       requestText: dto.requestText,
       responseText: dto.responseText,
       status: dto.status,
@@ -3056,7 +3056,7 @@ function buildAccountContexts(): AccountContext[] {
         membershipRole: membership.membershipRole,
         participantId: null,
         stakeholderId: null,
-        description: `Assist ${terminologyLabel(terminology, "participant")} workspaces where ${terminologyLabel(terminology, "agent")} access has been granted.`,
+        description: `Assist ${terminologyLabel(terminology, "participant", true)} where ${terminologyLabel(terminology, "agent")} access has been granted.`,
       }];
     }
 
@@ -3113,7 +3113,7 @@ function buildSearchItems(): SearchItem[] {
     })),
     ...stakeholders.map((stakeholder) => ({
       title: stakeholder.name,
-      description: `${stakeholder.visibleParticipants} active participant access record`,
+      description: `${stakeholder.visibleParticipants} active access record`,
       path: "/admin/stakeholders",
       group: "Stakeholders",
       audience: ["authority-admin"] as UserRole[],
@@ -3337,7 +3337,7 @@ export function getActiveHelperGrantsForUser(user: AuthenticatedUser) {
 function grantAllowsCaseVisibility(grant: AccessGrant, caseRecord: CaseRecord) {
   if (grant.status !== "ACTIVE") return false;
   if (grant.participantId !== caseRecord.participantId) return false;
-  if (grant.dataScopeType === "PARTICIPANT_WORKSPACE") return true;
+  if (grant.dataScopeType === "PARTICIPANT") return true;
   if (grant.dataScopeType === "CASE") return grant.dataScopeId === caseRecord.id;
   if (grant.dataScopeType === "CASE_TASK") return caseRecord.tasks.some((task) => task.id === grant.dataScopeId);
   if (grant.dataScopeType === "PARTICIPANT_SUPPLIER") return caseRecord.participantSupplierId === grant.dataScopeId;
@@ -3348,7 +3348,7 @@ function grantAllowsCaseVisibility(grant: AccessGrant, caseRecord: CaseRecord) {
 function grantAllowsParticipantSupplierVisibility(grant: AccessGrant, relationship: ParticipantSupplier) {
   if (grant.status !== "ACTIVE") return false;
   if (grant.participantId !== relationship.participantId) return false;
-  if (grant.dataScopeType === "PARTICIPANT_WORKSPACE") return true;
+  if (grant.dataScopeType === "PARTICIPANT") return true;
   if (grant.dataScopeType === "PARTICIPANT_SUPPLIER") return grant.dataScopeId === relationship.id;
   return relationship.linkedCases.some((caseRecord) => grantAllowsCaseVisibility(grant, caseRecord));
 }
@@ -3358,7 +3358,7 @@ export function getHelperGrantForParticipant(user: AuthenticatedUser, participan
   return getActiveHelperGrantsForUser(user).find((grant) => grant.participantId === participantId);
 }
 
-export function getHelperClientWorkspaces(user: AuthenticatedUser): HelperClientWorkspace[] {
+export function getAgentParticipantAccessViews(user: AuthenticatedUser): AgentParticipantAccessView[] {
   if (user.role !== "agent") return [];
   return getActiveHelperGrantsForUser(user)
     .map((grant) => {
@@ -3383,7 +3383,7 @@ export function getHelperClientWorkspaces(user: AuthenticatedUser): HelperClient
         canAdministerGrants: grantAllowsGrantAdministration(grant),
       };
     })
-    .filter((workspace): workspace is HelperClientWorkspace => Boolean(workspace));
+    .filter((accessView): accessView is AgentParticipantAccessView => Boolean(accessView));
 }
 
 export function getStakeholderReviewForCase(user: AuthenticatedUser, caseId: string | undefined) {

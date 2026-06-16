@@ -75,7 +75,7 @@ The business model is documented separately and is not repeated in this function
 - Access grant status: `INVITED`, `ACTIVE`, `SUSPENDED`, `REVOKED`, `EXPIRED`.
 - Access grant grantee type: `STAKEHOLDER`, `AGENT`, `USER`, `AUTHORITY`.
 - Access grant permission level: `READ_ONLY`, `REQUEST_INFORMATION`, `REVIEW_AND_COMMENT`, `CREATE_AND_EDIT`, `ADMINISTER_GRANTS`.
-- Access grant data scope type: `PARTICIPANT_WORKSPACE`, `CASE`, `CASE_TASK`, `EVIDENCE_METADATA`, `PARTICIPANT_SUPPLIER`.
+- Access grant data scope type: `PARTICIPANT`, `CASE`, `CASE_TASK`, `EVIDENCE_METADATA`, `PARTICIPANT_SUPPLIER`.
 - Task type status: `ACTIVE`, `DEPRECATED`.
 - Case template status: `DRAFT`, `FINALIZED`.
 - Template participant status: `ASSIGNED`.
@@ -112,7 +112,7 @@ Case templates are built by adding task types with a task title, task descriptio
 
 Users sign in by selecting an account type, an organisation or account entity, and an active user account attached to that entity. The active account context determines the available navigation, data scope, and actions. The four logged-on user types are Authority, Participant, Stakeholder, and Agent.
 
-The system routes each context to its default workspace:
+The system routes each context to its default page:
 
 - Authority users go to Authority Administration.
 - Participant users go to Cases.
@@ -156,7 +156,7 @@ Access status values for this user type:
 
 - User account status: `ACTIVE`, `DISABLED`.
 - Membership role: `ADMIN`, `MEMBER`.
-- Access grant status controlled from the participant workspace: `INVITED`, `ACTIVE`, `SUSPENDED`, `REVOKED`, `EXPIRED`.
+- Access grant status controlled by the participant: `INVITED`, `ACTIVE`, `SUSPENDED`, `REVOKED`, `EXPIRED`.
 - Access grant permission levels available when granting access: `READ_ONLY`, `REQUEST_INFORMATION`, `REVIEW_AND_COMMENT`, `CREATE_AND_EDIT`, `ADMINISTER_GRANTS`.
 
 ### Stories
@@ -216,13 +216,13 @@ Access status values for this user type:
 
 ### Stories
 
-- As an agent user, I start in Cases and see only participant workspaces covered by active agent access grants.
-- As an agent user, I see assigned cases, participant suppliers, open requests, permission level, and scope for granted participant workspaces.
+- As an agent user, I start in Cases and see only participants covered by active agent access grants.
+- As an agent user, I see assigned cases, participant suppliers, open requests, permission level, and scope for granted participants.
 - As an agent user, I open granted cases and case tasks inside my access scope.
-- As an agent user with `CREATE_AND_EDIT` or `ADMINISTER_GRANTS`, I update case task responses, record evidence metadata, submit case tasks, and submit cases for granted participant workspaces.
-- As an agent user with `CREATE_AND_EDIT` or `ADMINISTER_GRANTS`, I respond to requests for information for granted participant workspaces.
+- As an agent user with `CREATE_AND_EDIT` or `ADMINISTER_GRANTS`, I update case task responses, record evidence metadata, submit case tasks, and submit cases for granted participants.
+- As an agent user with `CREATE_AND_EDIT` or `ADMINISTER_GRANTS`, I respond to requests for information for granted participants.
 - As an agent user without edit permission, I can review granted information but cannot update case task responses, evidence metadata, case status, or request responses.
-- As an agent user, I cannot open participant workspaces, cases, case tasks, or participant suppliers outside my active grant scope.
+- As an agent user, I cannot open participants, cases, case tasks, or participant suppliers outside my active grant scope.
 - As an agent user, I do not see the participant Access grants screen.
 
 ## Case Template Behaviour
@@ -256,9 +256,9 @@ Access status values for this user type:
 - Stakeholder and agent grantees must belong to the selected authority.
 - Participant supplier grant scope must belong to the granting participant.
 - Duplicate non-revoked grants for the same participant, grantee, data scope type, and data scope id are blocked.
-- Only `ACTIVE` grants provide visibility or agent workspace access.
+- Only `ACTIVE` grants provide visibility or agent access.
 - Active stakeholder grants determine the participants and cases visible in the Stakeholder Portal.
-- Active agent grants determine the participant workspaces visible to agents.
+- Active agent grants determine the participants visible to agents.
 
 ## Request For Information Behaviour
 

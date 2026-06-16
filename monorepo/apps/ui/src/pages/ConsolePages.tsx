@@ -21,7 +21,7 @@ import {
   getAgentsForAuthority,
   getGrantableAgentsForParticipant,
   getGrantableStakeholdersForParticipant,
-  getHelperClientWorkspaces,
+  getAgentParticipantAccessViews,
   getHelperGrantForParticipant,
   getRequestsForCase,
   getRequestsForParticipant,
@@ -278,7 +278,7 @@ function AdministrationResourceNav({ actions }: { actions?: ReactNode }) {
   );
 }
 
-function ParticipantWorkspaceNav({ actions }: { actions?: ReactNode }) {
+function ParticipantNav({ actions }: { actions?: ReactNode }) {
   const location = useLocation();
   const { user } = useAuth();
   const resources = [
@@ -294,7 +294,7 @@ function ParticipantWorkspaceNav({ actions }: { actions?: ReactNode }) {
 
   return (
     <div className="mb-6 flex flex-col gap-3 border-b border-[#b1b4b6] md:flex-row md:items-end md:justify-between">
-      <nav aria-label="Participant workspace" className="min-w-0">
+      <nav aria-label="Participant navigation" className="min-w-0">
         <div className="flex gap-1 overflow-x-auto">
           {resources.map((resource) => {
             const isCurrent = location.pathname === resource.path;
@@ -321,52 +321,52 @@ function ParticipantWorkspaceNav({ actions }: { actions?: ReactNode }) {
 
 type UserManagementTab = "participants" | "agents" | "agent-organizations";
 
-export function HelperWorkspacePage() {
+export function AgentParticipantAccessPage() {
   const { user } = useAuth();
   if (user.role !== "agent") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
   const agentTitle = terminologyTitle(terminology, "agent");
-  const workspaces = getHelperClientWorkspaces(user);
+  const accessViews = getAgentParticipantAccessViews(user);
   const scopedCases = getScopedCases(user);
   const scopedParticipantSuppliers = getScopedParticipantSuppliers(user);
-  const editableWorkspaces = workspaces.filter((workspace) => workspace.canEdit).length;
+  const editableAccessViews = accessViews.filter((accessView) => accessView.canEdit).length;
 
   return (
     <ConsoleLayout
-      breadcrumbs={[{ label: `${agentTitle} workspace` }]}
+      breadcrumbs={[{ label: `${agentTitle} access` }]}
       readOnly
     >
       <PageTitle
-        title="Client workspaces"
+        title="Client access"
       />
       <MetricStrip
         items={[
-          { label: `Client ${terminologyLabel(terminology, "participant", true)}`, value: String(workspaces.length), tone: "blue" },
+          { label: `Client ${terminologyLabel(terminology, "participant", true)}`, value: String(accessViews.length), tone: "blue" },
           { label: `Assigned ${terminologyLabel(terminology, "case", true)}`, value: String(scopedCases.length), tone: "blue" },
           { label: terminologyTitle(terminology, "participantSupplier", true), value: String(scopedParticipantSuppliers.length), tone: "yellow" },
-          { label: "Editable workspaces", value: String(editableWorkspaces), tone: "green" },
+          { label: "Editable access", value: String(editableAccessViews), tone: "green" },
         ]}
       />
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">Granted client workspaces</h3>
+        <h3 className="mb-3 text-xl font-bold">Granted client access</h3>
         <ResourceTable headings={[terminologyTitle(terminology, "participant"), "Permission", "Scope", terminologyTitle(terminology, "case", true), "Open requests", "Actions"]}>
-          {workspaces.map((workspace) => (
-            <tr key={workspace.grant.id} className="border-b border-[#b1b4b6] last:border-b-0">
+          {accessViews.map((accessView) => (
+            <tr key={accessView.grant.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
-                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/agent/participants/${workspace.participant.id}`}>
-                  {workspace.participant.name}
+                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/agent/participants/${accessView.participant.id}`}>
+                  {accessView.participant.name}
                 </Link>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                  Access granted by participant workspace
+                  Access granted by participant
                 </span>
               </td>
-              <td className="px-4 py-3">{workspace.grant.permissionLabel}</td>
-              <td className="px-4 py-3">{workspace.grant.scopeLabel}</td>
-              <td className="px-4 py-3">{workspace.cases.length}</td>
-              <td className="px-4 py-3">{workspace.openRequests}</td>
+              <td className="px-4 py-3">{accessView.grant.permissionLabel}</td>
+              <td className="px-4 py-3">{accessView.grant.scopeLabel}</td>
+              <td className="px-4 py-3">{accessView.cases.length}</td>
+              <td className="px-4 py-3">{accessView.openRequests}</td>
               <td className="px-4 py-3">
                 <Button asChild variant="outline">
-                  <Link to={`/agent/participants/${workspace.participant.id}`}>Open workspace</Link>
+                  <Link to={`/agent/participants/${accessView.participant.id}`}>Open participant</Link>
                 </Button>
               </td>
             </tr>
@@ -376,10 +376,10 @@ export function HelperWorkspacePage() {
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participantSupplier", true)}</h3>
         <ResourceTable headings={[`Client ${terminologyLabel(terminology, "participant")}`, terminologyTitle(terminology, "participantSupplier"), "Criticality", "Status", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
-          {workspaces.flatMap((workspace) =>
-            workspace.participantSuppliers.map((relationship) => (
-              <tr key={`${workspace.grant.id}-${relationship.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
-                <td className="px-4 py-3">{workspace.participant.name}</td>
+          {accessViews.flatMap((accessView) =>
+            accessView.participantSuppliers.map((relationship) => (
+              <tr key={`${accessView.grant.id}-${relationship.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">{accessView.participant.name}</td>
                 <td className="px-4 py-3">
                   <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
                   <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
@@ -405,10 +405,10 @@ export function HelperWorkspacePage() {
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Assigned {terminologyLabel(terminology, "case", true)}</h3>
         <ResourceTable headings={[terminologyTitle(terminology, "participant"), terminologyTitle(terminology, "case"), "Status", "Progress", "Permission"]}>
-          {workspaces.flatMap((workspace) =>
-            workspace.cases.map((caseRecord) => (
-              <tr key={`${workspace.grant.id}-${caseRecord.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
-                <td className="px-4 py-3">{workspace.participant.name}</td>
+          {accessViews.flatMap((accessView) =>
+            accessView.cases.map((caseRecord) => (
+              <tr key={`${accessView.grant.id}-${caseRecord.id}`} className="border-b border-[#b1b4b6] last:border-b-0">
+                <td className="px-4 py-3">{accessView.participant.name}</td>
                 <td className="px-4 py-3">
                   <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
                     {caseRecord.title}
@@ -419,7 +419,7 @@ export function HelperWorkspacePage() {
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={caseRecord.status} /></td>
                 <td className="px-4 py-3"><ProgressBar value={caseRecord.completedTasks} total={caseRecord.totalTasks} /></td>
-                <td className="px-4 py-3">{workspace.canEdit ? "Can assist with edits" : "Review only"}</td>
+                <td className="px-4 py-3">{accessView.canEdit ? "Can assist with edits" : "Review only"}</td>
               </tr>
             )),
           )}
@@ -435,35 +435,35 @@ export function HelperParticipantPage() {
   if (user.role !== "agent") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
   const agentTitle = terminologyTitle(terminology, "agent");
-  const workspace = getHelperClientWorkspaces(user).find((item) => item.participant.id === participantId);
-  if (!workspace) return <Navigate to="/agent" replace />;
-  const requests = getRequestsForParticipant(workspace.participant.id, user);
+  const accessView = getAgentParticipantAccessViews(user).find((item) => item.participant.id === participantId);
+  if (!accessView) return <Navigate to="/agent" replace />;
+  const requests = getRequestsForParticipant(accessView.participant.id, user);
   const activeRequests = requests.filter((request) => request.status === "OPEN" || request.status === "IN_PROGRESS");
 
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: `${agentTitle} workspace`, path: "/agent" },
-        { label: workspace.participant.name },
+        { label: `${agentTitle} access`, path: "/agent" },
+        { label: accessView.participant.name },
       ]}
       readOnly
     >
       <PageTitle
-        title={workspace.participant.name}
+        title={accessView.participant.name}
       />
       <MetricStrip
         items={[
-          { label: "Permission", value: workspace.grant.permissionLabel, tone: workspace.canEdit ? "green" : "yellow" },
-          { label: "Scope", value: workspace.grant.scopeLabel, tone: "blue" },
-          { label: terminologyTitle(terminology, "case", true), value: String(workspace.cases.length), tone: "blue" },
-          { label: terminologyTitle(terminology, "participantSupplier", true), value: String(workspace.participantSuppliers.length), tone: "yellow" },
+          { label: "Permission", value: accessView.grant.permissionLabel, tone: accessView.canEdit ? "green" : "yellow" },
+          { label: "Scope", value: accessView.grant.scopeLabel, tone: "blue" },
+          { label: terminologyTitle(terminology, "case", true), value: String(accessView.cases.length), tone: "blue" },
+          { label: terminologyTitle(terminology, "participantSupplier", true), value: String(accessView.participantSuppliers.length), tone: "yellow" },
           { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
         ]}
       />
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Assigned {terminologyLabel(terminology, "case", true)}</h3>
         <ResourceTable headings={[terminologyTitle(terminology, "case"), "Status", "Progress", "Risk", "Last activity"]}>
-          {workspace.cases.map((caseRecord) => (
+          {accessView.cases.map((caseRecord) => (
             <tr key={caseRecord.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
                 <Link className="font-bold text-[#1d70b8] hover:underline" to={`/cases/${caseRecord.id}`}>
@@ -484,7 +484,7 @@ export function HelperParticipantPage() {
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participantSupplier", true)}</h3>
         <ResourceTable headings={[terminologyTitle(terminology, "participantSupplier"), "Relationship", "Criticality", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
-          {workspace.participantSuppliers.map((relationship) => (
+          {accessView.participantSuppliers.map((relationship) => (
             <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
                 <span className="block font-bold text-[#1d70b8]">{relationship.supplierName}</span>
@@ -577,7 +577,7 @@ export function StakeholderPortalPage() {
                     {participant.name}
                   </Link>
                   <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                    {terminologyTitle(terminology, "participant")} workspace granted to this {terminologyLabel(terminology, "stakeholder")}
+                    {terminologyTitle(terminology, "participant")} access granted to this {terminologyLabel(terminology, "stakeholder")}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -832,7 +832,7 @@ export function StakeholderCaseDetailPage() {
         items={[
           { label: `${terminologyTitle(terminology, "case")} status`, value: caseRecord.status, tone: caseRecord.status === "closed" ? "green" : "blue" },
           { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
-          { label: `Linked ${terminologyLabel(terminology, "participantSupplier")}`, value: caseRecord.participantSupplierName ?? `${terminologyTitle(terminology, "participant")} workspace`, tone: caseRecord.participantSupplierName ? "yellow" : "blue" },
+          { label: `Linked ${terminologyLabel(terminology, "participantSupplier")}`, value: caseRecord.participantSupplierName ?? terminologyTitle(terminology, "participant"), tone: caseRecord.participantSupplierName ? "yellow" : "blue" },
           { label: "Open requests", value: String(openRequests), tone: openRequests > 0 ? "red" : "green" },
         ]}
       />
@@ -2080,15 +2080,15 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
   const [showCreateSupplier, setShowCreateSupplier] = useState(false);
-  const [showCreateWorkspaceUser, setShowCreateWorkspaceUser] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
   const [usersTab, setUsersTab] = useState<UserManagementTab>("participants");
-  const [workspaceUserName, setWorkspaceUserName] = useState("");
-  const [workspaceUserEmail, setWorkspaceUserEmail] = useState("");
-  const [workspaceUserRole, setWorkspaceUserRole] = useState<MembershipRole>("MEMBER");
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [userRole, setUserRole] = useState<MembershipRole>("MEMBER");
   const [agentOrganizationId, setAgentOrganizationId] = useState("");
   const [agentOrganizationName, setAgentOrganizationName] = useState("");
   const [agentOrganizationError, setAgentOrganizationError] = useState<string | null>(null);
-  const [workspaceUserError, setWorkspaceUserError] = useState<string | null>(null);
+  const [userError, setUserError] = useState<string | null>(null);
   const [supplierName, setSupplierName] = useState("");
   const [relationshipType, setRelationshipType] = useState("");
   const [criticality, setCriticality] = useState<ParticipantSupplierCriticality>("HIGH");
@@ -2121,33 +2121,33 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
   );
   const activeUsersTab = mode === "users" ? usersTab : "participants";
   const createUserType = activeUsersTab === "agents" ? "AGENT" : "PARTICIPANT";
-  const showCreateUserPanel = mode === "users" && showCreateWorkspaceUser && activeUsersTab !== "agent-organizations";
-  const showCreateAgentOrganizationPanel = mode === "users" && showCreateWorkspaceUser && activeUsersTab === "agent-organizations";
+  const showCreateUserPanel = mode === "users" && showCreateUser && activeUsersTab !== "agent-organizations";
+  const showCreateAgentOrganizationPanel = mode === "users" && showCreateUser && activeUsersTab === "agent-organizations";
 
-  function createWorkspaceUser() {
-    setWorkspaceUserError(null);
-    if (!workspaceUserName.trim()) {
-      setWorkspaceUserError("Enter a user name.");
+  function createUser() {
+    setUserError(null);
+    if (!userName.trim()) {
+      setUserError("Enter a user name.");
       return;
     }
-    if (!workspaceUserEmail.trim()) {
-      setWorkspaceUserError("Enter an email address.");
+    if (!userEmail.trim()) {
+      setUserError("Enter an email address.");
       return;
     }
     try {
       if (createUserType === "PARTICIPANT") {
         if (!user.participantId) {
-          setWorkspaceUserError("No participant workspace is selected.");
+          setUserError("No participant is selected.");
           return;
         }
         db.createParticipantUser(user.participantId, {
-          displayName: workspaceUserName.trim(),
-          email: workspaceUserEmail.trim(),
-          role: workspaceUserRole,
+          displayName: userName.trim(),
+          email: userEmail.trim(),
+          role: userRole,
         });
       } else {
         if (!user.authorityId) {
-          setWorkspaceUserError("No authority is selected for this session.");
+          setUserError("No authority is selected for this session.");
           return;
         }
         const agent = agentOrganizationId
@@ -2155,27 +2155,27 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           : db.createAgent({
               authorityId: user.authorityId,
               agentType: "PERSON",
-              displayName: workspaceUserName.trim(),
+              displayName: userName.trim(),
               status: "ACTIVE",
             });
         if (!agent) {
-          setWorkspaceUserError(`Select a valid ${terminologyLabel(terminology, "agent")} organization.`);
+          setUserError(`Select a valid ${terminologyLabel(terminology, "agent")} organization.`);
           return;
         }
         db.createAgentUser(agent.id, {
-          displayName: workspaceUserName.trim(),
-          email: workspaceUserEmail.trim(),
-          role: workspaceUserRole,
+          displayName: userName.trim(),
+          email: userEmail.trim(),
+          role: userRole,
         });
       }
       refresh();
-      setWorkspaceUserName("");
-      setWorkspaceUserEmail("");
-      setWorkspaceUserRole("MEMBER");
+      setUserName("");
+      setUserEmail("");
+      setUserRole("MEMBER");
       setAgentOrganizationId("");
-      setShowCreateWorkspaceUser(false);
+      setShowCreateUser(false);
     } catch (caught) {
-      setWorkspaceUserError(caught instanceof Error ? caught.message : "User could not be created.");
+      setUserError(caught instanceof Error ? caught.message : "User could not be created.");
     }
   }
 
@@ -2198,7 +2198,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       });
       refresh();
       setAgentOrganizationName("");
-      setShowCreateWorkspaceUser(false);
+      setShowCreateUser(false);
     } catch (caught) {
       setAgentOrganizationError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "agent")} organization could not be created.`);
     }
@@ -2207,7 +2207,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
   function createParticipantSupplier() {
     setSupplierError(null);
     if (!participant || !user.authorityId) {
-      setSupplierError("No participant workspace is selected.");
+      setSupplierError("No participant is selected.");
       return;
     }
     try {
@@ -2281,12 +2281,12 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: participant?.name ?? "Participant workspace" },
+        { label: participant?.name ?? terminologyTitle(terminology, "participant") },
         { label: mode === "cases" ? terminologyTitle(terminology, "case", true) : mode === "suppliers" ? "Suppliers" : "Users" },
       ]}
       readOnly
     >
-      <ParticipantWorkspaceNav
+      <ParticipantNav
         actions={
           mode === "suppliers" && user.role === "participant" ? (
             <Button type="button" onClick={() => setShowCreateSupplier((current) => !current)}>
@@ -2294,7 +2294,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
               Add supplier
             </Button>
           ) : mode === "users" ? (
-            <Button type="button" onClick={() => setShowCreateWorkspaceUser((current) => !current)}>
+            <Button type="button" onClick={() => setShowCreateUser((current) => !current)}>
               {activeUsersTab === "agent-organizations" ? <Plus /> : <UserPlus />}
               {activeUsersTab === "participants"
                 ? `Add ${terminologyLabel(terminology, "participant")}`
@@ -2310,12 +2310,12 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
         title={`Add ${createUserType === "PARTICIPANT" ? terminologyLabel(terminology, "participant") : terminologyLabel(terminology, "agent")}`}
         description={
           createUserType === "PARTICIPANT"
-            ? `Create a ${terminologyLabel(terminology, "participant")} user for this workspace.`
+            ? `Create a ${terminologyLabel(terminology, "participant")} user.`
             : `Create a ${terminologyLabel(terminology, "agent")} and optionally assign them to one ${terminologyLabel(terminology, "agent")} organization.`
         }
-        onClose={() => setShowCreateWorkspaceUser(false)}
+        onClose={() => setShowCreateUser(false)}
         footer={
-          <Button type="button" onClick={createWorkspaceUser}>
+          <Button type="button" onClick={createUser}>
             <CheckCircle2 />
             Save
           </Button>
@@ -2323,13 +2323,13 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       >
         <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
           <FormField label="Display name">
-            <Input value={workspaceUserName} onChange={(event) => setWorkspaceUserName(event.target.value)} />
+            <Input value={userName} onChange={(event) => setUserName(event.target.value)} />
           </FormField>
           <FormField label="Email">
-            <Input type="email" value={workspaceUserEmail} onChange={(event) => setWorkspaceUserEmail(event.target.value)} />
+            <Input type="email" value={userEmail} onChange={(event) => setUserEmail(event.target.value)} />
           </FormField>
           <FormField label="Role">
-            <SelectField value={workspaceUserRole} onChange={(value) => setWorkspaceUserRole(value as MembershipRole)}>
+            <SelectField value={userRole} onChange={(value) => setUserRole(value as MembershipRole)}>
               <option value="MEMBER">Member</option>
               <option value="ADMIN">Admin</option>
             </SelectField>
@@ -2347,13 +2347,13 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
             </FormField>
           )}
         </div>
-        <div className="mt-3"><FormError message={workspaceUserError} /></div>
+        <div className="mt-3"><FormError message={userError} /></div>
       </ResourceActionPanel>
       <ResourceActionPanel
         open={showCreateAgentOrganizationPanel}
         title={`Add ${terminologyLabel(terminology, "agent")} organization`}
         description={`Create an organization that ${terminologyLabel(terminology, "agent", true)} can be assigned to.`}
-        onClose={() => setShowCreateWorkspaceUser(false)}
+        onClose={() => setShowCreateUser(false)}
         footer={
           <Button type="button" onClick={createAgentOrganization}>
             <CheckCircle2 />
@@ -2376,7 +2376,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       <ResourceActionPanel
         open={mode === "suppliers" && showCreateSupplier}
         title="Add supplier"
-        description={`Record a supplier controlled by this ${terminologyLabel(terminology, "participant")} workspace.`}
+        description={`Record a supplier controlled by this ${terminologyLabel(terminology, "participant")}.`}
         onClose={() => setShowCreateSupplier(false)}
         footer={
           <Button type="button" onClick={createParticipantSupplier}>
@@ -2542,8 +2542,8 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
                   )}
                   onClick={() => {
                     setUsersTab(tab.id);
-                    setShowCreateWorkspaceUser(false);
-                    setWorkspaceUserError(null);
+                    setShowCreateUser(false);
+                    setUserError(null);
                     setAgentOrganizationError(null);
                   }}
                 >
@@ -2583,7 +2583,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
         )}
 
         {usersTab === "agent-organizations" && (
-          <ResourceTable headings={["Organisation", "Status", "Assigned agents", "Granted workspaces"]}>
+          <ResourceTable headings={["Organisation", "Status", "Assigned agents", "Granted access"]}>
             {agentOrganizations.map((agent) => {
               const assignedAgents = agentUsers.filter((account) => account.membership.entityId === agent.id).length;
               return (
@@ -2610,7 +2610,7 @@ export function AccessGrantsPage() {
   const [granteeType, setGranteeType] = useState<AccessGrantGranteeType>("STAKEHOLDER");
   const [granteeEntityId, setGranteeEntityId] = useState("");
   const [permissionLevel, setPermissionLevel] = useState<AccessGrantPermissionLevel>("REQUEST_INFORMATION");
-  const [dataScopeType, setDataScopeType] = useState<AccessGrantDataScopeType>("PARTICIPANT_WORKSPACE");
+  const [dataScopeType, setDataScopeType] = useState<AccessGrantDataScopeType>("PARTICIPANT");
   const [dataScopeId, setDataScopeId] = useState("");
   const [status, setStatus] = useState<AccessGrantStatus>("ACTIVE");
   const [error, setError] = useState<string | null>(null);
@@ -2657,7 +2657,7 @@ export function AccessGrantsPage() {
       refresh();
       setGranteeEntityId("");
       setPermissionLevel("REQUEST_INFORMATION");
-      setDataScopeType("PARTICIPANT_WORKSPACE");
+      setDataScopeType("PARTICIPANT");
       setDataScopeId("");
       setStatus("ACTIVE");
       setShowCreate(false);
@@ -2683,7 +2683,7 @@ export function AccessGrantsPage() {
         { label: terminologyTitle(terminology, "accessGrant", true) },
       ]}
     >
-      <ParticipantWorkspaceNav
+      <ParticipantNav
         actions={
           <Button type="button" onClick={() => setShowCreate((current) => !current)}>
             <UserPlus />
@@ -2694,7 +2694,7 @@ export function AccessGrantsPage() {
       <ResourceActionPanel
         open={showCreate}
         title="Add access grant"
-        description={`Grant scoped access to this ${terminologyLabel(terminology, "participant")} workspace.`}
+        description={`Grant scoped access to this ${terminologyLabel(terminology, "participant")}.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createGrant}>
@@ -2743,7 +2743,7 @@ export function AccessGrantsPage() {
                 setDataScopeId("");
               }}
             >
-              <option value="PARTICIPANT_WORKSPACE">Entire workspace</option>
+              <option value="PARTICIPANT">Entire participant</option>
               <option value="PARTICIPANT_SUPPLIER">Supplier</option>
             </SelectField>
           </FormField>
@@ -2910,7 +2910,7 @@ export function CaseDetailPage() {
           { label: `${terminologyTitle(terminology, "case")} status`, value: caseRecord.status, tone: caseRecord.status === "review" ? "yellow" : "blue" },
           { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${caseRecord.completedTasks}/${caseRecord.totalTasks}`, tone: "green" },
           { label: "Open requests", value: String(activeRequests.length), tone: activeRequests.length > 0 ? "red" : "green" },
-          { label: `Linked ${terminologyLabel(terminology, "participantSupplier")}`, value: caseRecord.participantSupplierName ?? `${terminologyTitle(terminology, "participant")} workspace`, tone: caseRecord.participantSupplierName ? "yellow" : "blue" },
+          { label: `Linked ${terminologyLabel(terminology, "participantSupplier")}`, value: caseRecord.participantSupplierName ?? terminologyTitle(terminology, "participant"), tone: caseRecord.participantSupplierName ? "yellow" : "blue" },
         ]}
       />
       <section className="mt-8">

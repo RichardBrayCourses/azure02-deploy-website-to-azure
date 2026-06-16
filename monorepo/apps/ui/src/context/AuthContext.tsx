@@ -54,7 +54,7 @@ export const USER_ROLES: Array<{ id: UserRole; label: string; description: strin
   {
     id: "agent",
     label: "Agent",
-    description: "Assist participant workspaces where delegated access has been granted",
+    description: "Assist participants where delegated access has been granted",
   },
 ];
 

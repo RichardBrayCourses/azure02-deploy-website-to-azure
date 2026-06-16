@@ -242,7 +242,7 @@ apps/ui/src/context/ThemeContext.tsx
 apps/ui/src/data/console.ts
 ```
 
-`App.tsx` sets up the browser router, auth provider, and theme provider. Signed-out users see the demo sign-in page. Signed-in users are routed into their default workspace: authority admins land on participants, participants land on cases, and stakeholders land on the stakeholder portal.
+`App.tsx` sets up the browser router, auth provider, and theme provider. Signed-out users see the demo sign-in page. Signed-in users are routed by role: authority admins land on participants, participants land on cases, and stakeholders land on the stakeholder portal.
 
 `ConsolePages.tsx` renders the administration, case-management, task-detail, and assurance-portal screens. The pages share layout, tables, metrics, breadcrumbs, tabs, and demo action buttons.
 
