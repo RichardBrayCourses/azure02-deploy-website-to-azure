@@ -33,7 +33,7 @@ export type AccessGrantPermissionLevel =
   | "ADMINISTER_GRANTS";
 export type AccessGrantDataScopeType = "PARTICIPANT_WORKSPACE" | "CASE" | "CASE_TASK" | "EVIDENCE_METADATA" | "PARTICIPANT_SUPPLIER";
 export type TaskTypeStatus = "ACTIVE" | "DEPRECATED";
-export type CaseTemplateStatus = "ACTIVE";
+export type CaseTemplateStatus = "DRAFT" | "FINALIZED";
 export type TemplateParticipantStatus = "ASSIGNED";
 export type CaseStatus = "INCOMPLETE" | "COMPLETE" | "WITHDRAWN";
 export type CaseTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "PASSED" | "FAILED" | "WITHDRAWN";
@@ -1649,20 +1649,66 @@ export class InMemoryAllChecksOutDatabase {
       authorityId: command.authorityId,
       name: command.name,
       description: command.description,
-      status: "ACTIVE",
+      status: "DRAFT",
     });
     this.caseTemplates.push(template);
     return template.toDto();
   }
 
   addTaskToTemplate(command: AddTaskToTemplateCommand) {
-    this.requireCaseTemplate(command.caseTemplateId);
+    const template = this.requireCaseTemplate(command.caseTemplateId);
+    if (template.status === "FINALIZED") {
+      throw new Error("Finalized case templates cannot be edited.");
+    }
     this.requireTaskType(command.taskTypeId);
-    throw new Error("Case templates cannot be edited after they are created.");
+    if (!command.title.trim()) {
+      throw new Error("Enter a task title.");
+    }
+    const sortOrder =
+      Math.max(
+        0,
+        ...this.caseTemplateTasks
+          .map((task) => task.toDto())
+          .filter((task) => task.caseTemplateId === command.caseTemplateId)
+          .map((task) => task.sortOrder),
+      ) + 1;
+    const task = new CaseTemplateTaskEntity({
+      ...this.createBase(this.nextId("template-task", this.caseTemplateTasks)),
+      caseTemplateId: command.caseTemplateId,
+      taskTypeId: command.taskTypeId,
+      title: command.title.trim(),
+      description: command.description.trim(),
+      parametersJson: command.parametersJson ?? {},
+      sortOrder,
+      status: "ACTIVE",
+      withdrawnReason: null,
+      withdrawnAt: null,
+      withdrawnByUserId: null,
+    });
+    this.caseTemplateTasks.push(task);
+    return task.toDto();
+  }
+
+  finalizeCaseTemplate(caseTemplateId: CaseTemplateId) {
+    const template = this.requireCaseTemplate(caseTemplateId);
+    if (template.status === "FINALIZED") {
+      return template;
+    }
+    const finalizedAt = this.timestamp();
+    const finalized: CaseTemplateDto = {
+      ...template,
+      status: "FINALIZED",
+      updatedAt: finalizedAt,
+    };
+    this.replaceById(this.caseTemplates, new CaseTemplateEntity(finalized));
+    return finalized;
   }
 
   assignParticipantToTemplate(command: AssignParticipantToTemplateCommand) {
     const template = this.requireCaseTemplate(command.caseTemplateId);
+    if (template.status !== "FINALIZED") {
+      throw new Error("Case templates must be finalized before participants can be assigned.");
+    }
     const participant = this.requireParticipant(command.participantId);
     if (template.authorityId !== participant.authorityId) {
       throw new Error("Participant must belong to the template authority.");
@@ -1769,6 +1815,10 @@ export class InMemoryAllChecksOutDatabase {
 
   withdrawTemplateTask(caseTemplateTaskId: CaseTemplateTaskId, withdrawnByUserId: UserAccountId, withdrawnReason: string) {
     const templateTask = this.requireCaseTemplateTask(caseTemplateTaskId);
+    const template = this.requireCaseTemplate(templateTask.caseTemplateId);
+    if (template.status === "FINALIZED") {
+      throw new Error("Finalized case templates cannot be edited.");
+    }
     this.requireUserAccount(withdrawnByUserId);
     const withdrawnAt = this.timestamp();
     const updatedTemplateTask: CaseTemplateTaskDto = {
@@ -1972,7 +2022,7 @@ export class InMemoryAllChecksOutDatabase {
       authorityId,
       name,
       description,
-      status: "ACTIVE",
+      status: "FINALIZED",
     });
   }
 

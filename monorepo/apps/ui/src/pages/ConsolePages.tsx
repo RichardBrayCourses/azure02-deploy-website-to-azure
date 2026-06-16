@@ -55,6 +55,7 @@ import {
   Clock3,
   History,
   MessageSquarePlus,
+  Pencil,
   Plus,
   Save,
   SendHorizontal,
@@ -1158,6 +1159,7 @@ export function StakeholderDetailPage() {
 export function CaseTemplatesPage() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
+  const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -1177,7 +1179,7 @@ export function CaseTemplatesPage() {
       return;
     }
     try {
-      db.createCaseTemplate({
+      const template = db.createCaseTemplate({
         authorityId: user.authorityId,
         name: name.trim(),
         description: description.trim() || "Reusable case template",
@@ -1186,6 +1188,7 @@ export function CaseTemplatesPage() {
       setName("");
       setDescription("");
       setShowCreate(false);
+      navigate(`/admin/case-templates/${template.id}/edit`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Template could not be created.");
     }
@@ -1236,28 +1239,66 @@ export function CaseTemplatesPage() {
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
       {!showCreate && <FormError message={error} />}
-      <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), terminologyTitle(terminology, "caseTask", true), terminologyTitle(terminology, "participant", true), "Actions"]}>
+      <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Finalized", terminologyTitle(terminology, "caseTask", true), terminologyTitle(terminology, "participant", true), "Actions"]}>
         {scopedTemplates.map((template) => (
           <tr key={template.id} className="border-b border-[#b1b4b6] last:border-b-0">
             <td className="px-4 py-3">
-              <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/case-templates/${template.id}`}>
-                {template.name}
-              </Link>
+              {template.status === "FINALIZED" ? (
+                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/case-templates/${template.id}/assign`}>
+                  {template.name}
+                </Link>
+              ) : (
+                <span className="font-bold text-[#0b0c0c] dark:text-white">{template.name}</span>
+              )}
               <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{template.description}</span>
             </td>
+            <td className="px-4 py-3 font-bold">{template.status === "FINALIZED" ? "Yes" : "No"}</td>
             <td className="px-4 py-3">{template.taskCount}</td>
             <td className="px-4 py-3">{template.participantCount}</td>
             <td className="px-4 py-3">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => deleteTemplate(template.id)}
-                disabled={template.participantCount > 0}
-              >
-                <Trash2 />
-                Delete
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {template.status === "FINALIZED" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled
+                  >
+                    <Pencil />
+                    Edit
+                  </Button>
+                ) : (
+                  <Button asChild type="button" size="sm" variant="outline">
+                    <Link to={`/admin/case-templates/${template.id}/edit`}>
+                      <Pencil />
+                      Edit
+                    </Link>
+                  </Button>
+                )}
+                {template.status === "FINALIZED" ? (
+                  <Button asChild type="button" size="sm">
+                    <Link to={`/admin/case-templates/${template.id}/assign`}>
+                      <UserPlus />
+                      Assign
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" disabled>
+                    <UserPlus />
+                    Assign
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => deleteTemplate(template.id)}
+                  disabled={template.participantCount > 0}
+                >
+                  <Trash2 />
+                  Delete
+                </Button>
+              </div>
             </td>
           </tr>
         ))}
@@ -1266,17 +1307,24 @@ export function CaseTemplatesPage() {
   );
 }
 
-export function CaseTemplateDetailPage() {
+export function CaseTemplateDetailPage({ mode }: { mode?: "edit" | "assign" }) {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
   const navigate = useNavigate();
   const { templateId } = useParams();
+  const [showAddTask, setShowAddTask] = useState(false);
   const [showAssignParticipant, setShowAssignParticipant] = useState(false);
   const [withdrawingCaseId, setWithdrawingCaseId] = useState<string | null>(null);
   const [withdrawReason, setWithdrawReason] = useState("");
+  const [taskTypeId, setTaskTypeId] = useState("");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskDue, setTaskDue] = useState("");
+  const [taskError, setTaskError] = useState<string | null>(null);
   const [participantId, setParticipantId] = useState("");
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [finalizeError, setFinalizeError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
@@ -1293,9 +1341,81 @@ export function CaseTemplateDetailPage() {
   const assignedParticipantIds = new Set(templateParticipants.map((assignment) => assignment.participantId));
   const assignableParticipants = getScopedParticipants(user).filter((participant) => !assignedParticipantIds.has(participant.id));
   const canDeleteTemplate = templateParticipants.length === 0;
+  const isFinalized = templateRecord.status === "FINALIZED";
+  const effectiveMode = mode ?? (isFinalized ? "assign" : "edit");
+  const activeTaskTypes = taskTypes.filter((taskType) => taskType.status === "ACTIVE");
+
+  if (!mode) {
+    return <Navigate to={`/admin/case-templates/${templateRecord.id}/${effectiveMode}`} replace />;
+  }
+  if (mode === "edit" && isFinalized) {
+    return <Navigate to={`/admin/case-templates/${templateRecord.id}/assign`} replace />;
+  }
+  if (mode === "assign" && !isFinalized) {
+    return <Navigate to={`/admin/case-templates/${templateRecord.id}/edit`} replace />;
+  }
+
+  function addTemplateTask() {
+    setTaskError(null);
+    if (!taskTypeId) {
+      setTaskError("Select a task type.");
+      return;
+    }
+    if (!taskTitle.trim()) {
+      setTaskError("Enter a task title.");
+      return;
+    }
+    try {
+      db.addTaskToTemplate({
+        caseTemplateId: templateRecord.id,
+        taskTypeId,
+        title: taskTitle.trim(),
+        description: taskDescription.trim(),
+        parametersJson: { due: taskDue.trim() || "No due date" },
+      });
+      refresh();
+      setTaskTypeId("");
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskDue("");
+      setShowAddTask(false);
+    } catch (caught) {
+      setTaskError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "caseTask")} could not be added.`);
+    }
+  }
+
+  function finalizeTemplate() {
+    setFinalizeError(null);
+    if (!window.confirm("Finalizing a template cannot be undone. Continue?")) return;
+    try {
+      db.finalizeCaseTemplate(templateRecord.id);
+      refresh();
+      setShowAddTask(false);
+    } catch (caught) {
+      setFinalizeError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "caseTemplate")} could not be finalized.`);
+    }
+  }
+
+  function removeTemplateTask(taskId: string) {
+    setTaskError(null);
+    if (!user.authenticatableUserId) {
+      setTaskError("No authority user is selected for this session.");
+      return;
+    }
+    try {
+      db.withdrawTemplateTask(taskId, user.authenticatableUserId, "Removed before finalization.");
+      refresh();
+    } catch (caught) {
+      setTaskError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "caseTask")} could not be removed.`);
+    }
+  }
 
   function assignParticipant() {
     setAssignmentError(null);
+    if (!isFinalized) {
+      setAssignmentError(`${terminologyTitle(terminology, "caseTemplate")} must be finalized before it can be assigned.`);
+      return;
+    }
     if (!participantId) {
       setAssignmentError("Select a participant.");
       return;
@@ -1376,31 +1496,83 @@ export function CaseTemplateDetailPage() {
       breadcrumbs={[
         { label: "Administration", path: "/admin/participants" },
         { label: terminologyTitle(terminology, "caseTemplate", true), path: "/admin/case-templates" },
-        { label: templateRecord.name },
+        { label: `${effectiveMode === "edit" ? "Edit" : "Assign"} ${templateRecord.name}` },
       ]}
     >
       <PageTitle
-        title={templateRecord.name}
+        title={`${effectiveMode === "edit" ? "Edit" : "Assign"} ${templateRecord.name}`}
         actions={
-          <Button type="button" variant="outline" onClick={deleteTemplate} disabled={!canDeleteTemplate}>
-            <Trash2 />
-            Delete
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {effectiveMode === "edit" && !isFinalized && (
+              <Button type="button" onClick={finalizeTemplate}>
+                <CheckCircle2 />
+                Finalize
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={deleteTemplate} disabled={!canDeleteTemplate}>
+              <Trash2 />
+              Delete
+            </Button>
+          </div>
         }
       />
       <MetricStrip
         items={[
+          { label: "Finalized", value: isFinalized ? "Yes" : "No", tone: isFinalized ? "green" : "yellow" },
           { label: terminologyTitle(terminology, "caseTask", true), value: String(templateRecord.taskCount), tone: "blue" },
           { label: terminologyTitle(terminology, "participant", true), value: String(templateRecord.participantCount), tone: "blue" },
           { label: `Assigned ${terminologyLabel(terminology, "case", true)}`, value: String(assignedCases.length), tone: "green" },
         ]}
       />
-      <div className="mt-3"><FormError message={deleteError} /></div>
+      <div className="mt-3">
+        <FormError message={finalizeError ?? deleteError} />
+      </div>
+      {effectiveMode === "edit" && (
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-xl font-bold">{terminologyTitle(terminology, "caseTask", true)}</h3>
+          {!isFinalized && (
+            <Button type="button" onClick={() => setShowAddTask((current) => !current)}>
+              <Plus />
+              Add {terminologyLabel(terminology, "caseTask")}
+            </Button>
+          )}
         </div>
-        <ResourceTable headings={["Order", terminologyTitle(terminology, "caseTask"), "Type", "Due", "Status"]}>
+        <ResourceActionPanel
+          open={showAddTask}
+          title={`Add ${terminologyLabel(terminology, "caseTask")}`}
+          description={`${terminologyTitle(terminology, "caseTask", true)} can be added until the ${terminologyLabel(terminology, "caseTemplate")} is finalized.`}
+          onClose={() => setShowAddTask(false)}
+          footer={
+            <Button type="button" onClick={addTemplateTask}>
+              <CheckCircle2 />
+              Save
+            </Button>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Task type">
+              <SelectField value={taskTypeId} onChange={setTaskTypeId}>
+                <option value="">Select task type</option>
+                {activeTaskTypes.map((taskType) => (
+                  <option key={taskType.id} value={taskType.id}>{taskType.name}</option>
+                ))}
+              </SelectField>
+            </FormField>
+            <FormField label="Title">
+              <Input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
+            </FormField>
+            <FormField label="Due">
+              <Input value={taskDue} onChange={(event) => setTaskDue(event.target.value)} />
+            </FormField>
+            <FormField label="Description">
+              <Input value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} />
+            </FormField>
+          </div>
+          <div className="mt-3"><FormError message={taskError} /></div>
+        </ResourceActionPanel>
+        {!showAddTask && <FormError message={taskError} />}
+        <ResourceTable headings={isFinalized ? ["Order", terminologyTitle(terminology, "caseTask"), "Type", "Due", "Status"] : ["Order", terminologyTitle(terminology, "caseTask"), "Type", "Due", "Status", "Actions"]}>
           {templateTasks.map((task) => (
             <tr key={task.id} className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">{task.sortOrder}</td>
@@ -1423,14 +1595,30 @@ export function CaseTemplateDetailPage() {
                   </span>
                 )}
               </td>
+              {!isFinalized && (
+                <td className="px-4 py-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => removeTemplateTask(task.id)}
+                    disabled={task.status === "WITHDRAWN"}
+                  >
+                    <XCircle />
+                    Remove
+                  </Button>
+                </td>
+              )}
             </tr>
           ))}
         </ResourceTable>
       </section>
+      )}
+      {effectiveMode === "assign" && (
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-xl font-bold">{terminologyTitle(terminology, "participant", true)}</h3>
-          <Button type="button" onClick={() => setShowAssignParticipant((current) => !current)} disabled={assignableParticipants.length === 0}>
+          <Button type="button" onClick={() => setShowAssignParticipant((current) => !current)} disabled={!isFinalized || assignableParticipants.length === 0}>
             <Plus />
             Assign {terminologyLabel(terminology, "participant")}
           </Button>
@@ -1515,6 +1703,8 @@ export function CaseTemplateDetailPage() {
           ))}
         </ResourceTable>
       </section>
+      )}
+      {effectiveMode === "assign" && (
       <section className="mt-8">
         <h3 className="mb-3 text-xl font-bold">Assigned {terminologyLabel(terminology, "case", true)}</h3>
         <ResourceTable headings={[terminologyTitle(terminology, "case"), terminologyTitle(terminology, "participant"), "Status", "Progress", "Outcome"]}>
@@ -1532,6 +1722,7 @@ export function CaseTemplateDetailPage() {
           })}
         </ResourceTable>
       </section>
+      )}
     </ConsoleLayout>
   );
 }
