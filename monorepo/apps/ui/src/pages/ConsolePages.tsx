@@ -1071,7 +1071,6 @@ export function StakeholderDetailPage() {
         { label: stakeholder.name },
       ]}
     >
-      <AdministrationResourceNav />
       <PageTitle
         title={stakeholder.name}
       />
@@ -1388,7 +1387,6 @@ export function CaseTemplateDetailPage() {
         { label: templateRecord.name },
       ]}
     >
-      <AdministrationResourceNav />
       <PageTitle
         title={templateRecord.name}
         actions={
@@ -1818,7 +1816,6 @@ export function ParticipantDetailPage() {
         { label: participant.name },
       ]}
     >
-      <AdministrationResourceNav />
       <PageTitle
         title={participant.name}
       />
