@@ -17,6 +17,7 @@ import {
   getCaseTemplatesForAuthority,
   getAccessGrantsForParticipant,
   getAuthorityTerminology,
+  getAgent,
   getAgentsForAuthority,
   getGrantableAgentsForParticipant,
   getGrantableStakeholdersForParticipant,
@@ -317,6 +318,8 @@ function ParticipantWorkspaceNav({ actions }: { actions?: ReactNode }) {
     </div>
   );
 }
+
+type UserManagementTab = "participants" | "agents" | "agent-organizations";
 
 export function HelperWorkspacePage() {
   const { user } = useAuth();
@@ -2078,11 +2081,13 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
   const { db, refresh } = useDomainData();
   const [showCreateSupplier, setShowCreateSupplier] = useState(false);
   const [showCreateWorkspaceUser, setShowCreateWorkspaceUser] = useState(false);
-  const [workspaceUserType, setWorkspaceUserType] = useState<"PARTICIPANT" | "AGENT">("PARTICIPANT");
+  const [usersTab, setUsersTab] = useState<UserManagementTab>("participants");
   const [workspaceUserName, setWorkspaceUserName] = useState("");
   const [workspaceUserEmail, setWorkspaceUserEmail] = useState("");
   const [workspaceUserRole, setWorkspaceUserRole] = useState<MembershipRole>("MEMBER");
-  const [agentName, setAgentName] = useState("");
+  const [agentOrganizationId, setAgentOrganizationId] = useState("");
+  const [agentOrganizationName, setAgentOrganizationName] = useState("");
+  const [agentOrganizationError, setAgentOrganizationError] = useState<string | null>(null);
   const [workspaceUserError, setWorkspaceUserError] = useState<string | null>(null);
   const [supplierName, setSupplierName] = useState("");
   const [relationshipType, setRelationshipType] = useState("");
@@ -2108,6 +2113,16 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       account.membership.entityId === user.participantId,
   );
   const scopedAgents = getAgentsForAuthority(user.authorityId ?? undefined);
+  const agentOrganizations = scopedAgents.filter((agent) => agent.type === "Organisation");
+  const agentUsers = authenticatableUsers.filter(
+    (account) =>
+      account.membership.entityType === "agent" &&
+      scopedAgents.some((agent) => agent.id === account.membership.entityId),
+  );
+  const activeUsersTab = mode === "users" ? usersTab : "participants";
+  const createUserType = activeUsersTab === "agents" ? "AGENT" : "PARTICIPANT";
+  const showCreateUserPanel = mode === "users" && showCreateWorkspaceUser && activeUsersTab !== "agent-organizations";
+  const showCreateAgentOrganizationPanel = mode === "users" && showCreateWorkspaceUser && activeUsersTab === "agent-organizations";
 
   function createWorkspaceUser() {
     setWorkspaceUserError(null);
@@ -2120,7 +2135,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       return;
     }
     try {
-      if (workspaceUserType === "PARTICIPANT") {
+      if (createUserType === "PARTICIPANT") {
         if (!user.participantId) {
           setWorkspaceUserError("No participant workspace is selected.");
           return;
@@ -2135,16 +2150,18 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           setWorkspaceUserError("No authority is selected for this session.");
           return;
         }
-        if (!agentName.trim()) {
-          setWorkspaceUserError(`Enter a ${terminologyLabel(terminology, "agent")} organisation.`);
+        const agent = agentOrganizationId
+          ? getAgent(agentOrganizationId)
+          : db.createAgent({
+              authorityId: user.authorityId,
+              agentType: "PERSON",
+              displayName: workspaceUserName.trim(),
+              status: "ACTIVE",
+            });
+        if (!agent) {
+          setWorkspaceUserError(`Select a valid ${terminologyLabel(terminology, "agent")} organization.`);
           return;
         }
-        const agent = db.createAgent({
-          authorityId: user.authorityId,
-          agentType: "ORGANISATION",
-          displayName: agentName.trim(),
-          status: "ACTIVE",
-        });
         db.createAgentUser(agent.id, {
           displayName: workspaceUserName.trim(),
           email: workspaceUserEmail.trim(),
@@ -2155,11 +2172,35 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       setWorkspaceUserName("");
       setWorkspaceUserEmail("");
       setWorkspaceUserRole("MEMBER");
-      setAgentName("");
-      setWorkspaceUserType("PARTICIPANT");
+      setAgentOrganizationId("");
       setShowCreateWorkspaceUser(false);
     } catch (caught) {
       setWorkspaceUserError(caught instanceof Error ? caught.message : "User could not be created.");
+    }
+  }
+
+  function createAgentOrganization() {
+    setAgentOrganizationError(null);
+    if (!user.authorityId) {
+      setAgentOrganizationError("No authority is selected for this session.");
+      return;
+    }
+    if (!agentOrganizationName.trim()) {
+      setAgentOrganizationError(`Enter a ${terminologyLabel(terminology, "agent")} organization name.`);
+      return;
+    }
+    try {
+      db.createAgent({
+        authorityId: user.authorityId,
+        agentType: "ORGANISATION",
+        displayName: agentOrganizationName.trim(),
+        status: "ACTIVE",
+      });
+      refresh();
+      setAgentOrganizationName("");
+      setShowCreateWorkspaceUser(false);
+    } catch (caught) {
+      setAgentOrganizationError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "agent")} organization could not be created.`);
     }
   }
 
@@ -2254,16 +2295,24 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
             </Button>
           ) : mode === "users" ? (
             <Button type="button" onClick={() => setShowCreateWorkspaceUser((current) => !current)}>
-              <UserPlus />
-              Add user
+              {activeUsersTab === "agent-organizations" ? <Plus /> : <UserPlus />}
+              {activeUsersTab === "participants"
+                ? `Add ${terminologyLabel(terminology, "participant")}`
+                : activeUsersTab === "agents"
+                  ? `Add ${terminologyLabel(terminology, "agent")}`
+                  : `Add ${terminologyLabel(terminology, "agent")} organization`}
             </Button>
           ) : undefined
         }
       />
       <ResourceActionPanel
-        open={mode === "users" && showCreateWorkspaceUser}
-        title="Add user"
-        description={`Create either a ${terminologyLabel(terminology, "participant")} user or a ${terminologyLabel(terminology, "agent")} user.`}
+        open={showCreateUserPanel}
+        title={`Add ${createUserType === "PARTICIPANT" ? terminologyLabel(terminology, "participant") : terminologyLabel(terminology, "agent")}`}
+        description={
+          createUserType === "PARTICIPANT"
+            ? `Create a ${terminologyLabel(terminology, "participant")} user for this workspace.`
+            : `Create a ${terminologyLabel(terminology, "agent")} and optionally assign them to one ${terminologyLabel(terminology, "agent")} organization.`
+        }
         onClose={() => setShowCreateWorkspaceUser(false)}
         footer={
           <Button type="button" onClick={createWorkspaceUser}>
@@ -2272,13 +2321,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           </Button>
         }
       >
-        <div className="grid gap-4 md:grid-cols-[12rem_1fr_1fr_10rem]">
-          <FormField label="User type">
-            <SelectField value={workspaceUserType} onChange={(value) => setWorkspaceUserType(value as "PARTICIPANT" | "AGENT")}>
-              <option value="PARTICIPANT">{terminologyTitle(terminology, "participant")}</option>
-              <option value="AGENT">{terminologyTitle(terminology, "agent")}</option>
-            </SelectField>
-          </FormField>
+        <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
           <FormField label="Display name">
             <Input value={workspaceUserName} onChange={(event) => setWorkspaceUserName(event.target.value)} />
           </FormField>
@@ -2291,13 +2334,44 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
               <option value="ADMIN">Admin</option>
             </SelectField>
           </FormField>
-          {workspaceUserType === "AGENT" && (
-            <FormField label={`${terminologyTitle(terminology, "agent")} organisation`}>
-              <Input value={agentName} onChange={(event) => setAgentName(event.target.value)} />
+          {createUserType === "AGENT" && (
+            <FormField label={`${terminologyTitle(terminology, "agent")} organization`}>
+              <SelectField value={agentOrganizationId} onChange={setAgentOrganizationId}>
+                <option value="">No organisation</option>
+                {agentOrganizations.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </option>
+                ))}
+              </SelectField>
             </FormField>
           )}
         </div>
         <div className="mt-3"><FormError message={workspaceUserError} /></div>
+      </ResourceActionPanel>
+      <ResourceActionPanel
+        open={showCreateAgentOrganizationPanel}
+        title={`Add ${terminologyLabel(terminology, "agent")} organization`}
+        description={`Create an organization that ${terminologyLabel(terminology, "agent", true)} can be assigned to.`}
+        onClose={() => setShowCreateWorkspaceUser(false)}
+        footer={
+          <Button type="button" onClick={createAgentOrganization}>
+            <CheckCircle2 />
+            Save
+          </Button>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-[1fr_12rem]">
+          <FormField label="Organisation name">
+            <Input value={agentOrganizationName} onChange={(event) => setAgentOrganizationName(event.target.value)} />
+          </FormField>
+          <FormField label="Status">
+            <SelectField value="ACTIVE" onChange={() => undefined} disabled>
+              <option value="ACTIVE">Active</option>
+            </SelectField>
+          </FormField>
+        </div>
+        <div className="mt-3"><FormError message={agentOrganizationError} /></div>
       </ResourceActionPanel>
       <ResourceActionPanel
         open={mode === "suppliers" && showCreateSupplier}
@@ -2448,9 +2522,39 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       </section>
       )}
       {mode === "users" && (
-      <section className="grid gap-8 lg:grid-cols-2">
-        <div>
-          <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participant")} users</h3>
+      <section>
+        <div className="mb-5 border-b border-[#b1b4b6]">
+          <nav aria-label="User management sections" className="flex gap-1 overflow-x-auto">
+            {[
+              { id: "participants" as const, label: terminologyTitle(terminology, "participant", true) },
+              { id: "agents" as const, label: terminologyTitle(terminology, "agent", true) },
+              { id: "agent-organizations" as const, label: `${terminologyTitle(terminology, "agent")} organizations` },
+            ].map((tab) => {
+              const isCurrent = usersTab === tab.id;
+              return (
+                <Button
+                  key={tab.id}
+                  type="button"
+                  variant="ghost"
+                  className={cn(
+                    "h-11 rounded-none border-b-4 border-transparent px-4 font-bold",
+                    isCurrent && "border-[#1d70b8] bg-white dark:bg-card",
+                  )}
+                  onClick={() => {
+                    setUsersTab(tab.id);
+                    setShowCreateWorkspaceUser(false);
+                    setWorkspaceUserError(null);
+                    setAgentOrganizationError(null);
+                  }}
+                >
+                  {tab.label}
+                </Button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {usersTab === "participants" && (
           <ResourceTable headings={["User", "Email", "Role"]}>
             {participantUsers.map((account) => (
               <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
@@ -2460,19 +2564,39 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
               </tr>
             ))}
           </ResourceTable>
-        </div>
-        <div>
-          <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "agent", true)}</h3>
-          <ResourceTable headings={[terminologyTitle(terminology, "agent"), "Type", "Granted workspaces"]}>
-            {scopedAgents.map((agent) => (
-              <tr key={agent.id} className="border-b border-[#b1b4b6] last:border-b-0">
-                <td className="px-4 py-3 font-bold text-[#1d70b8]">{agent.name}</td>
-                <td className="px-4 py-3">{agent.type}</td>
-                <td className="px-4 py-3">{agent.grantedParticipants}</td>
-              </tr>
-            ))}
+        )}
+
+        {usersTab === "agents" && (
+          <ResourceTable headings={[terminologyTitle(terminology, "agent"), "Email", "Organisation", "Role"]}>
+            {agentUsers.map((account) => {
+              const agent = scopedAgents.find((item) => item.id === account.membership.entityId);
+              return (
+                <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                  <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
+                  <td className="px-4 py-3">{account.email}</td>
+                  <td className="px-4 py-3">{agent?.type === "Organisation" ? agent.name : "No organisation"}</td>
+                  <td className="px-4 py-3">{account.membershipRole}</td>
+                </tr>
+              );
+            })}
           </ResourceTable>
-        </div>
+        )}
+
+        {usersTab === "agent-organizations" && (
+          <ResourceTable headings={["Organisation", "Status", "Assigned agents", "Granted workspaces"]}>
+            {agentOrganizations.map((agent) => {
+              const assignedAgents = agentUsers.filter((account) => account.membership.entityId === agent.id).length;
+              return (
+                <tr key={agent.id} className="border-b border-[#b1b4b6] last:border-b-0">
+                  <td className="px-4 py-3 font-bold text-[#1d70b8]">{agent.name}</td>
+                  <td className="px-4 py-3">{agent.status.toLowerCase()}</td>
+                  <td className="px-4 py-3">{assignedAgents}</td>
+                  <td className="px-4 py-3">{agent.grantedParticipants}</td>
+                </tr>
+              );
+            })}
+          </ResourceTable>
+        )}
       </section>
       )}
     </ConsoleLayout>

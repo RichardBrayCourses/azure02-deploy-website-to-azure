@@ -139,7 +139,7 @@ export default function SignInPage() {
             </label>
 
             <label className="grid gap-1 text-sm font-bold" htmlFor="entity-id">
-              Organisation
+              {selectedContextType === "agent" ? `${terminologyTitle(terminology, "agent")} or organization` : "Organisation"}
               <select
                 id="entity-id"
                 required
