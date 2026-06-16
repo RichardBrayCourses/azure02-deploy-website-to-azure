@@ -70,48 +70,48 @@ az account set --subscription "<subscription-id-or-name>"
 
 ## Deploy
 
-Run commands from the repository root.
+Open a terminal in the **monorepo** folder and run commands:
 
 Install dependencies:
 
 ```bash
-pnpm --dir monorepo install
+pnpm install
 ```
 
 Preview the infrastructure deployment:
 
 ```bash
-pnpm --dir monorepo run infra:what-if
+pnpm run infra:what-if
 ```
 
 Deploy the Azure infrastructure:
 
 ```bash
-pnpm --dir monorepo run infra:deploy
+pnpm run infra:deploy
 ```
 
 Build and upload the website files:
 
 ```bash
-pnpm --dir monorepo run deploy-website
+pnpm run deploy-website
 ```
 
 Print the live Azure-generated website URL:
 
 ```bash
-pnpm --dir monorepo run ui:url
+pnpm run ui:url
 ```
 
 Deploy infrastructure, upload the files, and print the URL in one command:
 
 ```bash
-pnpm --dir monorepo run deploy-everything
+pnpm run deploy-everything
 ```
 
 Delete the lesson resources:
 
 ```bash
-pnpm --dir monorepo run infra:destroy
+pnpm run infra:destroy
 ```
 
 ## Configuration
@@ -129,7 +129,7 @@ UI_DIST_DIR="${UI_DIST_DIR:-apps/ui/dist}"
 Override values inline when needed:
 
 ```bash
-AZURE_LOCATION=westeurope AZURE_RESOURCE_GROUP=my-static-site-rg pnpm --dir monorepo run deploy-everything
+AZURE_LOCATION=westeurope AZURE_RESOURCE_GROUP=my-static-site-rg pnpm run deploy-everything
 ```
 
 ## Infrastructure
@@ -267,11 +267,11 @@ az storage blob service-properties update \
 If upload fails because the build output is missing, run:
 
 ```bash
-pnpm --dir monorepo run ui:build
+pnpm run ui:build
 ```
 
 If `ui:url` cannot find a URL, deploy the infrastructure first:
 
 ```bash
-pnpm --dir monorepo run infra:deploy
+pnpm run infra:deploy
 ```
