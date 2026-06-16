@@ -135,19 +135,28 @@ function ProgressBar({ value, total }: { value: number; total: number }) {
 
 function ResourceTable({
   children,
+  columnWidths,
   headings,
 }: {
+  columnWidths?: string[];
   headings: string[];
   children: ReactNode;
 }) {
   return (
     <div className="overflow-hidden border border-[#b1b4b6] bg-white dark:bg-card">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+        <table className={cn("w-full min-w-[760px] border-collapse text-left text-sm", columnWidths && "table-fixed")}>
+          {columnWidths && (
+            <colgroup>
+              {columnWidths.map((width, index) => (
+                <col key={`${width}-${index}`} className={width} />
+              ))}
+            </colgroup>
+          )}
           <thead className="bg-[#f3f2f1] text-[#0b0c0c] dark:bg-accent dark:text-foreground">
             <tr>
               {headings.map((heading) => (
-                <th key={heading} className="border-b border-[#b1b4b6] px-4 py-3 font-bold">
+                <th key={heading} className="h-12 border-b border-[#b1b4b6] px-4 py-3 font-bold leading-5 align-middle">
                   {heading}
                 </th>
               ))}
@@ -271,6 +280,7 @@ function ParticipantWorkspaceNav({ actions }: { actions?: ReactNode }) {
   const resources = [
     { name: "Cases", path: "/cases" },
     { name: "Suppliers", path: "/cases/suppliers" },
+    { name: "Access grants", path: "/cases/access-grants" },
   ];
 
   return (
@@ -2031,6 +2041,9 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
   const [servicesProvided, setServicesProvided] = useState("");
   const [dataExposure, setDataExposure] = useState("");
   const [supplierError, setSupplierError] = useState<string | null>(null);
+  const [linkingSupplierId, setLinkingSupplierId] = useState<string | null>(null);
+  const [supplierCaseId, setSupplierCaseId] = useState("");
+  const [supplierLinkError, setSupplierLinkError] = useState<string | null>(null);
   if (user.role === "stakeholder") return <Navigate to="/stakeholder" replace />;
   if (user.role === "helper") return <Navigate to="/helper" replace />;
   if (user.role === "authority-admin") return <Navigate to="/admin/participants" replace />;
@@ -2067,6 +2080,52 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
     }
   }
 
+  function openLinkSupplier(relationshipId: string) {
+    setLinkingSupplierId(relationshipId);
+    setSupplierCaseId("");
+    setSupplierLinkError(null);
+  }
+
+  function closeLinkSupplier() {
+    setLinkingSupplierId(null);
+    setSupplierCaseId("");
+    setSupplierLinkError(null);
+  }
+
+  function linkSupplierToCase() {
+    setSupplierLinkError(null);
+    if (!linkingSupplierId) {
+      setSupplierLinkError("Select a supplier.");
+      return;
+    }
+    if (!supplierCaseId) {
+      setSupplierLinkError(`Select a ${terminologyLabel(terminology, "case")}.`);
+      return;
+    }
+    try {
+      db.linkParticipantSupplierToCase(linkingSupplierId, supplierCaseId);
+      refresh();
+      closeLinkSupplier();
+    } catch (caught) {
+      setSupplierLinkError(caught instanceof Error ? caught.message : `Supplier could not be linked to this ${terminologyLabel(terminology, "case")}.`);
+    }
+  }
+
+  function unlinkSupplierFromCase(caseId: string) {
+    setSupplierLinkError(null);
+    if (!caseId) {
+      setSupplierLinkError(`No linked ${terminologyLabel(terminology, "case")} was found.`);
+      return;
+    }
+    try {
+      db.unlinkParticipantSupplierFromCase(caseId);
+      refresh();
+      closeLinkSupplier();
+    } catch (caught) {
+      setSupplierLinkError(caught instanceof Error ? caught.message : `Supplier could not be unlinked from this ${terminologyLabel(terminology, "case")}.`);
+    }
+  }
+
   return (
     <ConsoleLayout
       breadcrumbs={[
@@ -2077,14 +2136,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
     >
       <ParticipantWorkspaceNav
         actions={
-          mode === "cases" ? (
-            <Button asChild>
-              <Link to="/cases/access-grants">
-                <UserPlus />
-                Access grants
-              </Link>
-            </Button>
-          ) : (
+          mode === "suppliers" && (
             <Button type="button" onClick={() => setShowCreateSupplier((current) => !current)}>
               <Plus />
               Add supplier
@@ -2155,16 +2207,24 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
       )}
       {mode === "suppliers" && (
       <section>
-        <ResourceTable headings={["Supplier", "Relationship", "Criticality", "Status", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`]}>
-          {participantSuppliersForParticipant.map((relationship) => (
-            <tr key={relationship.id} className="border-b border-[#b1b4b6] last:border-b-0">
+        <ResourceTable
+          columnWidths={["w-[18%]", "w-[14%]", "w-[10%]", "w-[12%]", "w-[16%]", "w-[18%]", "w-[12rem]"]}
+          headings={["Supplier", "Relationship", "Criticality", "Status", "Data exposure", `Linked ${terminologyLabel(terminology, "case", true)}`, "Actions"]}
+        >
+          {participantSuppliersForParticipant.map((relationship) => {
+            const linkableCases = scopedCases.filter((caseRecord) => !caseRecord.participantSupplierId);
+            const linkedCase = relationship.linkedCases[0] ?? null;
+            const canLinkCase = !linkedCase && linkableCases.length > 0;
+            return (
+            <Fragment key={relationship.id}>
+            <tr className="border-b border-[#b1b4b6] last:border-b-0">
               <td className="px-4 py-3">
                 <span className="block font-bold text-[#0b0c0c] dark:text-white">{relationship.supplierName}</span>
                 <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">{relationship.servicesProvided}</span>
               </td>
               <td className="px-4 py-3">{relationship.relationshipType}</td>
-              <td className="px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
-              <td className="px-4 py-3">{relationship.status.replace("_", " ").toLowerCase()}</td>
+              <td className="whitespace-nowrap px-4 py-3 capitalize">{relationship.criticality.toLowerCase()}</td>
+              <td className="whitespace-nowrap px-4 py-3">{relationship.status.replace("_", " ").toLowerCase()}</td>
               <td className="px-4 py-3">{relationship.dataExposure}</td>
               <td className="px-4 py-3">
                 {relationship.linkedCases.length > 0
@@ -2175,8 +2235,60 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
                     ))
                   : `No ${terminologyLabel(terminology, "case")} linked`}
               </td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2 whitespace-nowrap">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openLinkSupplier(relationship.id)}
+                    disabled={!canLinkCase}
+                  >
+                    <Plus />
+                    Link
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => linkedCase && unlinkSupplierFromCase(linkedCase.id)}
+                    disabled={!linkedCase}
+                  >
+                    <XCircle />
+                    Unlink
+                  </Button>
+                </div>
+              </td>
             </tr>
-          ))}
+            {linkingSupplierId === relationship.id && (
+              <tr className="border-b border-[#b1b4b6] bg-white dark:bg-card">
+                <td className="px-4 py-4" colSpan={7}>
+                  <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
+                    <FormField label={terminologyTitle(terminology, "case")}>
+                      <SelectField value={supplierCaseId} onChange={setSupplierCaseId}>
+                        <option value="">Select {terminologyLabel(terminology, "case")}</option>
+                        {linkableCases.map((caseRecord) => (
+                          <option key={caseRecord.id} value={caseRecord.id}>
+                            {caseRecord.title}
+                          </option>
+                        ))}
+                      </SelectField>
+                    </FormField>
+                    <Button type="button" onClick={linkSupplierToCase}>
+                      <CheckCircle2 />
+                      Link
+                    </Button>
+                    <Button type="button" variant="outline" onClick={closeLinkSupplier}>
+                      Cancel
+                    </Button>
+                  </div>
+                  <div className="mt-3"><FormError message={supplierLinkError} /></div>
+                </td>
+              </tr>
+            )}
+            </Fragment>
+          );
+          })}
         </ResourceTable>
       </section>
       )}
@@ -2207,8 +2319,6 @@ export function AccessGrantsPage() {
   const grants = getAccessGrantsForParticipant(participant.id);
   const grantableStakeholders = getGrantableStakeholdersForParticipant(participant.id);
   const participantSuppliersForParticipant = getParticipantSuppliersForParticipant(participant.id);
-  const activeGrants = grants.filter((grant) => grant.status === "ACTIVE");
-  const helperGrants = grants.filter((grant) => grant.granteeType === "HELPER");
 
   function createGrant() {
     setError(null);
@@ -2253,26 +2363,17 @@ export function AccessGrantsPage() {
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: terminologyTitle(terminology, "case", true), path: "/cases" },
+        { label: participant.name, path: "/cases" },
         { label: terminologyTitle(terminology, "accessGrant", true) },
       ]}
     >
-      <PageTitle
-        title={terminologyTitle(terminology, "accessGrant", true)}
+      <ParticipantWorkspaceNav
         actions={
           <Button type="button" onClick={() => setShowCreate((current) => !current)}>
             <UserPlus />
             Create grant
           </Button>
         }
-      />
-      <MetricStrip
-        items={[
-          { label: terminologyTitle(terminology, "participant"), value: participant.name, tone: "blue" },
-          { label: "Active grants", value: String(activeGrants.length), tone: "green" },
-          { label: "Service providers", value: String(helperGrants.length), tone: "yellow" },
-          { label: "Total grants", value: String(grants.length), tone: "blue" },
-        ]}
       />
       <ResourceActionPanel
         open={showCreate}
@@ -2321,10 +2422,10 @@ export function AccessGrantsPage() {
               }}
             >
               <option value="PARTICIPANT_WORKSPACE">Entire workspace</option>
-              <option value="PARTICIPANT_SUPPLIER">{terminologyTitle(terminology, "participantSupplier")}</option>
+              <option value="PARTICIPANT_SUPPLIER">Supplier</option>
             </SelectField>
           </FormField>
-          <FormField label={terminologyTitle(terminology, "participantSupplier")}>
+          <FormField label="Supplier">
             <SelectField
               value={dataScopeId}
               onChange={setDataScopeId}
@@ -2346,7 +2447,7 @@ export function AccessGrantsPage() {
         </div>
         <div className="mt-3"><FormError message={error} /></div>
       </ResourceActionPanel>
-      <section className="mt-8">
+      <section>
         <ResourceTable headings={["Grantee", "Type", "Permission", "Scope", "Status", "Created", "Actions"]}>
           {grants.map((grant) => (
             <tr key={grant.id} className="border-b border-[#b1b4b6] last:border-b-0">

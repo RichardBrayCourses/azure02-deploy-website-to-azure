@@ -1479,6 +1479,44 @@ export class InMemoryAllChecksOutDatabase {
     return relationship.toDto();
   }
 
+  linkParticipantSupplierToCase(participantSupplierId: ParticipantSupplierId, caseId: CaseRecordId) {
+    const relationship = this.requireParticipantSupplier(participantSupplierId);
+    const caseRecord = this.requireCase(caseId);
+    if (caseRecord.authorityId !== relationship.authorityId || caseRecord.participantId !== relationship.participantId) {
+      throw new Error("Supplier and case must belong to the same participant workspace.");
+    }
+    const existingLinkedCase = this.cases
+      .map((candidate) => candidate.toDto())
+      .find((candidate) => candidate.participantSupplierId === participantSupplierId && candidate.id !== caseId);
+    if (existingLinkedCase) {
+      throw new Error("Supplier is already linked to a case.");
+    }
+    if (caseRecord.participantSupplierId && caseRecord.participantSupplierId !== participantSupplierId) {
+      throw new Error("Case is already linked to another supplier.");
+    }
+    const linkedCase: CaseDto = {
+      ...caseRecord,
+      participantSupplierId,
+      updatedAt: this.timestamp(),
+    };
+    this.replaceById(this.cases, new CaseEntity(linkedCase));
+    return linkedCase;
+  }
+
+  unlinkParticipantSupplierFromCase(caseId: CaseRecordId) {
+    const caseRecord = this.requireCase(caseId);
+    if (!caseRecord.participantSupplierId) {
+      return caseRecord;
+    }
+    const unlinkedCase: CaseDto = {
+      ...caseRecord,
+      participantSupplierId: null,
+      updatedAt: this.timestamp(),
+    };
+    this.replaceById(this.cases, new CaseEntity(unlinkedCase));
+    return unlinkedCase;
+  }
+
   getStakeholderReview(stakeholderId: StakeholderId, caseId: CaseRecordId) {
     return this.stakeholderReviews
       .map((review) => review.toDto())
