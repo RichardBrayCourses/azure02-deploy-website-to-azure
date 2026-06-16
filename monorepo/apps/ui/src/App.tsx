@@ -20,8 +20,6 @@ import {
   StakeholderParticipantDetailPage,
   StakeholdersPage,
   StakeholderPortalPage,
-  HelperParticipantPage,
-  HelperWorkspacePage,
 } from "./pages/ConsolePages";
 import NotFound from "./pages/NotFound";
 import SignInPage from "./pages/SignInPage";

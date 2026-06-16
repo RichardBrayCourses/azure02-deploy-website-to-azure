@@ -4,9 +4,12 @@ import {
   agents,
   authorities,
   getAccountContextsForUser,
+  getAuthorityTerminology,
   getAuthenticatableUsersForEntity,
   participants,
   stakeholders,
+  terminologyLabel,
+  terminologyTitle,
   userIdentities,
 } from "@/data/console";
 import { useEffect, useMemo, useState } from "react";
@@ -18,20 +21,6 @@ type EntityOption = {
   authorityName?: string;
 };
 
-const contextLabels = {
-  authority: "Authority",
-  participant: "Participant",
-  stakeholder: "Stakeholder",
-  agent: "Agent",
-};
-
-const contextTypeOptions: Array<{ value: PrimaryContextType; label: string }> = [
-  { value: "authority", label: "Authority" },
-  { value: "participant", label: "Participant" },
-  { value: "stakeholder", label: "Stakeholder" },
-  { value: "agent", label: "Agent" },
-];
-
 export default function SignInPage() {
   const { login } = useAuth();
   const [selectedContextType, setSelectedContextType] = useState<PrimaryContextType | "">("");
@@ -39,6 +28,24 @@ export default function SignInPage() {
   const selectedMembership = selectedContextType && selectedEntityId
     ? { entityType: selectedContextType, entityId: selectedEntityId } satisfies AuthenticatableUserMembership
     : null;
+  const selectedAuthorityId = useMemo(() => {
+    if (!selectedContextType || !selectedEntityId) return undefined;
+    if (selectedContextType === "authority") return selectedEntityId;
+    if (selectedContextType === "participant") {
+      return participants.find((participant) => participant.id === selectedEntityId)?.authorityId;
+    }
+    if (selectedContextType === "stakeholder") {
+      return stakeholders.find((stakeholder) => stakeholder.id === selectedEntityId)?.authorityId;
+    }
+    return agents.find((agent) => agent.id === selectedEntityId)?.authorityId;
+  }, [selectedContextType, selectedEntityId]);
+  const terminology = getAuthorityTerminology(selectedAuthorityId);
+  const contextTypeOptions: Array<{ value: PrimaryContextType; label: string }> = [
+    { value: "authority", label: terminologyTitle(terminology, "authority") },
+    { value: "participant", label: terminologyTitle(terminology, "participant") },
+    { value: "stakeholder", label: terminologyTitle(terminology, "stakeholder") },
+    { value: "agent", label: terminologyTitle(terminology, "agent") },
+  ];
   const entityOptions = useMemo<EntityOption[]>(() => {
     if (selectedContextType === "authority") {
       return authorities.map((authority) => ({ id: authority.id, name: authority.name }));
@@ -142,7 +149,7 @@ export default function SignInPage() {
                 className="h-10 w-full border border-[#0b0c0c] bg-white px-3 text-sm font-normal text-[#0b0c0c] outline-none focus:ring-2 focus:ring-[#ffdd00] disabled:border-[#b1b4b6] disabled:bg-[#f3f2f1] disabled:text-[#505a5f] dark:bg-background dark:text-foreground"
               >
                 <option value="">
-                  {selectedContextType ? `Select ${contextLabels[selectedContextType].toLowerCase()}` : "Select account type first"}
+                  {selectedContextType ? `Select ${terminologyLabel(terminology, selectedContextType)}` : "Select account type first"}
                 </option>
                 {entityOptions.map((option) => (
                   <option key={option.id} value={option.id}>

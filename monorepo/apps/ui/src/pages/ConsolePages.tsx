@@ -322,6 +322,7 @@ export function HelperWorkspacePage() {
   const { user } = useAuth();
   if (user.role !== "agent") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
+  const agentTitle = terminologyTitle(terminology, "agent");
   const workspaces = getHelperClientWorkspaces(user);
   const scopedCases = getScopedCases(user);
   const scopedParticipantSuppliers = getScopedParticipantSuppliers(user);
@@ -329,7 +330,7 @@ export function HelperWorkspacePage() {
 
   return (
     <ConsoleLayout
-      breadcrumbs={[{ label: "Agent workspace" }]}
+      breadcrumbs={[{ label: `${agentTitle} workspace` }]}
       readOnly
     >
       <PageTitle
@@ -430,6 +431,7 @@ export function HelperParticipantPage() {
   const { participantId } = useParams();
   if (user.role !== "agent") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
+  const agentTitle = terminologyTitle(terminology, "agent");
   const workspace = getHelperClientWorkspaces(user).find((item) => item.participant.id === participantId);
   if (!workspace) return <Navigate to="/agent" replace />;
   const requests = getRequestsForParticipant(workspace.participant.id, user);
@@ -438,7 +440,7 @@ export function HelperParticipantPage() {
   return (
     <ConsoleLayout
       breadcrumbs={[
-        { label: "Agent workspace", path: "/agent" },
+        { label: `${agentTitle} workspace`, path: "/agent" },
         { label: workspace.participant.name },
       ]}
       readOnly
@@ -1781,6 +1783,7 @@ const terminologyKeys: TerminologyKey[] = [
   "authority",
   "participant",
   "stakeholder",
+  "agent",
   "case",
   "caseTemplate",
   "caseTask",
@@ -2133,7 +2136,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           return;
         }
         if (!agentName.trim()) {
-          setWorkspaceUserError("Enter an agent organisation.");
+          setWorkspaceUserError(`Enter a ${terminologyLabel(terminology, "agent")} organisation.`);
           return;
         }
         const agent = db.createAgent({
@@ -2260,7 +2263,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
       <ResourceActionPanel
         open={mode === "users" && showCreateWorkspaceUser}
         title="Add user"
-        description={`Create either a ${terminologyLabel(terminology, "participant")} user or an agent user.`}
+        description={`Create either a ${terminologyLabel(terminology, "participant")} user or a ${terminologyLabel(terminology, "agent")} user.`}
         onClose={() => setShowCreateWorkspaceUser(false)}
         footer={
           <Button type="button" onClick={createWorkspaceUser}>
@@ -2273,7 +2276,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           <FormField label="User type">
             <SelectField value={workspaceUserType} onChange={(value) => setWorkspaceUserType(value as "PARTICIPANT" | "AGENT")}>
               <option value="PARTICIPANT">{terminologyTitle(terminology, "participant")}</option>
-              <option value="AGENT">Agent</option>
+              <option value="AGENT">{terminologyTitle(terminology, "agent")}</option>
             </SelectField>
           </FormField>
           <FormField label="Display name">
@@ -2289,7 +2292,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
             </SelectField>
           </FormField>
           {workspaceUserType === "AGENT" && (
-            <FormField label="Agent organisation">
+            <FormField label={`${terminologyTitle(terminology, "agent")} organisation`}>
               <Input value={agentName} onChange={(event) => setAgentName(event.target.value)} />
             </FormField>
           )}
@@ -2459,8 +2462,8 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" | "us
           </ResourceTable>
         </div>
         <div>
-          <h3 className="mb-3 text-xl font-bold">Agents</h3>
-          <ResourceTable headings={["Agent", "Type", "Granted workspaces"]}>
+          <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "agent", true)}</h3>
+          <ResourceTable headings={[terminologyTitle(terminology, "agent"), "Type", "Granted workspaces"]}>
             {scopedAgents.map((agent) => (
               <tr key={agent.id} className="border-b border-[#b1b4b6] last:border-b-0">
                 <td className="px-4 py-3 font-bold text-[#1d70b8]">{agent.name}</td>
@@ -2503,8 +2506,8 @@ export function AccessGrantsPage() {
   const participantSuppliersForParticipant = getParticipantSuppliersForParticipant(participant.id);
   const stakeholderLabel = terminologyLabel(terminology, "stakeholder");
   const stakeholderTitle = terminologyTitle(terminology, "stakeholder");
-  const agentLabel = "agent";
-  const agentTitle = "Agent";
+  const agentLabel = terminologyLabel(terminology, "agent");
+  const agentTitle = terminologyTitle(terminology, "agent");
   const granteeTypeLabel = granteeType === "AGENT" ? agentLabel : stakeholderLabel;
   const granteeTypeTitle = granteeType === "AGENT" ? agentTitle : stakeholderTitle;
 

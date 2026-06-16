@@ -2,7 +2,6 @@ import {
   BadgeCheck,
   Building2,
   ClipboardCheck,
-  Handshake,
   FileQuestion,
   FileSignature,
   FolderKanban,
@@ -87,6 +86,7 @@ export type TerminologyKey =
   | "authority"
   | "participant"
   | "stakeholder"
+  | "agent"
   | "case"
   | "caseTemplate"
   | "caseTask"
@@ -697,6 +697,7 @@ export const defaultTerminologyLabels: TerminologyLabels = {
   authority: { singular: "authority", plural: "authorities" },
   participant: { singular: "participant", plural: "participants" },
   stakeholder: { singular: "stakeholder", plural: "stakeholders" },
+  agent: { singular: "agent", plural: "agents" },
   case: { singular: "case", plural: "cases" },
   caseTemplate: { singular: "case template", plural: "case templates" },
   caseTask: { singular: "case task", plural: "case tasks" },
@@ -1489,7 +1490,8 @@ export class InMemoryAllChecksOutDatabase {
     }
     if (command.granteeType === "AGENT") {
       if (!command.granteeAgentId) {
-        throw new Error("Select an agent for this access grant.");
+        const agentLabel = this.getAuthorityTerminology(command.authorityId)?.labels.agent.singular ?? defaultTerminologyLabels.agent.singular;
+        throw new Error(`Select a ${agentLabel} for this access grant.`);
       }
       const agent = this.requireAgent(command.granteeAgentId);
       if (agent.authorityId !== authority.id) {
@@ -1735,7 +1737,9 @@ export class InMemoryAllChecksOutDatabase {
       ),
     );
     if (!isParticipantUser && !hasHelperEditGrant) {
-      throw new Error("Only the owning participant or an authorised agent can respond to this request.");
+      const participant = this.requireParticipant(request.participantId);
+      const agentLabel = this.getAuthorityTerminology(participant.authorityId)?.labels.agent.singular ?? defaultTerminologyLabels.agent.singular;
+      throw new Error(`Only the owning participant or an authorised ${agentLabel} can respond to this request.`);
     }
     const responseText = command.responseText.trim();
     if (!responseText) {
@@ -3043,6 +3047,7 @@ function buildAccountContexts(): AccountContext[] {
       const agent = getAgent(membership.membership.entityId);
       const authority = getAuthority(agent?.authorityId);
       if (!agent || !authority) return [];
+      const terminology = getAuthorityTerminology(authority.id);
       return [{
         id: `${membership.id}:agent:${agent.id}`,
         authenticatableUserId: membership.id,
@@ -3057,7 +3062,7 @@ function buildAccountContexts(): AccountContext[] {
         membershipRole: membership.membershipRole,
         participantId: null,
         stakeholderId: null,
-        description: "Assist participant workspaces where agent access has been granted.",
+        description: `Assist ${terminologyLabel(terminology, "participant")} workspaces where ${terminologyLabel(terminology, "agent")} access has been granted.`,
       }];
     }
 
