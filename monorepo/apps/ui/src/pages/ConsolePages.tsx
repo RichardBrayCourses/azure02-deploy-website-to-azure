@@ -844,7 +844,7 @@ export function StakeholderCaseDetailPage() {
           </FormField>
           <Button type="button" onClick={createRequestForInformation}>
             <MessageSquarePlus />
-            Create request
+            Send request
           </Button>
         </div>
         <div className="mt-5">
@@ -1130,13 +1130,13 @@ export function StakeholderDetailPage() {
           <h3 className="text-xl font-bold">Users</h3>
           <Button type="button" onClick={() => setShowCreateUser((current) => !current)}>
             <UserPlus />
-            Create user
+            Add user
           </Button>
         </div>
         <ResourceActionPanel
           open={showCreateUser}
-          title={`Create ${terminologyLabel(terminology, "stakeholder")} user`}
-          description={`Create a user for this ${terminologyLabel(terminology, "stakeholder")}.`}
+          title={`Add ${terminologyLabel(terminology, "stakeholder")} user`}
+          description={`Add a user to this ${terminologyLabel(terminology, "stakeholder")}.`}
           onClose={() => setShowCreateUser(false)}
           footer={
             <Button type="button" onClick={createStakeholderUser}>
@@ -2146,7 +2146,7 @@ export function CaseManagementHome({ mode }: { mode: "cases" | "suppliers" }) {
       />
       <ResourceActionPanel
         open={mode === "suppliers" && showCreateSupplier}
-        title="Create supplier"
+        title="Add supplier"
         description={`Record a supplier controlled by this ${terminologyLabel(terminology, "participant")} workspace.`}
         onClose={() => setShowCreateSupplier(false)}
         footer={
@@ -2371,19 +2371,19 @@ export function AccessGrantsPage() {
         actions={
           <Button type="button" onClick={() => setShowCreate((current) => !current)}>
             <UserPlus />
-            Create grant
+            Add grant
           </Button>
         }
       />
       <ResourceActionPanel
         open={showCreate}
-        title="Create access grant"
+        title="Add access grant"
         description={`Grant a ${terminologyLabel(terminology, "stakeholder")} or helper scoped access to this ${terminologyLabel(terminology, "participant")} workspace.`}
         onClose={() => setShowCreate(false)}
         footer={
           <Button type="button" onClick={createGrant}>
             <CheckCircle2 />
-            Save grant
+            Save
           </Button>
         }
       >
