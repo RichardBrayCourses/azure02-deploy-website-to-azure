@@ -8,7 +8,6 @@ import {
   ImageUp,
   KeyRound,
   Landmark,
-  ReceiptText,
   ShieldCheck,
   UserRoundCheck,
   Users,
@@ -446,7 +445,6 @@ export type ConsoleApp = {
 export type Authority = {
   id: AuthorityId;
   name: string;
-  scenario: string;
   description: string;
   status: EntityStatus;
 };
@@ -462,7 +460,6 @@ export type Participant = {
   authorityId: AuthorityId;
   stakeholderId: StakeholderId;
   type: string;
-  participantRole: string;
   status: Status;
   domainStatus: InviteStatus;
   openCases: number;
@@ -784,7 +781,6 @@ const iconByTaskCode: Record<string, typeof ImageUp> = {
   RISK_REGISTER: ClipboardCheck,
   DIGITAL_SIGNATURE: FileSignature,
   AI_USAGE_DISCLOSURE: Video,
-  PAYMENT_CONFIRMATION: ReceiptText,
   ACCESS_CONTROL_MFA: KeyRound,
   HOSTING_RESIDENCY: Building2,
 };
@@ -2575,7 +2571,6 @@ function buildAuthorities(): Authority[] {
     return {
       id: dto.id,
       name: dto.name,
-      scenario: "Association participant case",
       description: dto.description,
       status: dto.status,
     };
@@ -2915,7 +2910,6 @@ function buildParticipants(caseRecords: CaseRecord[]): Participant[] {
       stakeholderId: access?.stakeholderId ?? "",
       name: dto.displayName,
       type: dto.participantType === "ORGANISATION" ? "Organisation" : "Person",
-      participantRole: "Member participant completing association Case requirements",
       status: uiParticipantStatus(participantCases),
       domainStatus: dto.status,
       openCases: participantCases.filter((caseRecord) => caseRecord.status !== "closed").length,
