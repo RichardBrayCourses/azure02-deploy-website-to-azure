@@ -1071,10 +1071,10 @@ export function StakeholderDetailPage() {
         { label: stakeholder.name },
       ]}
     >
+      <AdministrationResourceNav />
       <PageTitle
         title={stakeholder.name}
       />
-      <AdministrationResourceNav />
       <MetricStrip
         items={[
           { label: "Current status", value: stakeholder.status.toLowerCase(), tone: "blue" },
@@ -1094,7 +1094,7 @@ export function StakeholderDetailPage() {
         <ResourceActionPanel
           open={showCreateUser}
           title={`Create ${terminologyLabel(terminology, "stakeholder")} user`}
-          description={`Create a login user that belongs only to this ${terminologyLabel(terminology, "stakeholder")}.`}
+          description={`Create a user for this ${terminologyLabel(terminology, "stakeholder")}.`}
           onClose={() => setShowCreateUser(false)}
           footer={
             <Button type="button" onClick={createStakeholderUser}>
@@ -1388,6 +1388,7 @@ export function CaseTemplateDetailPage() {
         { label: templateRecord.name },
       ]}
     >
+      <AdministrationResourceNav />
       <PageTitle
         title={templateRecord.name}
         actions={
@@ -1399,7 +1400,6 @@ export function CaseTemplateDetailPage() {
           ) : undefined
         }
       />
-      <AdministrationResourceNav />
       <MetricStrip
         items={[
           { label: "Status", value: templateRecord.status.toLowerCase(), tone: templateRecord.status === "PUBLISHED" ? "green" : "yellow" },
@@ -1661,6 +1661,7 @@ export function ParametersPage() {
         { label: "Parameters" },
       ]}
     >
+      <AdministrationResourceNav />
       <PageTitle
         title="Terminology"
         actions={
@@ -1675,7 +1676,6 @@ export function ParametersPage() {
           </div>
         }
       />
-      <AdministrationResourceNav />
       <FormError message={error} />
       <section className="mt-6">
         <ResourceTable headings={["Concept", "Singular label", "Plural label"]}>
@@ -1777,9 +1777,6 @@ export function ParticipantsPage() {
               <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/participants/${participant.id}`}>
                 {participant.name}
               </Link>
-              <span className="mt-1 block text-xs text-[#505a5f] dark:text-muted-foreground">
-                {participant.participantRole}
-              </span>
             </td>
             <td className="px-4 py-3">{participant.type}</td>
             <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
@@ -1795,13 +1792,7 @@ export function ParticipantsPage() {
 
 export function ParticipantDetailPage() {
   const { user } = useAuth();
-  const { db, refresh } = useDomainData();
   const { participantId } = useParams();
-  const [showCreateUser, setShowCreateUser] = useState(false);
-  const [newUserName, setNewUserName] = useState("");
-  const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserRole, setNewUserRole] = useState<MembershipRole>("MEMBER");
-  const [userError, setUserError] = useState<string | null>(null);
   if (user.role !== "authority-admin") return <Navigate to="/" replace />;
   const terminology = getTerminologyForUser(user);
   const participant = getParticipant(participantId);
@@ -1811,40 +1802,13 @@ export function ParticipantDetailPage() {
   const participantRecord = participant;
 
   const participantAccessGrants = getAccessGrantsForParticipant(participantRecord.id);
-  const activeStakeholderGrants = participantAccessGrants.filter(
-    (grant) => grant.status === "ACTIVE" && grant.granteeType === "STAKEHOLDER",
-  ).length;
-  const participantUsers = authenticatableUsers.filter(
-    (account) =>
-      account.membership.entityType === "participant" &&
-      account.membership.entityId === participantRecord.id,
-  );
-
-  function createParticipantUser() {
-    setUserError(null);
-    if (!newUserName.trim()) {
-      setUserError("Enter a user name.");
-      return;
-    }
-    if (!newUserEmail.trim()) {
-      setUserError("Enter an email address.");
-      return;
-    }
-    try {
-      db.createParticipantUser(participantRecord.id, {
-        displayName: newUserName.trim(),
-        email: newUserEmail.trim(),
-        role: newUserRole,
-      });
-      refresh();
-      setNewUserName("");
-      setNewUserEmail("");
-      setNewUserRole("MEMBER");
-      setShowCreateUser(false);
-    } catch (caught) {
-      setUserError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "participant")} user could not be created.`);
-    }
-  }
+  const activeAccessGrants = participantAccessGrants.filter((grant) => grant.status === "ACTIVE").length;
+  const assignedCaseTemplates = getCaseTemplatesForAuthority(user.authorityId ?? undefined)
+    .flatMap((caseTemplate) =>
+      getCaseTemplateParticipants(caseTemplate.id)
+        .filter((assignment) => assignment.participantId === participantRecord.id)
+        .map((assignment) => ({ caseTemplate, assignment })),
+    );
 
   return (
     <ConsoleLayout
@@ -1854,72 +1818,43 @@ export function ParticipantDetailPage() {
         { label: participant.name },
       ]}
     >
+      <AdministrationResourceNav />
       <PageTitle
         title={participant.name}
       />
-      <AdministrationResourceNav />
       <MetricStrip
         items={[
-          { label: "Current status", value: participant.status.replace("-", " "), tone: participant.status === "attention" ? "red" : "blue" },
+          { label: `${terminologyTitle(terminology, "participant")} status`, value: participant.status.replace("-", " "), tone: participant.status === "attention" ? "red" : "blue" },
           { label: `Open ${terminologyLabel(terminology, "case", true)}`, value: String(participant.openCases), tone: "blue" },
-          { label: "Tasks complete", value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
-          { label: `Active ${terminologyLabel(terminology, "stakeholder")} grants`, value: String(activeStakeholderGrants), tone: "yellow" },
+          { label: `${terminologyTitle(terminology, "caseTask", true)} complete`, value: `${participant.completedTasks}/${participant.totalTasks}`, tone: "green" },
+          { label: `Active ${terminologyLabel(terminology, "accessGrant", true)}`, value: String(activeAccessGrants), tone: "yellow" },
         ]}
       />
       <section className="mt-8">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-bold">Users</h3>
-          <Button type="button" onClick={() => setShowCreateUser((current) => !current)}>
-            <UserPlus />
-            Create user
-          </Button>
-        </div>
-        <ResourceActionPanel
-          open={showCreateUser}
-          title={`Create ${terminologyLabel(terminology, "participant")} user`}
-          description={`Create a login user that belongs only to this ${terminologyLabel(terminology, "participant")}.`}
-          onClose={() => setShowCreateUser(false)}
-          footer={
-            <Button type="button" onClick={createParticipantUser}>
-              <CheckCircle2 />
-              Save
-            </Button>
-          }
-        >
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_10rem]">
-            <FormField label="Display name">
-              <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} />
-            </FormField>
-            <FormField label="Email">
-              <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} />
-            </FormField>
-            <FormField label="Role">
-              <SelectField value={newUserRole} onChange={(value) => setNewUserRole(value as MembershipRole)}>
-                <option value="MEMBER">Member</option>
-                <option value="ADMIN">Admin</option>
-              </SelectField>
-            </FormField>
-          </div>
-          <div className="mt-3"><FormError message={userError} /></div>
-        </ResourceActionPanel>
-        <ResourceTable headings={["User", "Email", "Kind", "Role"]}>
-          {participantUsers.map((account) => (
-            <tr key={account.id} className="border-b border-[#b1b4b6] last:border-b-0">
-              <td className="px-4 py-3 font-bold text-[#1d70b8]">{account.name}</td>
-              <td className="px-4 py-3">{account.email}</td>
-              <td className="px-4 py-3">{account.userKind}</td>
-              <td className="px-4 py-3">{account.membershipRole}</td>
-            </tr>
-          ))}
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "participant")}</h3>
+        <ResourceTable headings={["Type", "Status"]}>
+          <tr className="border-b border-[#b1b4b6] last:border-b-0">
+            <td className="px-4 py-3">{participant.type}</td>
+            <td className="px-4 py-3"><StatusBadge status={participant.status} /></td>
+          </tr>
         </ResourceTable>
       </section>
       <section className="mt-8">
-        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "case")} boundary</h3>
-        <div className="border border-[#b1b4b6] bg-white p-5 dark:bg-card">
-          <p className="max-w-3xl text-sm leading-6 text-[#505a5f] dark:text-muted-foreground">
-            This {terminologyLabel(terminology, "authority")} account can see {terminologyLabel(terminology, "participant")} membership and aggregate progress, but it cannot open this {terminologyLabel(terminology, "participant")}'s {terminologyLabel(terminology, "case", true)}, answers, {terminologyLabel(terminology, "evidence")} metadata, or {terminologyLabel(terminology, "evidence")} files by default.
-          </p>
-        </div>
+        <h3 className="mb-3 text-xl font-bold">{terminologyTitle(terminology, "caseTemplate", true)}</h3>
+        <ResourceTable headings={[terminologyTitle(terminology, "caseTemplate"), "Status", terminologyTitle(terminology, "participant"), terminologyTitle(terminology, "case")]}>
+          {assignedCaseTemplates.map(({ caseTemplate, assignment }) => (
+            <tr key={assignment.id} className="border-b border-[#b1b4b6] last:border-b-0">
+              <td className="px-4 py-3">
+                <Link className="font-bold text-[#1d70b8] hover:underline" to={`/admin/case-templates/${caseTemplate.id}`}>
+                  {caseTemplate.name}
+                </Link>
+              </td>
+              <td className="px-4 py-3">{caseTemplate.status.toLowerCase()}</td>
+              <td className="px-4 py-3">{assignment.status.toLowerCase()}{assignment.exemptionReason ? ` - ${assignment.exemptionReason}` : ""}</td>
+              <td className="px-4 py-3">{assignment.caseId ? "Created" : "Not created"}</td>
+            </tr>
+          ))}
+        </ResourceTable>
       </section>
     </ConsoleLayout>
   );

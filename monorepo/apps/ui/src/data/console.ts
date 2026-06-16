@@ -2824,7 +2824,7 @@ function buildAccountContexts(): AccountContext[] {
         membershipRole: membership.membershipRole,
         participantId: null,
         stakeholderId: null,
-        description: "Configure scheme settings, Case templates, participants, stakeholders, and users.",
+        description: "Configure case templates, participants, stakeholders, and users.",
       }];
     }
 
