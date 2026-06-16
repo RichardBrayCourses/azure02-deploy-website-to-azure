@@ -42,7 +42,6 @@ It is based on:
 | Events | Azure Event Grid |
 | Queues | Azure Queue Storage |
 | Monitoring | Application Insights, Azure Monitor |
-| Secrets | Azure Key Vault |
 | Infrastructure as code | Bicep |
 | DNS and edge | Azure DNS, Azure Managed Certificates, future Azure Front Door or Static Web Apps where needed |
 
@@ -209,9 +208,6 @@ It is based on:
 - Storage settings:
   - `StorageV2`
   - `Standard_LRS`
-  - Hot access tier
-  - HTTPS-only traffic
-  - TLS 1.2 minimum
   - Blob public access allowed for static website hosting
 - Static website hosting:
   - Enabled by `scripts/deploy-infra.sh`
@@ -220,7 +216,6 @@ It is based on:
   - SPA routes are served by returning the React app for unknown paths.
 - Outputs:
   - `storageAccountName`
-  - `staticWebsiteUrl`
 
 ## Automation
 

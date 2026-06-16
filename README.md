@@ -16,7 +16,7 @@ The important lesson is not just "upload some files". The goal is to start shapi
 - root-level package scripts provide the learner-friendly workflow
 - generated assets and deployed resources can be rebuilt from source
 
-This is intentionally a modest deployment. It does not add a custom domain, Azure Front Door, Microsoft Entra External ID, an API, or a database yet. Those belong to later lessons. Here we focus on the first solid milestone: build a modern frontend, provision Azure hosting with infrastructure as code, upload the production bundle, and verify the live site.
+This is intentionally a modest deployment. It does not add Azure Front Door, Microsoft Entra External ID, an API, or a database yet. Those belong to later lessons. Here we focus on the first solid milestone: build a modern frontend, provision Azure hosting with infrastructure as code, upload the production bundle, and verify the live site.
 
 ## Mermaid Diagram
 
@@ -39,7 +39,7 @@ flowchart LR
 
   subgraph Azure["<b>Azure</b>"]
     resourceGroup["Resource group<br/>azure02-static-website-rg"]
-    storage["Storage account<br/>StorageV2, HTTPS only"]
+    storage["Storage account<br/>StorageV2"]
     staticSite["Blob static website<br/>$web container"]
     endpoint["Static website endpoint<br/>primaryEndpoints.web"]
   end
@@ -80,7 +80,7 @@ flowchart LR
 - **The project now has a clean Azure monorepo.** The `monorepo` folder contains the frontend application, Bicep infrastructure, deployment scripts, workspace configuration, and lockfile needed for this lesson.
 - **The frontend is a Vite React app.** The UI uses React, TypeScript, React Router, Tailwind CSS, lucide icons, and shadcn-style primitives for buttons, inputs, and dropdown menus.
 - **The app includes real client-side behavior.** Students can sign into a scoped demo account, search apps/cases/organizations/tasks, browse case-management and administration screens, submit demo page actions, use breadcrumb navigation, and switch between light and dark themes.
-- **Infrastructure is written in Bicep.** `infra/main.bicep` creates an Azure Storage account using `StorageV2`, `Standard_LRS`, HTTPS-only traffic, TLS 1.2, and a deterministic globally valid account name.
+- **Infrastructure is written in Bicep.** `infra/main.bicep` creates an Azure Storage account using `StorageV2`, `Standard_LRS`, and a deterministic globally valid account name.
 - **Static website hosting is enabled by script.** The deployment script uses Azure CLI to enable static website hosting with `index.html` as both the index document and the not-found document.
 - **Single-page app routing is supported for this lesson.** Because the not-found document is also `index.html`, direct visits to routes such as `/cases` or `/admin/participants` return the React app instead of a storage error page.
 - **The upload script publishes the Vite build.** `scripts/upload-ui.sh` uploads `apps/ui/dist` into the `$web` container with overwrite enabled.
@@ -278,24 +278,20 @@ resource websiteStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
   kind: 'StorageV2'
   properties: {
-    accessTier: 'Hot'
     allowBlobPublicAccess: true
-    minimumTlsVersion: 'TLS1_2'
-    supportsHttpsTrafficOnly: true
   }
 }
 ```
 
 The account name is generated from the `appName` parameter and `uniqueString(resourceGroup().id)`. That matters because Azure Storage account names must be globally unique, lowercase, and no longer than 24 characters.
 
-The template outputs two values:
+The template outputs the storage account name:
 
 ```bicep
 output storageAccountName string = websiteStorage.name
-output staticWebsiteUrl string = websiteStorage.properties.primaryEndpoints.web
 ```
 
-The scripts read those outputs after deployment. That keeps the learner from manually copying storage account names between commands.
+The scripts read that output after deployment. That keeps the learner from manually copying storage account names between commands.
 
 Static website hosting itself is enabled by Azure CLI in `scripts/deploy-infra.sh`:
 

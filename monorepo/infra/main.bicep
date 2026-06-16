@@ -16,12 +16,8 @@ resource websiteStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
   kind: 'StorageV2'
   properties: {
-    accessTier: 'Hot'
     allowBlobPublicAccess: true
-    minimumTlsVersion: 'TLS1_2'
-    supportsHttpsTrafficOnly: true
   }
 }
 
 output storageAccountName string = websiteStorage.name
-output staticWebsiteUrl string = websiteStorage.properties.primaryEndpoints.web

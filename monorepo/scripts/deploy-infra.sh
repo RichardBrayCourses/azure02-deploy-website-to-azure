@@ -22,7 +22,9 @@ az deployment group create \
   --resource-group "$AZURE_RESOURCE_GROUP" \
   --name "$AZURE_DEPLOYMENT_NAME" \
   --template-file infra/main.bicep \
-  --parameters location="$AZURE_LOCATION" appName="$AZURE_APP_NAME" \
+  --parameters \
+    location="$AZURE_LOCATION" \
+    appName="$AZURE_APP_NAME" \
   --output table
 
 STORAGE_ACCOUNT_NAME=$(az deployment group show \
