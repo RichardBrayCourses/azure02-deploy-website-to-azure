@@ -2,6 +2,7 @@
 
 ## Current State
 
+- Azure01 completed
 - Single frontend application
 - Single backend application
 - Azure deployment working
@@ -18,11 +19,11 @@
 
 ---
 
-# Phase 1 - Azure02 Baseline Repository
+# Azure02 - Baseline Repository
 
 ## Tasks
 
-- [ ] Create new Azure02 repository
+- [ ] Create Azure02 repository
 - [ ] Remove all custom domain configuration
 - [ ] Remove all DNS configuration
 - [ ] Remove all SSL certificate configuration related to custom domains
@@ -37,7 +38,7 @@ Azure02 becomes the clean baseline project for the Azure course.
 
 ---
 
-# Phase 2 - Azure03 Custom Domain Repository
+# Azure03 - Custom Domain Repository
 
 ## Tasks
 
@@ -59,7 +60,7 @@ Azure03 contains everything required to move from Azure-generated URLs to produc
 
 ---
 
-# Phase 3 - Entra Authentication
+# Azure04 - Entra Authentication
 
 ## Tasks
 
@@ -80,7 +81,7 @@ All future functionality should assume authenticated users.
 
 ---
 
-# Phase 4 - Azure SQL Migration
+# Azure05 - Azure SQL Migration
 
 ## Tasks
 
@@ -100,7 +101,7 @@ Use current ASP.NET Core best practices rather than older controller architectur
 
 ---
 
-# Phase 5 - Document Storage
+# Azure06 - Document Storage
 
 ## Tasks
 
@@ -121,7 +122,7 @@ Blob Storage becomes the system of record for uploaded documents.
 
 ---
 
-# Phase 6 - AI Document Verification
+# Azure07 - AI Document Verification
 
 ## Tasks
 
@@ -142,7 +143,7 @@ Uploaded documents should be automatically analysed and verified where possible.
 
 ---
 
-# Phase 7 - GitHub Actions Deployment
+# Azure08 - GitHub Actions Deployment
 
 ## Tasks
 
@@ -162,7 +163,7 @@ All deployments should originate from GitHub Actions.
 
 ---
 
-# Phase 8 - Environment Separation
+# Azure09 - Environment Separation
 
 ## Tasks
 
@@ -186,7 +187,7 @@ All deployments should originate from GitHub Actions.
 
 ---
 
-# Phase 9 - Domain Model Review
+# Azure10 - Domain Model Review
 
 ## Tasks
 
@@ -205,7 +206,7 @@ Do not split into microservices until core functionality is complete.
 
 ---
 
-# Phase 10 - Microservices
+# Azure11 - Microservices
 
 ## Candidate Services
 
@@ -262,7 +263,7 @@ Do not split into microservices until core functionality is complete.
 
 ---
 
-# Phase 11 - Microfrontends
+# Azure12 - Microfrontends
 
 ## Candidate Frontends
 
@@ -308,7 +309,7 @@ Microfrontends should follow service ownership boundaries.
 
 ---
 
-# Phase 12 - Production Hardening
+# Azure13 - Production Hardening
 
 ## Tasks
 
