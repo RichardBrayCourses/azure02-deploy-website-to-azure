@@ -922,6 +922,7 @@ export function StakeholderCaseDetailPage() {
 export function StakeholdersPage() {
   const { user } = useAuth();
   const { db, refresh } = useDomainData();
+  const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [stakeholderType, setStakeholderType] = useState<PartyType>("ORGANISATION");
   const [displayName, setDisplayName] = useState("");
@@ -941,7 +942,7 @@ export function StakeholdersPage() {
       return;
     }
     try {
-      db.createStakeholder({
+      const stakeholder = db.createStakeholder({
         authorityId: user.authorityId,
         stakeholderType,
         displayName: displayName.trim(),
@@ -951,6 +952,7 @@ export function StakeholdersPage() {
       setDisplayName("");
       setStakeholderType("ORGANISATION");
       setShowCreate(false);
+      navigate(`/admin/stakeholders/${stakeholder.id}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : `${terminologyTitle(terminology, "stakeholder")} could not be created.`);
     }
@@ -1072,9 +1074,6 @@ export function StakeholderDetailPage() {
         { label: stakeholder.name },
       ]}
     >
-      <PageTitle
-        title={stakeholder.name}
-      />
       <MetricStrip
         items={[
           { label: "Current status", value: stakeholder.status.toLowerCase(), tone: "blue" },
